@@ -7,6 +7,8 @@ using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
+using PrintDev.Core.Picker;
+using PrintDev.Pin;
 using PrintDev.Core.Runtime;
 using PrintDev.Notifications;
 using PrintDev.Overlay;
@@ -35,6 +37,7 @@ public sealed class CaptureCoordinator
     private readonly ILogger _log;
 
     private CaptureResult? _last;
+    private PixelRect _lastRegion;
 
     public CaptureCoordinator(
         CapturePipeline pipeline,
@@ -89,6 +92,8 @@ public sealed class CaptureCoordinator
         {
             HotkeyAction.FullScreen => CaptureCurrentMonitor(active, "monitor"),
             HotkeyAction.ActiveWindow => CaptureActiveWindow(active),
+            HotkeyAction.RepeatLastRegion => RepeatLastRegion(active),
+            HotkeyAction.ColorPicker => StartColorPicker(),
             _ => NotYet(action),
         };
     }
@@ -110,6 +115,7 @@ public sealed class CaptureCoordinator
             // O recorte sai da imagem CONGELADA, e nao de uma nova captura: e o que
             // garante que o usuario receba exatamente o que viu selecionado, mesmo que a
             // tela tenha mudado enquanto ele mirava.
+            _lastRegion = chosen.Region;
             CapturedImage cropped = chosen.Frozen.Crop(chosen.Region);
 
             if (_settings.Current.Save.PostCaptureAction == PostCaptureAction.Anotar)
@@ -135,6 +141,81 @@ public sealed class CaptureCoordinator
         CaptureMode.TelaInteira => "telaInteira",
         _ => "regiao",
     };
+
+    /// <summary>
+    /// Repete o último recorte, na mesma posição.
+    /// <para>
+    /// Serve para acompanhar algo que muda dentro da mesma área — um erro no terminal,
+    /// uma compilação, um contador. Sem isso, cada repetição obriga a mirar o retângulo
+    /// de novo, e ele nunca sai igual.
+    /// </para>
+    /// </summary>
+    private CaptureResult? RepeatLastRegion(ActiveWindowInfo active)
+    {
+        if (_lastRegion.IsEmpty)
+        {
+            _log.Information("Ainda não há região para repetir nesta sessão.");
+            return null;
+        }
+
+        PixelRect region = _lastRegion.Intersect(VirtualDesktop.BoundingBox());
+        if (region.IsEmpty)
+        {
+            // Acontece de verdade: o monitor onde a regiao estava foi desconectado.
+            _log.Warning("A última região não existe mais na área visível.");
+            return null;
+        }
+
+        return Guarded(() => GdiScreenCapture.CaptureRect(region), "repetida", active);
+    }
+
+    /// <summary>Abre o conta-gotas e copia a cor escolhida.</summary>
+    private CaptureResult? StartColorPicker()
+    {
+        _ = PickColorAsync();
+        return null;
+    }
+
+    private async Task PickColorAsync()
+    {
+        try
+        {
+            System.Windows.Media.Color? picked =
+                await _overlay.PickColorAsync(_settings.Current).ConfigureAwait(true);
+
+            if (picked is not { } color)
+            {
+                return;
+            }
+
+            string text = ColorFormatter.Format(color.R, color.G, color.B, _settings.Current.Color);
+
+            _clipboard.Write(
+                _messageWindow.Handle,
+                new ClipboardPayload(Image: null, Text: text));
+
+            _log.Information("Cor copiada: {Cor}", text);
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha no conta-gotas");
+        }
+    }
+
+    /// <summary>Fixa uma captura de disco na tela, sempre por cima.</summary>
+    public void PinFile(string path)
+    {
+        CapturedImage? image = CapturedImage.FromFile(path);
+
+        if (image is null)
+        {
+            _log.Warning("Não consegui abrir {Arquivo} para fixar", path);
+            return;
+        }
+
+        new PinnedWindow(image).Show();
+        _log.Debug("Captura fixada na tela");
+    }
 
     /// <summary>Captura todos os monitores num quadro só.</summary>
     public CaptureResult? CaptureEverything()

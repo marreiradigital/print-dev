@@ -24,7 +24,7 @@ public sealed class ToastHost
 
     private const int EdgeMargin = 24;
     private const int StackGap = 8;
-    private const int ToastWidth = 380;
+    private const int ToastWidth = 420;
 
     private readonly ISettingsService _settings;
     private readonly ClipboardWriter _clipboard;
@@ -42,6 +42,9 @@ public sealed class ToastHost
     /// </para>
     /// </summary>
     public event EventHandler<CaptureHistoryItem>? AnnotateRequested;
+
+    /// <summary>Pedido de fixar na tela, pelo mesmo motivo do evento acima.</summary>
+    public event EventHandler<CaptureHistoryItem>? PinRequested;
 
     public ToastHost(
         ISettingsService settings,
@@ -144,6 +147,10 @@ public sealed class ToastHost
         {
             case ToastAction.Annotate:
                 AnnotateRequested?.Invoke(this, item);
+                break;
+
+            case ToastAction.Pin:
+                PinRequested?.Invoke(this, item);
                 break;
 
             case ToastAction.CopyPath:

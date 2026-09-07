@@ -53,6 +53,12 @@ public partial class OverlayWindow : Window
         SyncMode(coordinator.State.Mode);
         Hints.Visibility = coordinator.State.ShowHints ? Visibility.Visible : Visibility.Collapsed;
 
+        if (coordinator.State.PickingColor)
+        {
+            // A barra de modos nao faz sentido no conta-gotas: nao ha o que selecionar.
+            Toolbar.Visibility = Visibility.Collapsed;
+        }
+
         ModeRegion.Checked += (_, _) => coordinator.SetMode(CaptureMode.Regiao);
         ModeWindow.Checked += (_, _) => coordinator.SetMode(CaptureMode.Janela);
         ModeMonitor.Checked += (_, _) => coordinator.SetMode(CaptureMode.Monitor);
@@ -86,7 +92,10 @@ public partial class OverlayWindow : Window
         Activate();
         Focus();
 
-        Toolbar.Visibility = Visibility.Visible;
+        if (!_coordinator.State.PickingColor)
+        {
+            Toolbar.Visibility = Visibility.Visible;
+        }
     }
 
     /// <summary>Reflete o modo escolhido em outra janela, sem disparar o evento de volta.</summary>
@@ -136,6 +145,12 @@ public partial class OverlayWindow : Window
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
+
+        if (_coordinator.State.PickingColor)
+        {
+            _coordinator.ConfirmColor();
+            return;
+        }
 
         Hints.Visibility = Visibility.Collapsed;
         _coordinator.DragStarted();

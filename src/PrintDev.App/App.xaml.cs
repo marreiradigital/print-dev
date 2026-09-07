@@ -92,11 +92,21 @@ public partial class App : Application
         _services.GetRequiredService<TrayIconHost>().Show();
 
         // O aviso pede a anotacao por evento; e aqui que o pedido encontra quem executa.
-        _services.GetRequiredService<ToastHost>().AnnotateRequested += (_, item) =>
+        var toasts = _services.GetRequiredService<ToastHost>();
+
+        toasts.AnnotateRequested += (_, item) =>
         {
             if (item.Path is not null)
             {
                 _services.GetRequiredService<CaptureCoordinator>().AnnotateFile(item.Path);
+            }
+        };
+
+        toasts.PinRequested += (_, item) =>
+        {
+            if (item.Path is not null)
+            {
+                _services.GetRequiredService<CaptureCoordinator>().PinFile(item.Path);
             }
         };
 

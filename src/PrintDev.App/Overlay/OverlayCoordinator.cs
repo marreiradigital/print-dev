@@ -1,4 +1,5 @@
-﻿using System.Windows.Media.Imaging;
+﻿using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Screens;
@@ -27,6 +28,7 @@ public sealed class OverlayCoordinator
     private readonly ILogger _log;
 
     private TaskCompletionSource<OverlayResult?>? _completion;
+    private TaskCompletionSource<Color?>? _colorCompletion;
     private readonly List<OverlayWindow> _windows = [];
     private IReadOnlyList<WindowTarget> _targets = [];
     private CapturedImage? _frozen;
@@ -94,6 +96,86 @@ public sealed class OverlayCoordinator
         return _completion.Task;
     }
 
+    /// <summary>
+    /// Abre o conta-gotas e devolve a cor escolhida.
+    /// <para>
+    /// Reaproveita as mesmas janelas do seletor: a tela já é congelada, a lupa já lê o
+    /// pixel e a coordenada já está certa em qualquer monitor. Um overlay separado só
+    /// para isso seria uma segunda implementação das mesmas contas.
+    /// </para>
+    /// </summary>
+    public Task<Color?> PickColorAsync(AppSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        if (_completion is not null || _colorCompletion is not null)
+        {
+            return Task.FromResult<Color?>(null);
+        }
+
+        IReadOnlyList<MonitorInfo> monitors = VirtualDesktop.Enumerate();
+        if (monitors.Count == 0)
+        {
+            return Task.FromResult<Color?>(null);
+        }
+
+        _frozen = GdiScreenCapture.CaptureAllMonitors(monitors);
+        _frozenBitmap = _frozen.ToBitmapSource();
+        _targets = [];
+
+        ResetState(settings);
+        State.PickingColor = true;
+        State.ShowMagnifier = true;
+        State.ShowHints = false;
+
+        _colorCompletion = new TaskCompletionSource<Color?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        MonitorInfo? active = VirtualDesktop.MonitorUnderCursor(monitors);
+
+        foreach (MonitorInfo monitor in monitors)
+        {
+            var window = new OverlayWindow(monitor, _frozen, _frozenBitmap, this);
+            _windows.Add(window);
+            window.Show();
+        }
+
+        _windows.FirstOrDefault(w => w.Monitor.Handle == active?.Handle)?.TakeFocus();
+        _log.Debug("Conta-gotas aberto");
+
+        return _colorCompletion.Task;
+    }
+
+    /// <summary>Lê a cor sob o cursor e fecha o conta-gotas.</summary>
+    internal void ConfirmColor()
+    {
+        if (_colorCompletion is null || _frozen is null)
+        {
+            return;
+        }
+
+        (int x, int y) = VirtualDesktop.CursorPosition();
+        Color color = ReadColor(x, y);
+
+        Close();
+        _colorCompletion.TrySetResult(color);
+        _colorCompletion = null;
+        State.PickingColor = false;
+    }
+
+    private Color ReadColor(int x, int y)
+    {
+        if (_frozen is null || !_frozen.Bounds.Contains(x, y))
+        {
+            return Colors.Black;
+        }
+
+        int offset = ((y - _frozen.Bounds.Top) * _frozen.Stride)
+                     + ((x - _frozen.Bounds.Left) * CapturedImage.BytesPerPixel);
+
+        // Os bytes estao em BGRA.
+        return Color.FromRgb(_frozen.Pixels[offset + 2], _frozen.Pixels[offset + 1], _frozen.Pixels[offset]);
+    }
+
     private void ResetState(AppSettings settings)
     {
         State.Selection = PixelRect.Empty;
@@ -104,6 +186,7 @@ public sealed class OverlayCoordinator
         State.ShowMagnifier = settings.Capture.ShowMagnifier;
         State.MagnifierZoom = settings.Capture.MagnifierZoom;
         State.Cursor = VirtualDesktop.CursorPosition();
+        State.PickingColor = false;
 
         // As dicas aparecem uma vez por sessao: na segunda captura elas ja seriam ruido.
         State.ShowHints = !_hintsShown;
@@ -228,6 +311,15 @@ public sealed class OverlayCoordinator
     /// <summary>Fecha o seletor sem capturar nada.</summary>
     internal void Cancel()
     {
+        if (_colorCompletion is not null)
+        {
+            Close();
+            _colorCompletion.TrySetResult(null);
+            _colorCompletion = null;
+            State.PickingColor = false;
+            return;
+        }
+
         if (_completion is null)
         {
             return;

@@ -9,7 +9,7 @@
         Topmost="True"
         AllowsTransparency="False"
         SizeToContent="Height"
-        Width="380"
+        Width="420"
         Background="{DynamicResource Brush.Surface.Elevated}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
@@ -48,7 +48,8 @@
                         BorderBrush="{DynamicResource Brush.Border.Strong}"
                         Background="{DynamicResource Brush.Surface.Sunken}"
                         ClipToBounds="True"
-                        Cursor="Hand">
+                        Cursor="Hand"
+                        ToolTip="Abrir a imagem">
                     <Image x:Name="Thumbnail" Stretch="UniformToFill" />
                 </Border>
 
@@ -60,7 +61,7 @@
                                Style="{StaticResource Type.MonoSmall}"
                                Foreground="{DynamicResource Brush.Text.Secondary}"
                                TextTrimming="CharacterEllipsis"
-                               MaxWidth="252" />
+                               MaxWidth="292" />
                     <TextBlock x:Name="Dimensions"
                                Style="{StaticResource Type.MonoSmall}"
                                Foreground="{DynamicResource Brush.Text.Tertiary}" />
@@ -73,10 +74,10 @@
                       Margin="0,4,0,0">
                 <Button x:Name="AnnotateButton" Style="{StaticResource Button.Ghost}"
                         Content="Anotar" />
+                <Button x:Name="PinButton" Style="{StaticResource Button.Ghost}"
+                        Content="Fixar" />
                 <Button x:Name="CopyPathButton" Style="{StaticResource Button.Ghost}"
                         Content="Copiar caminho" />
-                <Button x:Name="OpenButton" Style="{StaticResource Button.Ghost}"
-                        Content="Abrir" />
                 <Button x:Name="UndoButton" Style="{StaticResource Button.Danger}"
                         Content="Desfazer" />
             </ui:Stack>

@@ -25,7 +25,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 7 | Aviso de captura e histórico na bandeja | ✅ |
 | 8 | Painel de configurações | ✅ |
 | 9 | Anotação com borrar/pixelar | ✅ |
-| 10 | Fixar na tela, conta-gotas, repetir região | ⬜ |
+| 10 | Fixar na tela, conta-gotas, repetir região | ✅ |
 | 11 | OCR e limpeza automática | ⬜ |
 | 12 | Ícone, publicação, roteiro de testes | ⬜ |
 
@@ -169,6 +169,22 @@ originais deixam de existir, e é isso que o aviso na barra promete.
 Na barra ela fica **isolada entre dois divisores** e é a única ferramenta que não usa a
 cor de acento quando ativa: recebe hachura diagonal, visual de área censurada. Não pode
 parecer mais um ícone na fila.
+
+## Fixar, conta-gotas e repetir
+
+**Fixar na tela** (botão no aviso) deixa a captura flutuando sempre por cima. Arraste para
+mover, roda amplia, **`Ctrl`+roda dá transparência** — com a captura semitransparente por
+cima do que está sendo feito, a diferença entre os dois salta aos olhos. `Ctrl+0` volta ao
+tamanho e à opacidade originais; `Esc` ou botão direito fecha.
+
+**Conta-gotas** (`Ctrl+Alt+P`) congela a tela e mostra só a lupa — **sem véu**, porque
+escurecer a tela falsearia justamente a cor que se está medindo. Clique copia no formato
+escolhido em `cor.formatoPadrao`: `#ec008c`, `rgb(236, 0, 140)`, `hsl(324, 100%, 46%)` ou
+`0xEC008C`.
+
+**Repetir a última região** (`Ctrl+Shift+PrtSc`) captura de novo o mesmo retângulo. Serve
+para acompanhar algo que muda dentro da mesma área — um erro no terminal, uma compilação,
+um contador. Sem isso, cada repetição obriga a mirar de novo e nunca sai igual.
 
 ## Como o Ctrl+V acerta sozinho
 

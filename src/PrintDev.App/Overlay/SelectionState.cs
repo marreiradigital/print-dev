@@ -26,6 +26,7 @@ public sealed class SelectionState : INotifyPropertyChanged
     private int _magnifierZoom = 10;
     private bool _showMagnifier = true;
     private bool _showHints = true;
+    private bool _pickingColor;
 
     /// <inheritdoc/>
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -87,6 +88,16 @@ public sealed class SelectionState : INotifyPropertyChanged
     {
         get => _showMagnifier;
         set => Set(ref _showMagnifier, value);
+    }
+
+    /// <summary>
+    /// Modo conta-gotas: sem véu e sem seleção, só a lupa. O véu falsearia justamente o
+    /// que se está tentando medir — a cor real do pixel.
+    /// </summary>
+    public bool PickingColor
+    {
+        get => _pickingColor;
+        set => Set(ref _pickingColor, value);
     }
 
     /// <summary>Se a faixa de dicas de teclado aparece.</summary>

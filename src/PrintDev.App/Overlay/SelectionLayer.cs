@@ -117,6 +117,19 @@ public sealed class SelectionLayer : FrameworkElement
         }
 
         var full = new Rect(0, 0, width, height);
+
+        if (_state.PickingColor)
+        {
+            // Sem veu: escurecer a tela mudaria a cor que o usuario esta medindo.
+            if (CursorIsHere())
+            {
+                DrawCrosshair(context, full);
+                DrawMagnifier(context, full);
+            }
+
+            return;
+        }
+
         PixelRect effective = _state.Effective.Intersect(_monitor.Bounds);
         Rect hole = ToLocal(effective);
 

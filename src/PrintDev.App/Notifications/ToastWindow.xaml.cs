@@ -32,8 +32,8 @@ public partial class ToastWindow : Window
         // Sem arquivo em disco nao ha caminho para copiar nem o que abrir ou desfazer.
         bool saved = item.Path is not null;
         AnnotateButton.IsEnabled = saved;
+        PinButton.IsEnabled = saved;
         CopyPathButton.IsEnabled = saved;
-        OpenButton.IsEnabled = saved;
         UndoButton.IsEnabled = saved;
 
         if (!saved)
@@ -42,9 +42,11 @@ public partial class ToastWindow : Window
         }
 
         AnnotateButton.Click += (_, _) => Raise(ToastAction.Annotate);
+        PinButton.Click += (_, _) => Raise(ToastAction.Pin);
         CopyPathButton.Click += (_, _) => Raise(ToastAction.CopyPath);
-        OpenButton.Click += (_, _) => Raise(ToastAction.Open);
         UndoButton.Click += (_, _) => Raise(ToastAction.Undo);
+        // Abrir sai pela miniatura, e nao por um botao proprio: cinco botoes nao cabem
+        // na largura do aviso, e o clique na imagem e o gesto que a pessoa ja tenta.
         ThumbnailFrame.MouseLeftButtonUp += (_, _) => Raise(ToastAction.Open);
 
         _timer = new DispatcherTimer { Interval = lifetime };
@@ -152,6 +154,9 @@ internal enum ToastAction
 {
     /// <summary>Abrir o editor de anotação com esta captura.</summary>
     Annotate,
+
+    /// <summary>Fixar a captura na tela, sempre por cima.</summary>
+    Pin,
 
     /// <summary>Copiar só o caminho, em texto.</summary>
     CopyPath,
