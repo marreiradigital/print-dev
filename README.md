@@ -23,7 +23,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 5 | Design system (base) | ✅ |
 | 6 | Overlay de seleção multimonitor | ✅ |
 | 7 | Aviso de captura e histórico na bandeja | ✅ |
-| 8 | Painel de configurações | ⬜ |
+| 8 | Painel de configurações | ✅ |
 | 9 | Anotação com borrar/pixelar + barra pós-captura | ⬜ |
 | 10 | Fixar na tela, conta-gotas, repetir região | ⬜ |
 | 11 | OCR e limpeza automática | ⬜ |
@@ -46,6 +46,14 @@ dotnet build
 dotnet test
 dotnet run --project src/PrintDev.App
 ```
+
+> **Encerre o programa antes de compilar.** O Windows tranca o executável em uso, e o
+> build falha na cópia — mas o erro aparece no meio da saída e é fácil de não ver. O
+> sintoma é traiçoeiro: a compilação "passa", você testa, e está testando o binário
+> antigo.
+
+Toda alteração em `.cs` ou `.xaml` precisa de UTF-8 com BOM; `bash scripts/garantir-bom.sh`
+corrige em lote e `--check` só verifica (útil em CI).
 
 ## Estrutura
 
@@ -284,6 +292,41 @@ troca de sinal e as cores semânticas escurecem para terem contraste sobre branc
   toda em português acentuado; sem o BOM, um build ou editor pode ler o arquivo como ANSI e
   corromper o texto.
 - **`TreatWarningsAsErrors` em Release.**
+
+## Painel de configurações
+
+Abre pelo menu da bandeja, por `PrintDev.exe --configuracoes`, ou simplesmente abrindo o
+programa de novo. Oito seções: Geral, Captura, Salvamento, Área de transferência,
+Atalhos, Histórico e limpeza, Avançado e Sobre.
+
+**Não há botão OK.** A mudança vale na hora e a gravação em disco é adiada meio segundo —
+arrastar um controle deslizante dispara dezenas de mudanças por segundo e não pode virar
+dezenas de gravações. Também não existe cópia intermediária das configurações, e por isso
+não existe o estado "o painel mostra uma coisa e o arquivo tem outra".
+
+Duas prévias ao vivo, porque escolher às cegas é o que faz configuração virar tentativa e
+erro: **como o nome do arquivo vai ficar** e **o texto exato que será colado**.
+
+Sub-ajustes só aparecem quando o ajuste-pai está ligado — recuados, com uma barra em
+acento. É o que mantém o painel curto para quem não mexe em nada.
+
+### Iniciar com o Windows
+
+| Modo | Como funciona |
+|---|---|
+| Normal | Entrada em `HKCU\…\Run`. Sem privilégio nenhum, e visível para o usuário no Gerenciador de Tarefas |
+| **Elevado** | Tarefa no Agendador com gatilho de logon e privilégio mais alto |
+
+O modo elevado existe por um motivo concreto: o Windows **não entrega o atalho global** a
+um processo de integridade mais baixa que a janela em foco. Sem ele, o `PrtSc` não
+funciona com o Gerenciador de Tarefas, o `regedit` ou um instalador em primeiro plano.
+
+Criar a tarefa exige privilégio, então o programa se relança elevado **uma vez só**;
+depois disso ela sobe sozinha, sem prompt de UAC no logon. Os dois modos são mutuamente
+exclusivos — manter os dois abriria o programa duas vezes.
+
+Se a pasta do programa for movida, a entrada de inicialização é corrigida sozinha na
+próxima execução. Sem isso o usuário só descobriria no logon seguinte.
 
 ## Solução de problemas
 

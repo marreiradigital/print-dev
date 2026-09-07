@@ -1,0 +1,653 @@
+﻿<Window x:Class="PrintDev.Settings.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:ui="clr-namespace:PrintDev.Controls"
+        Title="Print Dev — Configurações"
+        Width="980" Height="680" MinWidth="820" MinHeight="560"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        AllowsTransparency="False"
+        Background="{DynamicResource Brush.Surface.Base}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        WindowStartupLocation="CenterScreen">
+
+    <!--
+        ATENCAO: AllowsTransparency fica FALSE. True poria a janela em modo layered, o
+        que mata a aceleracao por hardware, quebra a renderizacao suave de texto e
+        elimina a sombra e o arredondamento que o proprio Windows desenha. Os cantos
+        arredondados vem do compositor (ver OnSourceInitialized).
+    -->
+    <shell:WindowChrome.WindowChrome>
+        <!--
+            GlassFrameThickness deixa UM pixel de moldura do compositor de proposito: e
+            isso que preserva a sombra da janela, o encaixe nas bordas da tela e o
+            arredondamento do Windows 11. Com zero uniforme a janela fica chapada e sem
+            sombra.
+
+            CaptionHeight da arrasto, duplo clique para maximizar, encaixe e menu de
+            janela DE GRACA. Nunca usar DragMove() manual, que perde tudo isso.
+        -->
+        <shell:WindowChrome CaptionHeight="48"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0,0,0,1"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"
+                            NonClientFrameEdges="None" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!-- Botao da barra de titulo: desenhado por nos, sem glifo de fonte de sistema. -->
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="46" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="shell:WindowChrome.IsHitTestVisibleInChrome" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root" Background="Transparent" CornerRadius="6">
+                            <Path Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                  Stroke="{DynamicResource Brush.Text.Secondary}"
+                                  StrokeThickness="1.2"
+                                  x:Name="Glyph"
+                                  Width="11" Height="11" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Surface.Hover}" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Text.Primary}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root" Background="Transparent" CornerRadius="6">
+                            <Path Data="M 1,1 L 10,10 M 10,1 L 1,10"
+                                  Stroke="{DynamicResource Brush.Text.Secondary}"
+                                  x:Name="Glyph"
+                                  StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Width="11" Height="11" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Danger}" />
+                                <Setter TargetName="Glyph" Property="Stroke" Value="#FFFFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ==================== BARRA DE TITULO ==================== -->
+        <Grid Grid.Row="0" Background="{DynamicResource Brush.Surface.Base}">
+            <ui:Stack Orientation="Horizontal" Spacing="10"
+                      VerticalAlignment="Center" Margin="16,0,0,0">
+                <!-- A marca: quatro marcas de corte com a tarja magenta. -->
+                <Grid Width="18" Height="18">
+                    <Path Stroke="{DynamicResource Brush.Text.Primary}" StrokeThickness="1.6"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                          Data="M 3,7 L 3,3 L 7,3  M 11,3 L 15,3 L 15,7  M 15,11 L 15,15 L 11,15  M 7,15 L 3,15 L 3,11" />
+                    <Rectangle Fill="{DynamicResource Brush.Accent}" Width="8" Height="3"
+                               RadiusX="1" RadiusY="1"
+                               HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,11,0,0" />
+                </Grid>
+                <TextBlock Style="{StaticResource Type.BodyMedium}" Text="Print Dev" VerticalAlignment="Center" />
+            </ui:Stack>
+
+            <!-- Nada com IsHitTestVisibleInChrome pode encostar nos 6px da borda, senao
+                 engole o redimensionamento - dai o recuo a direita. -->
+            <ui:Stack Orientation="Horizontal" Spacing="0"
+                      HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0">
+                <Button x:Name="MinimizeButton" Style="{StaticResource CaptionButton}"
+                        Tag="M 1,6 L 11,6" ToolTip="Minimizar" />
+                <Button x:Name="MaximizeButton" Style="{StaticResource CaptionButton}"
+                        Tag="M 1,1 L 11,1 L 11,11 L 1,11 Z" ToolTip="Maximizar" />
+                <Button x:Name="CloseButton" Style="{StaticResource CloseButton}" ToolTip="Fechar" />
+            </ui:Stack>
+        </Grid>
+
+        <!-- ==================== CORPO ==================== -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Trilho: um degrau ABAIXO do conteudo. O trilho recua, o conteudo avanca. -->
+            <Border Grid.Column="0" Background="{DynamicResource Brush.Surface.Sunken}"
+                    BorderThickness="0,0,1,0" BorderBrush="{DynamicResource Brush.Border.Subtle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ListBox x:Name="Rail" Grid.Row="0" Style="{StaticResource Nav.Rail}"
+                             Margin="10,12,10,12" SelectedIndex="0">
+                        <ListBoxItem Content="Geral" />
+                        <ListBoxItem Content="Captura" />
+                        <ListBoxItem Content="Salvamento" />
+                        <ListBoxItem Content="Área de transferência" />
+                        <ListBoxItem Content="Atalhos" />
+                        <ListBoxItem Content="Histórico e limpeza" />
+                        <ListBoxItem Content="Avançado" />
+                        <ListBoxItem Content="Sobre" />
+                    </ListBox>
+
+                    <ui:Stack Grid.Row="1" Spacing="2" Margin="20,0,20,18">
+                        <TextBlock Style="{StaticResource Type.MonoSmall}"
+                                   Foreground="{DynamicResource Brush.Text.Tertiary}"
+                                   Text="{Binding Version, StringFormat='Print Dev {0}'}" />
+                    </ui:Stack>
+                </Grid>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" x:Name="ContentScroll" Style="{StaticResource Scroll.Overlay}">
+                <Grid Margin="32,28,32,40" MaxWidth="660" HorizontalAlignment="Left">
+
+                    <!-- ========== GERAL ========== -->
+                    <ui:Stack x:Name="PageGeneral" Spacing="{StaticResource Gap.CardToCard}">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Geral" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="Como o Print Dev se comporta ao ligar o computador." />
+                        </ui:Stack>
+
+                        <ui:Card>
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Iniciar com o Windows"
+                                               Description="Sobe direto para a bandeja, sem abrir janela.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding StartWithWindows}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Iniciar com privilégios elevados"
+                                               Description="Faz o atalho funcionar mesmo com uma janela de administrador em primeiro plano. Sem isso o Windows não entrega a tecla.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding StartElevated}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Tema">
+                                    <ComboBox Style="{StaticResource Input.Combo}"
+                                              ItemsSource="{Binding Themes}"
+                                              SelectedItem="{Binding Theme}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== CAPTURA ========== -->
+                    <ui:Stack x:Name="PageCapture" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Captura" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="O que aparece quando o seletor abre." />
+                        </ui:Stack>
+
+                        <ui:Card Title="Seletor">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Modo ao abrir">
+                                    <ComboBox Style="{StaticResource Input.Combo}"
+                                              ItemsSource="{Binding Modes}" SelectedItem="{Binding DefaultMode}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Escurecimento do resto da tela">
+                                    <ui:Stack Orientation="Horizontal" Spacing="12">
+                                        <Slider Style="{StaticResource Input.Slider}" Width="160"
+                                                Minimum="0" Maximum="90" Value="{Binding VeilOpacity}" />
+                                        <TextBlock Style="{StaticResource Type.Mono}" VerticalAlignment="Center"
+                                                   Width="42" TextAlignment="Right"
+                                                   Text="{Binding VeilOpacity, StringFormat='{}{0:0}%'}" />
+                                    </ui:Stack>
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Linhas-guia">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding ShowCrosshair}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Incluir o cursor do mouse">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding IncludeCursor}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Lupa">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Mostrar a lupa de pixel"
+                                               Description="Mostra a grade de pixels e a cor sob o cursor em HEX.">
+                                    <ToggleButton x:Name="MagnifierToggle" Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding ShowMagnifier}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}"
+                                        Visibility="{Binding IsChecked, ElementName=MagnifierToggle, Converter={StaticResource BoolToVisible}}" />
+                                <Border Style="{StaticResource Row.Nested}"
+                                        Visibility="{Binding IsChecked, ElementName=MagnifierToggle, Converter={StaticResource BoolToVisible}}">
+                                    <ui:SettingRow Label="Ampliação">
+                                        <ui:Stack Orientation="Horizontal" Spacing="12">
+                                            <Slider Style="{StaticResource Input.Slider}" Width="160"
+                                                    Minimum="2" Maximum="24" Value="{Binding MagnifierZoom}" />
+                                            <TextBlock Style="{StaticResource Type.Mono}" VerticalAlignment="Center"
+                                                       Width="42" TextAlignment="Right"
+                                                       Text="{Binding MagnifierZoom, StringFormat='{}{0:0}×'}" />
+                                        </ui:Stack>
+                                    </ui:SettingRow>
+                                </Border>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Depois da captura">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Mostrar o aviso"
+                                               Description="Miniatura, nome do arquivo e o botão Desfazer, no canto do monitor onde a captura aconteceu.">
+                                    <ToggleButton x:Name="ToastToggle" Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding ShowToast}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}"
+                                        Visibility="{Binding IsChecked, ElementName=ToastToggle, Converter={StaticResource BoolToVisible}}" />
+                                <Border Style="{StaticResource Row.Nested}"
+                                        Visibility="{Binding IsChecked, ElementName=ToastToggle, Converter={StaticResource BoolToVisible}}">
+                                    <ui:SettingRow Label="Tempo na tela">
+                                        <ui:Stack Orientation="Horizontal" Spacing="12">
+                                            <Slider Style="{StaticResource Input.Slider}" Width="160"
+                                                    Minimum="2" Maximum="15" Value="{Binding ToastSeconds}" />
+                                            <TextBlock Style="{StaticResource Type.Mono}" VerticalAlignment="Center"
+                                                       Width="42" TextAlignment="Right"
+                                                       Text="{Binding ToastSeconds, StringFormat='{}{0:0}s'}" />
+                                        </ui:Stack>
+                                    </ui:SettingRow>
+                                </Border>
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== SALVAMENTO ========== -->
+                    <ui:Stack x:Name="PageSave" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Salvamento" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="Onde o arquivo fica e com que nome." />
+                        </ui:Stack>
+
+                        <ui:Card Title="Destino">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Pasta das capturas">
+                                    <ui:Stack Orientation="Horizontal" Spacing="8">
+                                        <!-- Caminho longo nao cabe em 300px; a dica de
+                                             tela mostra o inteiro sem esticar a linha. -->
+                                        <TextBox Style="{StaticResource Input.Mono}" Width="300" IsReadOnly="True"
+                                                 Text="{Binding Folder, Mode=OneWay}"
+                                                 ToolTip="{Binding Folder, Mode=OneWay}" />
+                                        <Button x:Name="ChooseFolderButton" Style="{StaticResource Button.Secondary}"
+                                                Content="Escolher…" />
+                                    </ui:Stack>
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Organização">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="200"
+                                              ItemsSource="{Binding DateSubfolders}" SelectedItem="{Binding DateSubfolder}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Abrir a pasta depois de salvar">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding OpenFolderAfterSave}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Formato">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Formato do arquivo"
+                                               Description="A área de transferência recebe PNG de qualquer jeito: o Chromium não lê JPEG dela.">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="200"
+                                              ItemsSource="{Binding Formats}" SelectedItem="{Binding Format}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}"
+                                        Visibility="{Binding JpegQualityEnabled, Converter={StaticResource BoolToVisible}}" />
+                                <Border Style="{StaticResource Row.Nested}"
+                                        Visibility="{Binding JpegQualityEnabled, Converter={StaticResource BoolToVisible}}">
+                                    <ui:SettingRow Label="Qualidade do JPEG">
+                                        <ui:Stack Orientation="Horizontal" Spacing="12">
+                                            <Slider Style="{StaticResource Input.Slider}" Width="160"
+                                                    Minimum="40" Maximum="100" Value="{Binding JpegQuality}" />
+                                            <TextBlock Style="{StaticResource Type.Mono}" VerticalAlignment="Center"
+                                                       Width="42" TextAlignment="Right"
+                                                       Text="{Binding JpegQuality, StringFormat='{}{0:0}'}" />
+                                        </ui:Stack>
+                                    </ui:SettingRow>
+                                </Border>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Nome do arquivo">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Modelo"
+                                               Description="Marcadores: {ano} {mes} {dia} {hora} {min} {seg} {ms} {contador} {app} {titulo} {largura} {altura} {modo}">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="300"
+                                             Text="{Binding NameTemplate, UpdateSourceTrigger=PropertyChanged}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Como vai ficar">
+                                    <Border Style="{StaticResource Preview.Box}">
+                                        <TextBlock Style="{StaticResource Type.Mono}"
+                                                   Foreground="{DynamicResource Brush.Accent.Text}"
+                                                   Text="{Binding NamePreview}" />
+                                    </Border>
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Se o nome já existir">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="220"
+                                              ItemsSource="{Binding Collisions}" SelectedItem="{Binding OnNameCollision}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== ÁREA DE TRANSFERÊNCIA ========== -->
+                    <ui:Stack x:Name="PageClipboard" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Área de transferência" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="O que o Ctrl+V entrega em cada tipo de campo." />
+                        </ui:Stack>
+
+                        <ui:Card>
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Copiar automaticamente ao capturar">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding CopyAutomatically}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="O que copiar"
+                                               Description="Com os dois, o app de destino escolhe: campo de imagem pega a imagem, campo de texto pega o caminho.">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="280"
+                                              ItemsSource="{Binding Contents}" SelectedItem="{Binding ClipboardContent}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Como o caminho é escrito">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Formato">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="220"
+                                              ItemsSource="{Binding PathFormats}" SelectedItem="{Binding PathFormat}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Aspas">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="220"
+                                              ItemsSource="{Binding QuoteModes}" SelectedItem="{Binding Quotes}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Raiz do WSL"
+                                               Description="/mnt/ no WSL; apenas / no Git Bash, que monta as unidades na raiz.">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="120"
+                                             Text="{Binding WslRoot, UpdateSourceTrigger=PropertyChanged}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Texto que será colado">
+                                    <Border Style="{StaticResource Preview.Box}" MaxWidth="380">
+                                        <TextBlock Style="{StaticResource Type.Mono}"
+                                                   Foreground="{DynamicResource Brush.Accent.Text}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Text="{Binding PathPreview}" />
+                                    </Border>
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Formatos extras">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Publicar também como arquivo"
+                                               Description="Permite colar no Explorador. Em compensação, o Outlook passa a anexar a imagem em vez de embuti-la no corpo do e-mail.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding IncludeFileDrop}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Publicar também como HTML"
+                                               Description="Desligado por bom motivo: em campo de texto rico o Chromium prefere o HTML à imagem, e a marcação aponta para o disco local — o resultado é imagem quebrada.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding IncludeHtml}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== ATALHOS ========== -->
+                    <ui:Stack x:Name="PageHotkeys" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Atalhos" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="Escreva na forma Ctrl+Shift+PrtSc. Combinação reservada pelo Windows é recusada com o motivo." />
+                        </ui:Stack>
+
+                        <ui:Card>
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Abrir o seletor">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyCapture, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Capturar o monitor atual">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyFullScreen, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Capturar a janela ativa">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyActiveWindow, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Repetir a última região">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyRepeatLastRegion, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Forçar o formato ao colar">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Colar como caminho">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyPasteAsPath, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Colar como imagem">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyPasteAsImage, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <Border x:Name="HotkeyWarning" Style="{StaticResource Preview.Box}" Visibility="Collapsed">
+                            <TextBlock x:Name="HotkeyWarningText" Style="{StaticResource Type.Small}"
+                                       Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" />
+                        </Border>
+                    </ui:Stack>
+
+                    <!-- ========== HISTÓRICO E LIMPEZA ========== -->
+                    <ui:Stack x:Name="PageHistory" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Histórico e limpeza" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="As capturas recentes na bandeja e o que fazer com as antigas." />
+                        </ui:Stack>
+
+                        <ui:Card Title="Histórico">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Mostrar na bandeja">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding HistoryInTray}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Quantas guardar">
+                                    <ui:Stack Orientation="Horizontal" Spacing="12">
+                                        <Slider Style="{StaticResource Input.Slider}" Width="160"
+                                                Minimum="5" Maximum="50" Value="{Binding HistoryCount}" />
+                                        <TextBlock Style="{StaticResource Type.Mono}" VerticalAlignment="Center"
+                                                   Width="42" TextAlignment="Right"
+                                                   Text="{Binding HistoryCount, StringFormat='{}{0:0}'}" />
+                                    </ui:Stack>
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Limpeza automática">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Apagar capturas antigas"
+                                               Description="Nasce desligada. Quando ligada, só remove arquivo cujo nome casa com o modelo do Print Dev.">
+                                    <ToggleButton x:Name="CleanupToggle" Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding CleanupEnabled}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}"
+                                        Visibility="{Binding IsChecked, ElementName=CleanupToggle, Converter={StaticResource BoolToVisible}}" />
+                                <Border Style="{StaticResource Row.Nested}"
+                                        Visibility="{Binding IsChecked, ElementName=CleanupToggle, Converter={StaticResource BoolToVisible}}">
+                                    <ui:Stack Spacing="0">
+                                        <ui:SettingRow Label="Manter por">
+                                            <ui:Stack Orientation="Horizontal" Spacing="12">
+                                                <Slider Style="{StaticResource Input.Slider}" Width="160"
+                                                        Minimum="1" Maximum="365" Value="{Binding CleanupKeepDays}" />
+                                                <TextBlock Style="{StaticResource Type.Mono}" VerticalAlignment="Center"
+                                                           Width="66" TextAlignment="Right"
+                                                           Text="{Binding CleanupKeepDays, StringFormat='{}{0:0} dias'}" />
+                                            </ui:Stack>
+                                        </ui:SettingRow>
+                                        <Border Style="{StaticResource Row.Divider}" />
+                                        <ui:SettingRow Label="Mandar para a Lixeira"
+                                                       Description="Desligar isto apaga de vez, sem volta.">
+                                            <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                          IsChecked="{Binding CleanupToRecycleBin}" />
+                                        </ui:SettingRow>
+                                        <Border Style="{StaticResource Row.Divider}" />
+                                        <ui:SettingRow Label="Só arquivos do Print Dev"
+                                                       Description="Trava de segurança. Desligar permite remover arquivos que não foram criados por este programa.">
+                                            <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                          IsChecked="{Binding CleanupOnlyOurFiles}" />
+                                        </ui:SettingRow>
+                                    </ui:Stack>
+                                </Border>
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== AVANÇADO ========== -->
+                    <ui:Stack x:Name="PageAdvanced" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Avançado" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="O que quase ninguém precisa mexer." />
+                        </ui:Stack>
+
+                        <ui:Card Title="Disputa pela tecla">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Quando outro programa está com o atalho"
+                                               Description="O PrtSc é a tecla mais disputada do Windows: Lightshot, ShareX, Greenshot e até o OneDrive a registram.">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="250"
+                                              ItemsSource="{Binding CompetitorPolicies}"
+                                              SelectedItem="{Binding CompetitorPolicy}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Continuar tentando reaver a tecla"
+                                               Description="A cada 30 segundos, enquanto houver atalho em conflito.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding GuardHotkey}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Diagnóstico">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Nível de log">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="180"
+                                              ItemsSource="{Binding LogLevels}" SelectedItem="{Binding LogLevel}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Arquivos">
+                                    <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.ButtonToButton}">
+                                        <Button x:Name="OpenLogsButton" Style="{StaticResource Button.Ghost}"
+                                                Content="Abrir os logs" />
+                                        <Button x:Name="OpenSettingsFileButton" Style="{StaticResource Button.Ghost}"
+                                                Content="Abrir o settings.json" />
+                                    </ui:Stack>
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Recomeçar">
+                            <ui:SettingRow Label="Restaurar tudo para o padrão"
+                                           Description="Devolve todas as configurações ao estado de fábrica. Não apaga captura nenhuma.">
+                                <Button x:Name="RestoreDefaultsButton" Style="{StaticResource Button.Danger}"
+                                        Content="Restaurar padrões" />
+                            </ui:SettingRow>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== SOBRE ========== -->
+                    <ui:Stack x:Name="PageAbout" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Sobre" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="Um PrtSc feito para quem programa." />
+                        </ui:Stack>
+
+                        <ui:Card>
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Versão">
+                                    <TextBlock Style="{StaticResource Type.Mono}" Text="{Binding Version}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Configurações">
+                                    <TextBlock Style="{StaticResource Type.Mono}"
+                                               Foreground="{DynamicResource Brush.Text.Secondary}"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="360"
+                                               Text="{Binding SettingsFolder}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Logs">
+                                    <TextBlock Style="{StaticResource Type.Mono}"
+                                               Foreground="{DynamicResource Brush.Text.Secondary}"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="360"
+                                               Text="{Binding LogsFolder}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Tipografia">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Archivo"
+                                               Description="Omnibus-Type · SIL Open Font License 1.1" />
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="JetBrains Mono"
+                                               Description="JetBrains · SIL Open Font License 1.1" />
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

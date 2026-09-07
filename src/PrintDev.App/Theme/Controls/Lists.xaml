@@ -1,0 +1,317 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Barra de rolagem, lista suspensa e trilho de navegacao.
+
+        A BARRA DE ROLAGEM e o maior ganho visual por linha de codigo do projeto inteiro:
+        a barra nativa do WPF, com trilho cinza e setinhas nas pontas, entrega o app de
+        imediato como "aplicacao Windows antiga", por mais cuidado que haja no resto.
+    -->
+
+    <!-- Polegar da barra: fino, sobreposto ao conteudo, sem trilho e sem setas. -->
+    <Style x:Key="ScrollBar.Thumb" TargetType="Thumb">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Border x:Name="Bar" CornerRadius="3" Background="#24FFFFFF" Margin="1,0,1,0" />
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="#3DFFFFFF" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Bar" Property="Background" Value="#59FFFFFF" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ScrollBar.Slim" TargetType="ScrollBar">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Grid Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <!--
+                                Os botoes de repeticao existem para o clique no trilho
+                                funcionar, mas sao invisiveis: nada de setinhas nas pontas.
+                            -->
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageUpCommand" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="ScrollBar.PageDownCommand" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Background="Transparent" />
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollBar.Thumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Aplicado por tipo: toda barra de rolagem do programa nasce assim. -->
+    <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBar.Slim}" />
+
+    <Style x:Key="Scroll.Overlay" TargetType="ScrollViewer">
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollViewer">
+                    <Grid>
+                        <ScrollContentPresenter />
+                        <!-- Sobreposta ao conteudo, e nao ao lado: nao rouba largura. -->
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   HorizontalAlignment="Right"
+                                   Orientation="Vertical"
+                                   Margin="0,4,2,4"
+                                   Value="{TemplateBinding VerticalOffset}"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        LISTA SUSPENSA. O fecho e igual ao campo de texto; o que abre e um painel
+        arredondado com sombra, e nao o retangulo cinza com triangulo do WPF.
+    -->
+    <Style x:Key="ComboBox.Item" TargetType="ComboBoxItem">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="10,0,10,0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border x:Name="Root" CornerRadius="{DynamicResource Radius.SM}"
+                            Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <ContentPresenter VerticalAlignment="Center" />
+                            <!-- Marca de selecao a direita, em vez de faixa colorida:
+                                 diz "este" sem repintar a linha inteira. -->
+                            <Path x:Name="Check" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Width="12" Height="12" Stretch="Uniform" Opacity="0"
+                                  Data="M 1,6 L 4.5,9.5 L 11,2"
+                                  Stroke="{DynamicResource Brush.Accent.Text}" StrokeThickness="1.8"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Surface.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Check" Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Input.Combo" TargetType="ComboBox">
+        <Setter Property="Height" Value="{DynamicResource Size.Control}" />
+        <Setter Property="MinWidth" Value="160" />
+        <Setter Property="Padding" Value="{DynamicResource Pad.Input}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ComboBox.Item}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <Border x:Name="Ring" Margin="-3" CornerRadius="9" Opacity="0"
+                                BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" />
+
+                        <ToggleButton x:Name="Toggle"
+                                      Focusable="False"
+                                      ClickMode="Press"
+                                      FontFamily="{TemplateBinding FontFamily}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <!--
+                                        TextElement.Foreground e definido aqui porque o
+                                        estilo PADRAO do ToggleButton traz um Foreground
+                                        proprio, que corta a heranca vinda do ComboBox e
+                                        deixa o texto selecionado cinza.
+                                    -->
+                                    <Border x:Name="Face"
+                                            TextElement.Foreground="{TemplateBinding Foreground}"
+                                            CornerRadius="{DynamicResource Radius.SM}"
+                                            Background="{DynamicResource Brush.Surface.Sunken}"
+                                            BorderThickness="1"
+                                            BorderBrush="{DynamicResource Brush.Border.Input}">
+                                        <Grid>
+                                            <!--
+                                                TextBlock com estilo EXPLICITO, e nao
+                                                ContentPresenter: o estilo padrao do
+                                                ToggleButton define um Foreground proprio
+                                                que corta a heranca do token, e o texto
+                                                selecionado saia cinza - com contraste
+                                                pior que o do rotulo ao lado. Todos os
+                                                itens destas listas expoem o rotulo pelo
+                                                ToString, entao o vinculo direto basta.
+                                            -->
+                                            <TextBlock x:Name="Selected"
+                                                       Margin="12,0,34,0"
+                                                       VerticalAlignment="Center"
+                                                       HorizontalAlignment="Left"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Style="{StaticResource Type.Body}"
+                                                       Text="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}" />
+                                            <Path HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                  Margin="0,0,12,0" Width="10" Height="6" Stretch="Uniform"
+                                                  Data="M 1,1 L 6,6 L 11,1"
+                                                  Stroke="{DynamicResource Brush.Text.Tertiary}"
+                                                  StrokeThickness="1.6"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                                  StrokeLineJoin="Round" />
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Face" Property="BorderBrush"
+                                                    Value="{DynamicResource Brush.Border.Strong}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+
+                        <Popup x:Name="PART_Popup"
+                               AllowsTransparency="True"
+                               Placement="Bottom"
+                               VerticalOffset="6"
+                               PopupAnimation="Fade"
+                               IsOpen="{TemplateBinding IsDropDownOpen}">
+                            <Border Background="{DynamicResource Brush.Surface.Elevated}"
+                                    CornerRadius="{DynamicResource Radius.MD}"
+                                    BorderThickness="1"
+                                    BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                                    Padding="6"
+                                    Margin="0,0,12,12"
+                                    MinWidth="{TemplateBinding ActualWidth}"
+                                    MaxHeight="320"
+                                    Effect="{StaticResource Shadow.Popover}">
+                                <ScrollViewer Style="{StaticResource Scroll.Overlay}">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        TRILHO DE NAVEGACAO das configuracoes. O item selecionado ganha fundo sutil e uma
+        barra de 3px a esquerda - o indicador que a interface toda usa para dizer
+        "voce esta aqui".
+    -->
+    <Style x:Key="Nav.Item" TargetType="ListBoxItem">
+        <Setter Property="Height" Value="{DynamicResource Size.NavItem}" />
+        <Setter Property="Padding" Value="14,0,10,0" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Root" CornerRadius="{DynamicResource Radius.SM}"
+                            Background="Transparent" Margin="0,1,0,1">
+                        <Grid>
+                            <Border x:Name="Marker" Width="3" HorizontalAlignment="Left"
+                                    Margin="0,7,0,7" CornerRadius="2" Opacity="0"
+                                    Background="{DynamicResource Brush.Accent}" />
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Surface.Hover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Accent.Subtle}" />
+                            <Setter TargetName="Marker" Property="Opacity" Value="1" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Accent.Text}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Surface.Hover}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Nav.Rail" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource Nav.Item}" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <!-- Tab entra uma vez no trilho; as setas percorrem os itens. E o comportamento
+             correto de um trilho, e o que o WPF nao faz por padrao. -->
+        <Setter Property="KeyboardNavigation.TabNavigation" Value="Once" />
+        <Setter Property="KeyboardNavigation.DirectionalNavigation" Value="Cycle" />
+    </Style>
+
+</ResourceDictionary>

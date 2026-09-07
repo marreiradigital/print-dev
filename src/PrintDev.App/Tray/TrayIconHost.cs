@@ -10,6 +10,7 @@ using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
+using PrintDev.Settings;
 using Serilog;
 
 namespace PrintDev.Tray;
@@ -28,6 +29,7 @@ public sealed class TrayIconHost : IDisposable
     private readonly CaptureHistory _history;
     private readonly ClipboardWriter _clipboard;
     private readonly HotkeyMessageWindow _messageWindow;
+    private readonly SettingsWindowHost _settingsWindow;
     private readonly ILogger _log;
     private TaskbarIcon? _icon;
 
@@ -40,6 +42,7 @@ public sealed class TrayIconHost : IDisposable
         CaptureHistory history,
         ClipboardWriter clipboard,
         HotkeyMessageWindow messageWindow,
+        SettingsWindowHost settingsWindow,
         ILogger log)
     {
         _paths = paths;
@@ -47,6 +50,7 @@ public sealed class TrayIconHost : IDisposable
         _history = history;
         _clipboard = clipboard;
         _messageWindow = messageWindow;
+        _settingsWindow = settingsWindow;
         _log = log.ForContext<TrayIconHost>();
     }
 
@@ -78,6 +82,9 @@ public sealed class TrayIconHost : IDisposable
         // O menu e remontado a cada abertura: o historico muda o tempo todo, e uma lista
         // congelada na inicializacao mostraria capturas que ja nao existem.
         menu.Opened += (_, _) => Rebuild(menu);
+
+        menu.Items.Add(MenuItemFor("Configurações", _settingsWindow.Show));
+        menu.Items.Add(new Separator());
 
         menu.Items.Add(MenuItemFor(
             "Abrir pasta de capturas",

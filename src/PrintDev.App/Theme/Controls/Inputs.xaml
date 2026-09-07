@@ -1,0 +1,263 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Interruptor, campo de texto e controle deslizante.
+
+        Os tres tem template proprio porque os originais do WPF sao visualmente de 2006 -
+        e o interruptor nem existe la: o equivalente seria uma caixa de selecao quadrada,
+        que nao comunica "ligado/desligado" com a mesma clareza num painel com dezenas
+        de opcoes.
+    -->
+
+    <!--
+        INTERRUPTOR - o controle mais usado do painel.
+
+        A animacao e ASSIMETRICA de proposito: ligar tem um leve avanco alem do destino
+        (BackEase), desligar volta limpo. Ligar e uma afirmacao, desligar e um recuo. E
+        esse tipo de detalhe que separa "funciona" de "caro".
+    -->
+    <Style x:Key="Toggle.Switch" TargetType="ToggleButton">
+        <Setter Property="Width" Value="40" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid>
+                        <Border x:Name="Ring" Margin="-4" CornerRadius="15" Opacity="0"
+                                BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" />
+
+                        <Border x:Name="Track" CornerRadius="11"
+                                Background="{DynamicResource Brush.Surface.Sunken}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource Brush.Border.Strong}" />
+
+                        <Border x:Name="TrackOn" CornerRadius="11" Opacity="0"
+                                Background="{DynamicResource Brush.Accent}" />
+
+                        <Border x:Name="Thumb" Width="16" Height="16" CornerRadius="8"
+                                HorizontalAlignment="Left" Margin="3,0,0,0"
+                                Background="#FFFFFFFF">
+                            <Border.RenderTransform>
+                                <TranslateTransform x:Name="ThumbShift" X="0" />
+                            </Border.RenderTransform>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbShift"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="18" Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <BackEase EasingMode="EaseOut" Amplitude="0.22" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="TrackOn"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ThumbShift"
+                                                         Storyboard.TargetProperty="X"
+                                                         To="0" Duration="0:0:0.18">
+                                            <DoubleAnimation.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut" />
+                                            </DoubleAnimation.EasingFunction>
+                                        </DoubleAnimation>
+                                        <DoubleAnimation Storyboard.TargetName="TrackOn"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        CAMPO DE TEXTO com marcador de posicao.
+
+        O WPF nao tem placeholder. A solucao e um TextBlock atras do texto, revelado
+        quando o campo esta vazio - e por isso o vinculo do campo precisa ser
+        UpdateSourceTrigger=PropertyChanged, senao o marcador so sumiria quando o campo
+        perdesse o foco.
+    -->
+    <Style x:Key="Input.Text" TargetType="TextBox">
+        <Setter Property="Height" Value="{DynamicResource Size.Control}" />
+        <Setter Property="Padding" Value="{DynamicResource Pad.Input}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush.Accent}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Brush.Accent}" />
+        <Setter Property="SelectionOpacity" Value="0.35" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Grid>
+                        <Border x:Name="Halo" Margin="-3" CornerRadius="9" Opacity="0"
+                                BorderThickness="3" BorderBrush="{DynamicResource Brush.Accent.Ring}" />
+
+                        <Border x:Name="Root"
+                                CornerRadius="{DynamicResource Radius.SM}"
+                                Background="{DynamicResource Brush.Surface.Sunken}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource Brush.Border.Input}">
+                            <Grid>
+                                <TextBlock x:Name="Placeholder"
+                                           Margin="{TemplateBinding Padding}"
+                                           VerticalAlignment="Center"
+                                           IsHitTestVisible="False"
+                                           Visibility="Collapsed"
+                                           FontFamily="{TemplateBinding FontFamily}"
+                                           FontSize="{TemplateBinding FontSize}"
+                                           Foreground="{DynamicResource Brush.Text.Tertiary}"
+                                           Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
+
+                                <ScrollViewer x:Name="PART_ContentHost"
+                                              Margin="{TemplateBinding Padding}"
+                                              VerticalAlignment="Center"
+                                              HorizontalScrollBarVisibility="Hidden"
+                                              VerticalScrollBarVisibility="Hidden" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush"
+                                    Value="{DynamicResource Brush.Border.Strong}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush"
+                                    Value="{DynamicResource Brush.Accent}" />
+                            <Setter TargetName="Halo" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                            <Setter TargetName="Root" Property="Opacity" Value="0.6" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Variante em mono, para caminho de arquivo e modelo de nome. -->
+    <Style x:Key="Input.Mono" TargetType="TextBox" BasedOn="{StaticResource Input.Text}">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Mono}" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <!--
+        CONTROLE DESLIZANTE - sem marcas de escala, sem botoes de repeticao, com o trecho
+        percorrido em destaque. O valor aparece ao lado, em mono, para nao mudar de
+        largura enquanto e arrastado.
+    -->
+    <Style x:Key="Slider.Thumb" TargetType="Thumb">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Grid Width="16" Height="16">
+                        <Ellipse x:Name="Dot" Fill="#FFFFFFFF" Stroke="{DynamicResource Brush.Border.Strong}"
+                                 StrokeThickness="1" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="Dot" Property="Stroke" Value="{DynamicResource Brush.Accent}" />
+                            <Setter TargetName="Dot" Property="StrokeThickness" Value="2" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="Input.Slider" TargetType="Slider">
+        <Setter Property="Height" Value="20" />
+        <Setter Property="MinWidth" Value="150" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid VerticalAlignment="Center">
+                        <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                Background="{DynamicResource Brush.Surface.Sunken}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource Brush.Border.Input}" />
+
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <!-- Trecho percorrido: e so isto que o botao de
+                                                 repeticao faz aqui, alem de aceitar o clique. -->
+                                            <Border Height="4" CornerRadius="2" VerticalAlignment="Center"
+                                                    Background="{DynamicResource Brush.Accent}" />
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Background="Transparent" Height="16" />
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.IncreaseRepeatButton>
+
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource Slider.Thumb}" />
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

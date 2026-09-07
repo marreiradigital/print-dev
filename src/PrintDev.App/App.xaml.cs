@@ -7,6 +7,7 @@ using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
+using PrintDev.Settings;
 using PrintDev.Theme;
 using PrintDev.Tray;
 using Serilog;
@@ -67,11 +68,9 @@ public partial class App : Application
 
         if (Options.Command != StartupCommand.Run)
         {
-            // As tarefas do Agendador entram junto com a tela de configuracoes, que e
-            // onde o usuario liga a inicializacao elevada. Ate la, o comando e recusado
-            // de forma visivel no log em vez de fingir que funcionou.
-            _log.Warning("O comando {Comando} ainda não está implementado.", Options.Command);
-            Shutdown(2);
+            // Estes comandos existem para o proprio programa se relancar ELEVADO uma vez
+            // so, criar ou remover a tarefa do Agendador, e sair. Nao sobem a bandeja.
+            RunTaskCommand(Options.Command);
             return;
         }
 
@@ -85,13 +84,36 @@ public partial class App : Application
         settings.Changed += (_, current) => LoggingSetup.ApplyLevel(current.Advanced.LogLevel, _log);
 
         StartTheme(settings);
+
+        // Programa movido de pasta deixa a entrada de inicializacao apontando para o
+        // nada, e o usuario so descobre no proximo logon.
+        _services.GetRequiredService<AutoStartService>().RepairIfMoved();
         _services.GetRequiredService<TrayIconHost>().Show();
 
         StartHotkeys(settings);
 
+        if (Options.OpenSettings)
+        {
+            _services.GetRequiredService<SettingsWindowHost>().Show();
+        }
+
         _instanceGuard.WhenActivationRequested(OnActivationRequested);
 
         _log.Information("Print Dev pronto");
+    }
+
+    /// <summary>
+    /// Executa um comando de tarefa agendada e encerra.
+    /// </summary>
+    private void RunTaskCommand(StartupCommand command)
+    {
+        var autoStart = new AutoStartService(_log);
+
+        bool ok = command == StartupCommand.InstallElevatedTask
+            ? autoStart.InstallElevatedTask()
+            : autoStart.RemoveElevatedTask();
+
+        Shutdown(ok ? 0 : 3);
     }
 
     /// <summary>
@@ -153,9 +175,10 @@ public partial class App : Application
     {
         Dispatcher.BeginInvoke(() =>
         {
-            // TODO(fase 8): trazer o painel de configuracoes para a frente, que e o que
-            // o usuario espera ao abrir o programa de novo.
-            _log.Information("Outra instância pediu ativação");
+            // Abrir o programa de novo tem que fazer ALGUMA coisa visivel: o usuario
+            // clicou esperando ver o programa, nao um nada silencioso.
+            _log.Information("Outra instância pediu ativação; abrindo as configurações");
+            _services?.GetRequiredService<SettingsWindowHost>().Show();
         });
     }
 

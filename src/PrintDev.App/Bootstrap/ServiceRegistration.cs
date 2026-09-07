@@ -7,7 +7,9 @@ using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Notifications;
 using PrintDev.Overlay;
+using PrintDev.Settings;
 using PrintDev.Core.Infrastructure;
+using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
 using PrintDev.Theme;
 using PrintDev.Tray;
@@ -39,7 +41,10 @@ public static class ServiceRegistration
         services.AddSingleton<HotkeyManager>();
         services.AddSingleton<HotkeyGuardian>();
 
+        services.AddSingleton<AutoStartService>();
         services.AddSingleton<ThemeService>();
+        services.AddSingleton<SettingsViewModel>();
+        services.AddSingleton<SettingsWindowHost>();
         services.AddSingleton<ClipboardWriter>();
         services.AddSingleton<CaptureHistory>();
         services.AddSingleton<ToastHost>();

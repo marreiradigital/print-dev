@@ -8,6 +8,9 @@
     -->
     <ResourceDictionary.MergedDictionaries>
         <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Controls/Button.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Controls/Inputs.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Controls/Lists.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Controls/Surfaces.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
 </ResourceDictionary>
