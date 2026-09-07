@@ -1,0 +1,15 @@
+﻿<Application x:Class="PrintDev.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <!--
+        ShutdownMode=OnExplicitShutdown e obrigatorio: o Print Dev vive na bandeja
+        e nao tem MainWindow. Com o padrao (OnLastWindowClose) o processo morreria
+        assim que o painel de configuracoes fosse fechado.
+
+        Application.Resources recebe os dicionarios de tema na fase do design system.
+        O indice 0 sera reservado para os tokens de cor, que o ThemeService troca
+        em tempo de execucao.
+    -->
+    <Application.Resources />
+</Application>

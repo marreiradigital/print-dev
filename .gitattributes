@@ -1,0 +1,18 @@
+# Normaliza fim de linha: repositorio em LF, working tree do Windows em CRLF
+* text=auto eol=crlf
+
+# Scripts de shell precisam de LF mesmo no Windows
+*.sh text eol=lf
+
+# Binarios: nunca normalizar
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.wav binary
+*.snk binary

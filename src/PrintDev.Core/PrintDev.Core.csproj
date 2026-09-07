@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      UseWPF aqui NAO significa interface: o Core precisa dos codecs WIC
+      (PngBitmapEncoder / JpegBitmapEncoder) e de BitmapSource, que moram em
+      PresentationCore/WindowsBase. E o que permite manter System.Drawing.Common
+      fora do projeto inteiro. Nenhum XAML e nenhuma janela vivem aqui.
+    -->
+    <UseWPF>true</UseWPF>
+    <RootNamespace>PrintDev.Core</RootNamespace>
+    <AssemblyName>PrintDev.Core</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Log estruturado. O app roda sem console: arquivo e a unica forma de diagnosticar. -->
+    <PackageReference Include="Serilog" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PrintDev.Tests" />
+  </ItemGroup>
+
+</Project>

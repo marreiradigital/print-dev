@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <!--
+      UseWindowsForms fica DESLIGADO de proposito: o NotifyIcon do WinForms
+      traria ~16 MB e um menu de contexto que nao segue tema escuro.
+      A bandeja usa Hardcodet.NotifyIcon.Wpf, cujo menu e um ContextMenu WPF.
+    -->
+    <UseWindowsForms>false</UseWindowsForms>
+    <RootNamespace>PrintDev</RootNamespace>
+    <AssemblyName>PrintDev</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Trimming e NativeAOT sao bloqueados pelo SDK para WPF (reflexao sobre BAML). -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Serilog" Version="4.4.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PrintDev.Core\PrintDev.Core.csproj" />
+  </ItemGroup>
+
+</Project>

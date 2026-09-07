@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.0.0" name="PrintDev.app" />
+
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
+    <security>
+      <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
+        <!--
+          asInvoker: o app NAO pede elevacao no manifesto.
+          Quem quiser o PrtSc funcionando sobre janela de administrador liga
+          "Iniciar com privilegios elevados", que cria uma tarefa no Agendador
+          de Tarefas com RunLevel=Highest (logon trigger, sem prompt de UAC).
+        -->
+        <requestedExecutionLevel level="asInvoker" uiAccess="false" />
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}" />
+    </application>
+  </compatibility>
+
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <!--
+        PerMonitorV2 e a decisao mais importante deste arquivo.
+        Sob PMv2 nao ha virtualizacao de DPI: GetSystemMetrics(SM_*VIRTUALSCREEN),
+        EnumDisplayMonitors, GetCursorPos e o DC de tela ja trabalham em PIXELS
+        FISICOS. E o que permite que toda a matematica de selecao viva em pixels
+        fisicos do desktop virtual, sem conversao.
+        NAO adicionar Switch.System.Windows.DoNotScaleForDpiChanges: esse switch
+        DESLIGA o reescalonamento do WPF (aparece em respostas do Q&amp;A e esta errado).
+      -->
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/PM</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>
