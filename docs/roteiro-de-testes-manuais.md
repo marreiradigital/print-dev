@@ -113,7 +113,37 @@ pelo próprio Windows.
 
 ---
 
-## 6. Ciclo de vida
+## 6. Desfazer uma captura
+
+**O botão "Desfazer" já derrubou o programa uma vez** — corrupção de memória num P/Invoke,
+que o .NET não deixa capturar e não deixa rastro no log. Marque com atenção.
+
+- [ ] Clicar em **Desfazer** no aviso: o arquivo vai para a **Lixeira** e o programa
+      continua vivo.
+- [ ] `Ctrl+Alt+Z` sem o aviso na tela: desfaz a última captura do mesmo jeito.
+- [ ] Depois de desfazer, colar num terminal: **não pode sair o caminho** do arquivo que
+      foi para a Lixeira.
+- [ ] Copiar um texto qualquer *depois* da captura e só então desfazer: **o texto copiado
+      tem de sobreviver**. Desfazer só limpa a área de transferência se o conteúdo ainda
+      for nosso.
+- [ ] Desfazer com o arquivo aberto em outro programa: o aviso **fica na tela** com o
+      motivo escrito em vermelho, em vez de sumir fingindo sucesso.
+- [ ] `Ctrl+Alt+Z` sem nenhuma captura na sessão: nada acontece, e o log diz por quê.
+- [ ] Desfazer uma captura que **não chegou ao disco** (pasta sem permissão de escrita):
+      sai do histórico e limpa a área de transferência mesmo assim.
+- [ ] Ligar a limpeza automática com `moverParaLixeira` e rodar de verdade: os arquivos
+      vão para a Lixeira e **o programa continua vivo** — ela usa o mesmo caminho de
+      código do "Desfazer".
+
+## 7. Peso
+
+- [ ] Gerenciador de Tarefas com o programa parado na bandeja: **por volta de 20 MB**.
+- [ ] Capturar a tela inteira e esperar o aviso sumir: a memória sobe durante o trabalho e
+      **volta a cair** quando o último aviso sai.
+- [ ] 50 capturas seguidas: a memória não cresce sem parar, e a contagem de identificadores
+      fica estável.
+
+## 8. Ciclo de vida
 
 - [ ] Ícone aparece na bandeja *(o Windows 11 esconde ícones novos no estouro)*.
 - [ ] **Clique simples no ícone da bandeja: abre o painel** — e ele vem para a frente,
@@ -132,7 +162,7 @@ pelo próprio Windows.
 
 ---
 
-## 7. Limpeza automática
+## 9. Limpeza automática
 
 - [ ] Com a limpeza **desligada**, apertar "Simular limpeza": lista vazia.
 - [ ] Pôr um arquivo que **não** é do Print Dev na pasta de capturas, ligar a limpeza com

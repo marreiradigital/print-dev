@@ -81,6 +81,7 @@ e execute. Leva menos de um minuto.
 | `Ctrl+Alt+V` | Cola a última captura como **imagem** |
 | `Ctrl+Alt+P` | Conta-gotas de cor |
 | `Ctrl+Alt+T` | Recorta e copia o texto reconhecido |
+| `Ctrl+Alt+Z` | **Desfaz a última captura** — arquivo para a Lixeira, histórico e área de transferência limpos |
 
 Todos configuráveis, e mudar vale na hora. Escreva na forma `Ctrl+Shift+PrtSc` — as
 grafias usuais são aceitas (`PrintScreen`, `Print`, `Esc`/`Escape`, `PgUp`, setas em
@@ -153,6 +154,29 @@ miniatura, o nome do arquivo, as dimensões e as ações:
 
 Passar o mouse por cima segura o aviso: quem foi ler o nome do arquivo não pode vê-lo
 fugir no meio da leitura. Botão direito dispensa na hora.
+
+### Capturei sem querer
+
+`Ctrl+Alt+Z` desfaz a última captura de qualquer lugar, sem depender do aviso estar na
+tela. **O aviso não rouba o foco** — e não deve, senão interromperia o que você estava
+digitando —, então nenhuma tecla chega até ele: apertar `Esc` com o aviso visível não faz
+nada, e está certo assim.
+
+Desfazer é uma operação completa, e não só apagar o arquivo:
+
+| | |
+|---|---|
+| O arquivo | Vai para a **Lixeira**, nunca para o nada |
+| O histórico | Perde a entrada |
+| A área de transferência | É limpa — **só se o conteúdo ainda for nosso** |
+
+A conferência de dono da área de transferência não é zelo excessivo: entre a captura e o
+arrependimento você pode ter copiado outra coisa, e apagar isso seria um estrago maior
+que o desfeito. Sem a limpeza, o caminho de um arquivo que agora está na Lixeira
+continuaria colável.
+
+Se desfazer falhar, o aviso **fica na tela com o motivo escrito**, em vermelho, e para de
+contar o tempo. Ação que falha em silêncio é pior que ação que não existe.
 
 É uma janela própria, e não o balão do Windows — que é feio, chega atrasado, some sem
 aviso, pode estar desligado por política de grupo e não aceitaria essas ações.
@@ -500,6 +524,25 @@ nesses tamanhos ficam só os quatro colchetes, mais grossos.
   interface é toda em português acentuado; sem o BOM, um build ou editor pode ler o
   arquivo como ANSI e corromper o texto.
 - **`TreatWarningsAsErrors` em Release.**
+
+### Peso
+
+| | |
+|---|---|
+| Arranque até ficar pronto | ~550 ms |
+| Memória ocioso | **~20 MB** |
+| Memória durante uma captura de tela cheia | ~150 MB |
+| Executável em disco | 27,9 MB · instalador de 6,6 MB |
+
+O programa devolve a memória de inicialização ao sistema quando termina de subir, e de
+novo quando o último aviso sai da tela — que é ele dizendo que voltou a dormir na
+bandeja. As páginas voltam sozinhas se forem tocadas.
+
+Dos 27,9 MB em disco, **23,7 são de um arquivo só**: `Microsoft.Windows.SDK.NET.dll`, a
+projeção do WinRT. Ela entra por causa de um único arquivo de código —
+[`WindowsOcrService.cs`](src/PrintDev.Core/Ocr/WindowsOcrService.cs), o reconhecimento de
+texto. É o preço de fazer OCR sem depender de nada externo, e está escrito aqui para ser
+uma decisão e não uma surpresa.
 
 ---
 
