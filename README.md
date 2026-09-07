@@ -421,6 +421,30 @@ exclusivos — manter os dois abriria o programa duas vezes.
 Se a pasta do programa for movida, a entrada de inicialização é corrigida sozinha na
 próxima execução. Sem isso o usuário só descobriria no logon seguinte.
 
+## Instalar
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\gerar-instalador.ps1
+```
+
+Gera `publish\installer\PrintDev-Setup-0.1.0.exe` — instalador clássico, com tela de
+boas-vindas, escolha de pasta e entrada em *Adicionar ou remover programas*.
+
+| Decisão | Por quê |
+|---|---|
+| **Sem administrador** | Instala em `%LOCALAPPDATA%\Programs\PrintDev`. Um capturador de tela não precisa de privilégio para funcionar, e pedir UAC cobraria um custo sem entregar nada |
+| **Detecta o programa aberto** | O instalador conhece o mesmo mutex que o programa usa para instância única, então pede para fechar em vez de falhar ao copiar o arquivo travado — o erro mais comum ao atualizar um programa de bandeja |
+| **Iniciar com o Windows vem marcado** | Um capturador que não está rodando não serve para nada: a tecla só funciona com ele na bandeja |
+| **O desinstalador fecha o programa antes** | Sem isso, sobra o executável e o ícone fantasma na bandeja |
+| **Suas capturas nunca são removidas** | Nem pelo desinstalador. Ele pergunta só sobre configurações e logs — apagar trabalho seu porque você desinstalou um programa é a coisa errada a fazer |
+
+Precisa do Inno Setup para gerar:
+`winget install --id JRSoftware.InnoSetup --exact`
+
+O script publica **antes** de compilar, de propósito: compilar o instalador sozinho
+empacotaria a publicação anterior — um instalador com o programa velho dentro, que compila
+sem erro e só aparece como "a correção não entrou" muito depois.
+
 ## Publicar
 
 ```bash
