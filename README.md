@@ -19,7 +19,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 1 | Bandeja, ciclo de vida, log em arquivo, instância única | ✅ |
 | 2 | Configurações em `settings.json` (núcleo) | ✅ |
 | 3 | Atalho global + captura + salvamento | ✅ |
-| 4 | Área de transferência multiformato | ⬜ |
+| 4 | Área de transferência multiformato | ✅ |
 | 5 | Design system (base) | ⬜ |
 | 6 | Overlay de seleção multimonitor | ⬜ |
 | 7 | Barra pós-captura, aviso, histórico | ⬜ |
@@ -67,6 +67,47 @@ dotnet run --project src/PrintDev.App
 
 As três convenções do Windows são aceitas (`--nome`, `-n`, `/nome`), sem diferenciar maiúsculas.
 Argumento desconhecido nunca derruba o app — vai para o log e a execução segue.
+
+## Como o Ctrl+V acerta sozinho
+
+Nenhum programa consegue saber para onde você vai colar. O que resolve isso é publicar
+**vários formatos numa transação só**, na ordem certa — o programa de destino pega o
+primeiro que sabe consumir.
+
+Ordem publicada em cada captura:
+
+| # | Formato | Quem consome |
+|---|---|---|
+| 1 | `PNG` (registrado por nome) | **Chromium procura este primeiro** — WhatsApp Web, Discord, Slack, Figma, todo app Electron |
+| 2 | `CF_DIBV5` | Bitmap com canal alfa: Word, OneNote, editores de imagem |
+| 3 | `CF_DIB` | Bitmap clássico, para quem não lê os anteriores |
+| 4 | `CF_HDROP` + `Preferred DropEffect` + `FileNameW` | Explorador do Windows *(desligado por padrão)* |
+| 5 | `CF_UNICODETEXT` | **O caminho do arquivo** — terminal, `textarea`, editor de código |
+
+O texto vai por último de propósito: é o que sobra para quem não entende imagem. Campo de
+imagem nunca chega nele, porque encontra um formato de imagem antes.
+
+`CF_BITMAP`, `CF_TEXT`, `CF_OEMTEXT` e `CF_LOCALE` aparecem depois na lista — são
+**sintetizados pelo próprio Windows** a partir dos que publicamos, e por isso não entram
+na conta.
+
+### Três armadilhas que decidiram o projeto
+
+- **O canal alfa zerado.** O `BitBlt` grava zero no byte de alfa de cada pixel, e zero
+  significa "totalmente transparente". Publicado como `CF_DIBV5`, isso faria a imagem
+  colada aparecer como um retângulo preto em todo programa que respeita o canal. A
+  captura força alfa 255 na origem.
+- **A ordem das linhas.** Os bitmaps vão de baixo para cima (altura positiva). De cima
+  para baixo é mal suportado e aparece invertido em vários programas.
+- **O formato HTML fica de fora.** Em campo de texto rico o Chromium prefere HTML à
+  imagem, e uma marcação apontando para o disco local cola **imagem quebrada**. É opção
+  desligada, não esquecimento.
+
+### Forçar um formato
+
+`Ctrl+Shift+V` cola o caminho; `Ctrl+Alt+V` cola a imagem. Os dois republicam a última
+captura no formato pedido e mandam o colar — soltando antes os modificadores que você
+ainda está segurando, senão o destino receberia `Ctrl+Shift+V` em vez de `Ctrl+V`.
 
 ## Atalhos
 
