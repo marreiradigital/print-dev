@@ -22,9 +22,9 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 4 | Área de transferência multiformato | ✅ |
 | 5 | Design system (base) | ✅ |
 | 6 | Overlay de seleção multimonitor | ✅ |
-| 7 | Barra pós-captura, aviso, histórico | ⬜ |
+| 7 | Aviso de captura e histórico na bandeja | ✅ |
 | 8 | Painel de configurações | ⬜ |
-| 9 | Anotação com borrar/pixelar | ⬜ |
+| 9 | Anotação com borrar/pixelar + barra pós-captura | ⬜ |
 | 10 | Fixar na tela, conta-gotas, repetir região | ⬜ |
 | 11 | OCR e limpeza automática | ⬜ |
 | 12 | Ícone, publicação, roteiro de testes | ⬜ |
@@ -99,6 +99,33 @@ O estado da seleção é compartilhado e vive em **pixels físicos**, e a posiç
 vem sempre do Windows, nunca do evento do WPF: durante um arrasto que saiu da janela de
 origem, as coordenadas do evento ficam negativas ou maiores que o monitor. É isso que faz
 arrastar de uma tela para a outra funcionar sem nenhum caso especial.
+
+## Depois da captura
+
+Um aviso aparece no canto do **monitor onde a captura aconteceu** — não sempre na tela
+principal, porque quem capturou no monitor secundário está olhando para ele. Traz a
+miniatura, o nome do arquivo, as dimensões e três ações:
+
+| Ação | O que faz |
+|---|---|
+| **Copiar caminho** | Troca a área de transferência por só o caminho, em texto |
+| **Abrir** | Abre a imagem no programa associado (clicar na miniatura também) |
+| **Desfazer** | Manda o arquivo para a **Lixeira** e tira do histórico |
+
+Passar o mouse por cima segura o aviso: quem foi ler o nome do arquivo não pode vê-lo
+fugir no meio da leitura. Botão direito dispensa na hora.
+
+É uma janela própria, e não o balão do Windows — que é feio, chega atrasado, some sem
+aviso, pode estar desligado por política de grupo e não aceitaria essas ações.
+
+O **Desfazer** manda para a Lixeira, e não para o nada: desfazer é reversível por
+definição, então quem clicou errado precisa poder voltar atrás do voltar atrás.
+
+### Histórico
+
+O menu da bandeja tem **Capturas recentes**, com miniatura de cada uma. Clicar recopia —
+e a imagem vem do arquivo em disco, não da miniatura, porque guardar vinte capturas de
+tela cheia em memória passaria de cem megabytes.
 
 ## Como o Ctrl+V acerta sozinho
 

@@ -1,0 +1,261 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Botoes.
+
+        Todo controle interativo do projeto e montado em DUAS CAMADAS: a base com a cor
+        do token, e por cima uma camada de estado com opacidade animada. Nao e
+        preciosismo - e a unica forma que funciona.
+
+        Os pinceis vindos de dicionario de recursos sao CONGELADOS e compartilhados, e
+        animar (Background).(SolidColorBrush.Color) neles lanca "Cannot animate ... on an
+        immutable object instance". Animar a opacidade de uma camada e imune a isso, e
+        mais barato (opacidade e composicao pura na placa de video) e da transicoes
+        identicas em todos os controles de graca.
+
+        ATENCAO: as duracoes dentro de Storyboard sao LITERAIS. DynamicResource ali
+        lanca "Cannot freeze this Storyboard timeline tree" - a arvore de tempo precisa
+        ser congelavel. Os tokens de duracao valem para animacoes iniciadas em codigo.
+    -->
+
+    <!-- Base compartilhada. Nao usar diretamente. -->
+    <Style x:Key="Button.Base" TargetType="Button">
+        <Setter Property="Height" Value="{DynamicResource Size.Control}" />
+        <Setter Property="Padding" Value="{DynamicResource Pad.Button}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <!-- Fora o pontilhado do WPF: o anel de foco e desenhado dentro do template. -->
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+    </Style>
+
+    <!--
+        Primario. Fundo magenta com rotulo QUASE-PRETO: 4,7:1.
+        Texto branco sobre magenta daria 3,58:1 e reprovaria em AA - o preto e ao mesmo
+        tempo mais acessivel e mais bonito, e e a assinatura da marca.
+    -->
+    <Style x:Key="Button.Primary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.OnAccent}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <!-- Anel de foco: fora do botao, so com foco de TECLADO. -->
+                        <Border x:Name="Ring" Margin="-3" CornerRadius="9" Opacity="0"
+                                BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" />
+
+                        <Border x:Name="Root"
+                                CornerRadius="{DynamicResource Radius.SM}"
+                                Background="{DynamicResource Brush.Accent}"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Grid>
+                                <Border x:Name="State" CornerRadius="{DynamicResource Radius.SM}"
+                                        Background="#FFFFFFFF" Opacity="0" />
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="State"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.12" Duration="0:0:0.09" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="State"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.14" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="State" Property="Opacity" Value="0.20" />
+                            <!--
+                                Afundar por ESCALA, e nao por gradiente invertido: e o
+                                que da a sensacao de tecla fisica sem repintar nada.
+                                A transformacao vai inteira num Setter porque um
+                                Trigger nao alcanca um Transform por nome - so elementos
+                                do template tem nome alcancavel.
+                            -->
+                            <Setter TargetName="Root" Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.985" ScaleY="0.985" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+
+                        <!-- IsKeyboardFocused, e nao IsFocused: e o :focus-visible do WPF.
+                             Clique de mouse nao acende o anel; Tab acende. -->
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                        </Trigger>
+
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Border.Subtle}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Secundario: mesma altura, borda que muda de cor em vez de sombra. -->
+    <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Ring" Margin="-3" CornerRadius="9" Opacity="0"
+                                BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" />
+
+                        <Border x:Name="Root"
+                                CornerRadius="{DynamicResource Radius.SM}"
+                                Background="{DynamicResource Brush.Surface.Elevated}"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource Brush.Border.Strong}">
+                            <Grid>
+                                <Border x:Name="State" CornerRadius="{DynamicResource Radius.SM}"
+                                        Background="{DynamicResource Brush.Surface.Hover}" Opacity="0" />
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="State" Property="Opacity" Value="1" />
+                            <Setter TargetName="Root" Property="BorderBrush"
+                                    Value="{DynamicResource Brush.Accent.Ring}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="State" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Fantasma: sem fundo nem borda. E o botao de tudo que e secundario, e a razao de o
+        produto conseguir ter varias acoes na tela sem virar um painel de botoes.
+    -->
+    <Style x:Key="Button.Ghost" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Height" Value="{DynamicResource Size.ControlSmall}" />
+        <Setter Property="Padding" Value="{DynamicResource Pad.ButtonSmall}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Ring" Margin="-3" CornerRadius="9" Opacity="0"
+                                BorderThickness="2" BorderBrush="{DynamicResource Brush.Accent}" />
+
+                        <Border x:Name="Root" CornerRadius="{DynamicResource Radius.SM}"
+                                Background="Transparent">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Surface.Hover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Surface.Press}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        Perigo: SEMPRE em contorno, nunca preenchido.
+
+        Dois motivos. Nao competir com o botao primario magenta, e nao depender de cor
+        para avisar: o vermelho de perigo e o magenta da marca ficam a uns 40 graus de
+        distancia e sao confundiveis em deuteranopia. Acao destrutiva sempre traz tambem
+        icone e verbo explicito.
+    -->
+    <Style x:Key="Button.Danger" TargetType="Button" BasedOn="{StaticResource Button.Ghost}">
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Danger}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root" CornerRadius="{DynamicResource Radius.SM}"
+                            Background="Transparent"
+                            BorderThickness="1" BorderBrush="Transparent">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background"
+                                    Value="{DynamicResource Brush.Danger.Subtle}" />
+                            <Setter TargetName="Root" Property="BorderBrush"
+                                    Value="{DynamicResource Brush.Danger}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush"
+                                    Value="{DynamicResource Brush.Danger}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Disabled}" />
+                            <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

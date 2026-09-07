@@ -1,4 +1,5 @@
-﻿using System.Windows.Media;
+﻿using System.IO;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PrintDev.Core.Screens;
 
@@ -166,5 +167,59 @@ public sealed class CapturedImage
 
         source.Freeze();
         return source;
+    }
+
+    /// <summary>
+    /// Recarrega uma captura a partir de um arquivo em disco.
+    /// <para>
+    /// O histórico guarda só miniaturas — vinte capturas de tela cheia em memória
+    /// passariam de cem megabytes. Quando o usuário pede a imagem de volta, ela vem do
+    /// arquivo, que é onde ela está inteira.
+    /// </para>
+    /// </summary>
+    /// <returns><see langword="null"/> quando o arquivo sumiu ou não deu para ler.</returns>
+    public static CapturedImage? FromFile(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            // OnLoad libera o arquivo assim que a leitura termina; sem isso o arquivo
+            // ficaria preso enquanto a imagem existisse, e apaga-lo depois falharia.
+            var decoded = new BitmapImage();
+            decoded.BeginInit();
+            decoded.UriSource = new Uri(path);
+            decoded.CacheOption = BitmapCacheOption.OnLoad;
+            decoded.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+            decoded.EndInit();
+            decoded.Freeze();
+
+            var converted = new FormatConvertedBitmap(decoded, PixelFormats.Bgra32, null, 0);
+            converted.Freeze();
+
+            int width = converted.PixelWidth;
+            int height = converted.PixelHeight;
+            int stride = width * BytesPerPixel;
+            var pixels = new byte[stride * height];
+            converted.CopyPixels(pixels, stride, 0);
+
+            // O arquivo pode ter vindo de qualquer lugar e trazer alfa. As mesmas razoes
+            // da captura valem aqui: alfa zerado vira retangulo preto ao colar.
+            for (int index = 3; index < pixels.Length; index += BytesPerPixel)
+            {
+                pixels[index] = 255;
+            }
+
+            return new CapturedImage(pixels, new PixelRect(0, 0, width, height));
+        }
+        catch (Exception)
+        {
+            // Arquivo corrompido, formato inesperado, permissao negada: quem chamou
+            // decide o que fazer com o nulo. Nada disso justifica derrubar o programa.
+            return null;
+        }
     }
 }

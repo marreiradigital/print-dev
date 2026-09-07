@@ -1,8 +1,10 @@
 ﻿using PrintDev.Core.Capture;
 using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
+using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
+using PrintDev.Notifications;
 using PrintDev.Overlay;
 using PrintDev.Core.Screens;
 using Serilog;
@@ -22,6 +24,8 @@ public sealed class CaptureCoordinator
     private readonly CapturePipeline _pipeline;
     private readonly OverlayCoordinator _overlay;
     private readonly ClipboardWriter _clipboard;
+    private readonly CaptureHistory _history;
+    private readonly ToastHost _toasts;
     private readonly HotkeyMessageWindow _messageWindow;
     private readonly ISettingsService _settings;
     private readonly ILogger _log;
@@ -32,6 +36,8 @@ public sealed class CaptureCoordinator
         CapturePipeline pipeline,
         OverlayCoordinator overlay,
         ClipboardWriter clipboard,
+        CaptureHistory history,
+        ToastHost toasts,
         HotkeyMessageWindow messageWindow,
         ISettingsService settings,
         ILogger log)
@@ -39,6 +45,8 @@ public sealed class CaptureCoordinator
         _pipeline = pipeline;
         _overlay = overlay;
         _clipboard = clipboard;
+        _history = history;
+        _toasts = toasts;
         _messageWindow = messageWindow;
         _settings = settings;
         _log = log.ForContext<CaptureCoordinator>();
@@ -184,6 +192,14 @@ public sealed class CaptureCoordinator
         if (_settings.Current.Clipboard.CopyAutomatically)
         {
             Publish(result, _settings.Current.Clipboard.Content);
+        }
+
+        _history.Add(image, result.SavedPath);
+
+        CaptureHistoryItem? item = _history.Latest;
+        if (item is not null)
+        {
+            _toasts.Show(item, image.Bounds);
         }
 
         return result;

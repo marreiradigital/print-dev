@@ -170,4 +170,13 @@ internal static partial class NativeMethods
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SetForegroundWindow(IntPtr window);
+
+    /// <summary>Preferencia de canto arredondado (Windows 11).</summary>
+    internal const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+
+    internal const int DWMWCP_ROUND = 2;
+    internal const int DWMWCP_ROUNDSMALL = 3;
+
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
 }

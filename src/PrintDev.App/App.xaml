@@ -22,6 +22,7 @@
 
                 <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Primitives.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Typography.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

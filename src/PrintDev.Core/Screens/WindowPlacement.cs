@@ -43,4 +43,36 @@ public static class WindowPlacement
     /// </summary>
     public static bool BringToFront(IntPtr window)
         => window != IntPtr.Zero && NativeMethods.SetForegroundWindow(window);
+
+    /// <summary>
+    /// Pede ao compositor do Windows para arredondar os cantos da janela.
+    /// <para>
+    /// E a alternativa a ligar transparencia por camada, que arredondaria por conta
+    /// propria ao custo de desligar a aceleracao por hardware daquela janela. No
+    /// Windows 10 nao ha efeito, e os cantos ficam retos - o que e aceitavel.
+    /// </para>
+    /// </summary>
+    public static void RoundCorners(IntPtr window, bool small = false)
+    {
+        if (window == IntPtr.Zero || Environment.OSVersion.Version.Build < 22000)
+        {
+            return;
+        }
+
+        int preference = small ? NativeMethods.DWMWCP_ROUNDSMALL : NativeMethods.DWMWCP_ROUND;
+
+        try
+        {
+            NativeMethods.DwmSetWindowAttribute(
+                window,
+                NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE,
+                ref preference,
+                sizeof(int));
+        }
+        catch (Exception)
+        {
+            // Enfeite: em versao antiga do compositor a chamada simplesmente falha, e a
+            // janela fica com canto reto. Nada aqui justifica derrubar o programa.
+        }
+    }
 }

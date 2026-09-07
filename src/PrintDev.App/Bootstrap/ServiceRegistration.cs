@@ -3,7 +3,9 @@ using PrintDev.Capture;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
+using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
+using PrintDev.Notifications;
 using PrintDev.Overlay;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Startup;
@@ -39,6 +41,8 @@ public static class ServiceRegistration
 
         services.AddSingleton<ThemeService>();
         services.AddSingleton<ClipboardWriter>();
+        services.AddSingleton<CaptureHistory>();
+        services.AddSingleton<ToastHost>();
         services.AddSingleton<OverlayCoordinator>();
         services.AddSingleton<CapturePipeline>();
         services.AddSingleton<CaptureCoordinator>();

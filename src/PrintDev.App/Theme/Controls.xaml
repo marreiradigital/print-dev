@@ -1,0 +1,13 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Reune a biblioteca de controles. O App.xaml mescla so este arquivo, e assim a
+        lista la em cima fica com cinco linhas e a POSICAO 0 - reservada aos tokens de
+        cor, que o ThemeService troca em tempo de execucao - nunca se move.
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Controls/Button.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+</ResourceDictionary>
