@@ -11,7 +11,7 @@ O arquivo é **sempre** salvo em disco antes de ir para a área de transferênci
 
 ## Status
 
-Em construção. O que já existe está marcado; o resto é alvo declarado, não promessa cumprida.
+Todas as fases planejadas estão entregues e verificadas na máquina.
 
 | Fase | Entrega | Status |
 |---|---|---|
@@ -27,7 +27,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 9 | Anotação com borrar/pixelar | ✅ |
 | 10 | Fixar na tela, conta-gotas, repetir região | ✅ |
 | 11 | OCR e limpeza automática | ✅ |
-| 12 | Ícone, publicação, roteiro de testes | ⬜ |
+| 12 | Ícone, publicação, roteiro de testes | ✅ |
 
 ## Requisitos
 
@@ -63,6 +63,7 @@ corrige em lote e `--check` só verifica (útil em CI).
 | [`src/PrintDev.App`](src/PrintDev.App) | WPF: bandeja, overlay, painel de configurações, composition root. |
 | [`tests/PrintDev.Tests`](tests/PrintDev.Tests) | xUnit sobre a lógica pura do Core. |
 | [`docs/decisoes-de-arquitetura.md`](docs/decisoes-de-arquitetura.md) | Por que cada escolha técnica foi feita. |
+| [`docs/roteiro-de-testes-manuais.md`](docs/roteiro-de-testes-manuais.md) | O que a suíte não prova: colagem, geometria, atalhos. |
 
 ## Argumentos de linha de comando
 
@@ -414,6 +415,30 @@ exclusivos — manter os dois abriria o programa duas vezes.
 
 Se a pasta do programa for movida, a entrada de inicialização é corrigida sozinha na
 próxima execução. Sem isso o usuário só descobriria no logon seguinte.
+
+## Publicar
+
+```bash
+# dia a dia — a máquina já tem o runtime instalado (~6 MB)
+dotnet publish src/PrintDev.App -c Release -r win-x64 --self-contained false ^
+  -p:PublishSingleFile=true -p:PublishReadyToRun=true
+
+# para levar a outra máquina, sem depender de runtime (~170 MB)
+dotnet publish src/PrintDev.App -c Release -r win-x64 --self-contained true ^
+  -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true ^
+  -p:PublishReadyToRun=true
+```
+
+`PublishTrimmed` e NativeAOT são **bloqueados pelo SDK para WPF** — a interface depende de
+reflexão sobre o XAML compilado. `PublishReadyToRun` é compatível e melhora o arranque
+frio.
+
+Pasta sugerida: `%LOCALAPPDATA%\Programs\PrintDev` — não exige administrador e não
+esbarra na proteção de pastas do `Program Files`.
+
+O ícone é **gerado por código** (`scripts/gerar-icone.ps1`), com oito resoluções e uma
+escada de simplificação: em 16 e 20 pixels a tarja magenta viraria uma mancha, então
+nesses tamanhos ficam só os quatro colchetes, mais grossos.
 
 ## Solução de problemas
 

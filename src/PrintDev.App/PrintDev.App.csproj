@@ -12,6 +12,7 @@
     <RootNamespace>PrintDev</RootNamespace>
     <AssemblyName>PrintDev</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\PrintDev.ico</ApplicationIcon>
     <!-- Trimming e NativeAOT sao bloqueados pelo SDK para WPF (reflexao sobre BAML). -->
     <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
@@ -35,6 +36,7 @@
       Licencas OFL 1.1 acompanham os arquivos e pedem atribuicao.
     -->
     <Resource Include="Assets\Fonts\*.ttf" />
+    <Resource Include="Assets\PrintDev.ico" />
     <None Include="Assets\Fonts\*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

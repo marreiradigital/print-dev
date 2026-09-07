@@ -11,7 +11,8 @@
         Background="{DynamicResource Brush.Surface.Base}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/PrintDev;component/Assets/PrintDev.ico">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6"

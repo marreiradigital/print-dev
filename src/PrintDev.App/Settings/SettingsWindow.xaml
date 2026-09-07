@@ -11,7 +11,8 @@
         Background="{DynamicResource Brush.Surface.Base}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterScreen"
+        Icon="pack://application:,,,/PrintDev;component/Assets/PrintDev.ico">
 
     <!--
         ATENCAO: AllowsTransparency fica FALSE. True poria a janela em modo layered, o
