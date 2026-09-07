@@ -1,0 +1,58 @@
+name: Publicar o site
+
+# Roda em tres situacoes, e a do meio e a que importa: quando uma release e
+# publicada, o retrato das versoes precisa ser regravado, senao o site so
+# aprenderia sobre a versao nova no proximo push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/site.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Uma publicacao por vez. Nao cancela a que ja esta correndo: interromper um
+# deploy no meio deixaria o site num estado que ninguem pediu.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Retrato das versoes, servido junto com o site.
+      #
+      # A API do GitHub sem autenticacao permite 60 chamadas por hora POR IP.
+      # Um IP compartilhado - empresa, faculdade, operadora movel - estoura isso
+      # sem o visitante ter culpa nenhuma, e o botao de baixar sumiria para ele.
+      # Com o retrato, o site continua inteiro mesmo com a cota zerada.
+      - name: Gravar o retrato das versoes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=30" \
+            > site/assets/releases.json
+          echo "Versoes no retrato: $(jq 'length' site/assets/releases.json)"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

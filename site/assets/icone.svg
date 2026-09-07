@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Print Dev">
+  <!--
+    As quatro marcas de corte formando um quadrado vazado, com a tarja magenta
+    cruzando o colchete inferior esquerdo: moldura + segredo escondido.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0A0A0C"/>
+  <g fill="none" stroke="#F4F4F6" stroke-width="2.4" stroke-linecap="square">
+    <path d="M7 11V7h4"/>
+    <path d="M21 7h4v4"/>
+    <path d="M25 21v4h-4"/>
+    <path d="M11 25H7v-4"/>
+  </g>
+  <rect x="6" y="18.6" width="10.5" height="2.8" fill="#EC008C"/>
+</svg>

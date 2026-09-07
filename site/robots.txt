@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://printdev.marreira.dev/sitemap.xml

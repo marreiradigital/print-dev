@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Print Dev — capturador de tela para quem programa</title>
+<meta name="description" content="Substitui o PrtSc do Windows: uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir. Campo de imagem recebe a imagem; terminal e campo de texto recebem o caminho do arquivo. Gratuito, sem nuvem, em português.">
+<link rel="canonical" href="https://printdev.marreira.dev/">
+<meta name="author" content="Paulo Marreira">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="color-scheme" content="dark">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Print Dev">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:url" content="https://printdev.marreira.dev/">
+<meta property="og:title" content="Print Dev — capturador de tela para quem programa">
+<meta property="og:description" content="Uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir. Campo de imagem recebe a imagem; terminal recebe o caminho do arquivo.">
+<meta property="og:image" content="https://printdev.marreira.dev/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Print Dev — o seletor de área sobre um terminal, com a moldura magenta e o badge de dimensões">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Print Dev — capturador de tela para quem programa">
+<meta name="twitter:description" content="Uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir.">
+<meta name="twitter:image" content="https://printdev.marreira.dev/assets/og.png">
+
+<link rel="icon" href="assets/icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icone.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/estilo.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Print Dev",
+  "alternateName": "PrintDev",
+  "description": "Capturador de tela para desenvolvedores no Windows. Publica a captura em vários formatos na área de transferência ao mesmo tempo, de forma que campos de imagem recebam a imagem e campos de texto recebam o caminho do arquivo.",
+  "url": "https://printdev.marreira.dev/",
+  "image": "https://printdev.marreira.dev/assets/og.png",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Screenshot",
+  "operatingSystem": "Windows 10, Windows 11",
+  "inLanguage": "pt-BR",
+  "downloadUrl": "https://github.com/marreiradigital/print-dev/releases/latest",
+  "softwareVersion": "0.1.1",
+  "license": "https://creativecommons.org/licenses/by-nd/4.0/",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "BRL"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Paulo Marreira",
+    "url": "https://marreira.dev"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Marreira Digital",
+    "url": "https://marreira.dev"
+  }
+}
+</script>
+</head>
+
+<body>
+<a class="pular-para-conteudo" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="topo">
+  <div class="envolver topo-conteudo">
+    <a class="marca" href="/">
+      <img src="assets/icone.svg" alt="" width="28" height="28">
+      <span>Print&nbsp;Dev</span>
+    </a>
+    <nav class="topo-links" aria-label="Seções">
+      <a class="some-no-celular" href="#como-funciona">Como funciona</a>
+      <a class="some-no-celular" href="#recursos">Recursos</a>
+      <a href="#versoes">Versões</a>
+      <a href="https://github.com/marreiradigital/print-dev">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="conteudo">
+
+  <!-- ============================ herói ============================ -->
+  <section class="heroi">
+    <div class="envolver heroi-conteudo">
+      <span class="selo">Windows 10 e 11 · gratuito</span>
+
+      <h1>Um <code>Ctrl+V</code> que acerta sozinho</h1>
+
+      <p class="chamada">
+        O Print Dev substitui o <kbd>PrtSc</kbd> do Windows. Você recorta uma vez e cola
+        onde quiser: <strong>campo que aceita imagem recebe a imagem</strong>,
+        <strong>terminal e campo de texto recebem o caminho do arquivo</strong>.
+        Sem escolher nada, sem salvar na mão, sem caçar a pasta.
+      </p>
+
+      <div class="heroi-acoes">
+        <a class="botao botao-primario" id="botao-baixar"
+           href="https://github.com/marreiradigital/print-dev/releases/latest">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="rotulo-baixar">Baixar para Windows</span>
+        </a>
+        <a class="botao botao-secundario" href="#como-funciona">Ver como funciona</a>
+      </div>
+
+      <p class="linha-fina" id="linha-versao">
+        <span>instalador sem administrador</span>
+        <span>·</span>
+        <span>o arquivo é sempre salvo</span>
+        <span>·</span>
+        <span>sem nuvem, sem conta</span>
+      </p>
+    </div>
+
+    <div class="envolver">
+      <div class="moldura-tiro">
+        <img src="assets/seletor.png" width="1600" height="870" fetchpriority="high"
+             alt="O seletor de área do Print Dev sobre um terminal: a tela escurecida, a janela em destaque com moldura magenta, a lupa com grade de pixels mostrando o HEX da cor sob o cursor, e o badge com as dimensões da seleção.">
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================== como funciona ======================== -->
+  <section id="como-funciona">
+    <div class="envolver">
+      <div class="cabecalho-secao">
+        <span class="selo">O truque</span>
+        <h2>Um recorte, vários formatos, uma transação só</h2>
+        <p class="subtitulo">
+          Nenhum programa consegue saber para onde você vai colar. O que resolve isso é
+          publicar <strong>vários formatos ao mesmo tempo</strong>, na ordem certa — o
+          programa de destino pega o primeiro que sabe consumir.
+        </p>
+      </div>
+
+      <div class="duas-colunas">
+        <div class="destino">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec008c"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <path d="m21 15-5-5L5 21"></path>
+            </svg>
+            Recebe a imagem
+          </h3>
+          <ul>
+            <li>WhatsApp Web, Discord, Slack, Telegram</li>
+            <li>Word, PowerPoint, OneNote, Google Docs</li>
+            <li>Figma, Excalidraw, Paint, Photoshop, GIMP</li>
+            <li>Qualquer campo de texto rico ou editor de imagem</li>
+          </ul>
+          <p class="resultado">[ a imagem, em qualidade original ]</p>
+        </div>
+
+        <div class="destino">
+          <h3>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ec008c"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+            Recebe o caminho
+          </h3>
+          <ul>
+            <li>Windows Terminal, PowerShell, <code>cmd</code></li>
+            <li>VS Code e qualquer editor de código</li>
+            <li><code>&lt;textarea&gt;</code> e <code>&lt;input&gt;</code> em qualquer página</li>
+            <li>Bloco de Notas, barra de endereço, prompt de IA</li>
+          </ul>
+          <p class="resultado">C:\Users\você\Pictures\PrintDev\PrintDev_2026-09-07.png</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top: var(--gap-12); margin-bottom: var(--gap-5);">A ordem publicada em cada captura</h3>
+
+      <div class="rolagem-lateral">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Formato</th><th>Quem consome</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">1</td>
+              <td class="mono">PNG</td>
+              <td><strong>O Chromium procura este primeiro</strong> — WhatsApp Web, Discord, Slack, Figma, todo aplicativo Electron</td>
+            </tr>
+            <tr>
+              <td class="mono">2</td>
+              <td class="mono">CF_DIBV5</td>
+              <td>Bitmap com canal alfa: Word, OneNote, editores de imagem</td>
+            </tr>
+            <tr>
+              <td class="mono">3</td>
+              <td class="mono">CF_DIB</td>
+              <td>Bitmap clássico, para quem não lê os anteriores</td>
+            </tr>
+            <tr>
+              <td class="mono">4</td>
+              <td class="mono">CF_HDROP</td>
+              <td>Explorador do Windows <em>(desligado por padrão — faz o Outlook anexar em vez de embutir)</em></td>
+            </tr>
+            <tr>
+              <td class="mono">5</td>
+              <td class="mono">CF_UNICODETEXT</td>
+              <td><strong>O caminho do arquivo</strong> — terminal, campo de texto, editor de código</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="subtitulo" style="margin-top: var(--gap-6);">
+        O texto vai por último de propósito: é o que sobra para quem não entende imagem.
+        Campo de imagem nunca chega nele, porque encontra um formato de imagem antes.
+      </p>
+    </div>
+  </section>
+
+  <!-- ========================== recursos ========================== -->
+  <section id="recursos">
+    <div class="envolver">
+      <div class="cabecalho-secao">
+        <span class="selo">O que vem junto</span>
+        <h2>Feito para o fluxo de quem programa</h2>
+        <p class="subtitulo">
+          Não é uma ferramenta de captura genérica com um truque. Cada recurso existe
+          porque resolve algo que aparece no dia de quem escreve código.
+        </p>
+      </div>
+
+      <div class="grade">
+        <article class="cartao">
+          <h3>Seletor multimonitor</h3>
+          <p>
+            Congela a tela e abre sobre todos os monitores, com lupa, grade de pixels e
+            leitura de cor em HEX. Arrastar de uma tela para a outra funciona mesmo com
+            escalas diferentes e monitores desalinhados.
+          </p>
+          <p class="tecla"><kbd>PrtSc</kbd></p>
+        </article>
+
+        <article class="cartao">
+          <h3>Esconder de verdade</h3>
+          <p>
+            Token, chave de API e e-mail de cliente aparecem em captura o tempo todo.
+            Aqui os pixels originais <strong>deixam de existir</strong> no arquivo — não é
+            um retângulo por cima, que qualquer editor separa de volta.
+          </p>
+          <p class="tecla"><kbd>8</kbd> no editor de anotação</p>
+        </article>
+
+        <article class="cartao">
+          <h3>Reconhecer texto, sem rede</h3>
+          <p>
+            Recorta e copia o texto da imagem usando o motor que já vem no Windows.
+            Nenhuma imagem sai da sua máquina — numa ferramenta por onde passa senha e
+            código de cliente, mandar para a nuvem seria a decisão errada.
+          </p>
+          <p class="tecla"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>T</kbd></p>
+        </article>
+
+        <article class="cartao">
+          <h3>Repetir a mesma região</h3>
+          <p>
+            Captura de novo o retângulo exato da última vez. Serve para acompanhar algo que
+            muda no mesmo lugar — um erro no terminal, uma compilação, um contador — sem
+            precisar mirar de novo e nunca sair igual.
+          </p>
+          <p class="tecla"><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>PrtSc</kbd></p>
+        </article>
+
+        <article class="cartao">
+          <h3>Fixar na tela</h3>
+          <p>
+            Deixa a captura flutuando sempre por cima, com zoom na roda e
+            <strong>transparência com <kbd>Ctrl</kbd>+roda</strong> — sobrepondo o antes ao
+            depois, a diferença entre os dois salta aos olhos.
+          </p>
+          <p class="tecla">Botão no aviso de captura</p>
+        </article>
+
+        <article class="cartao">
+          <h3>Conta-gotas</h3>
+          <p>
+            Lê a cor de qualquer pixel da tela, <strong>sem escurecer nada</strong> — um véu
+            falsearia justamente a cor sendo medida. Copia em HEX, RGB, HSL ou
+            <code>0x</code>.
+          </p>
+          <p class="tecla"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>P</kbd></p>
+        </article>
+
+        <article class="cartao">
+          <h3>Guardião do atalho</h3>
+          <p>
+            O <kbd>PrtSc</kbd> é a tecla mais disputada do Windows. Se outro capturador
+            estiver com ela, o Print Dev <strong>diz qual é</strong> em vez de só falhar, e
+            reassume sozinho em até 30 segundos quando ele fecha.
+          </p>
+          <p class="tecla">Lightshot · ShareX · Greenshot · Snagit</p>
+        </article>
+
+        <article class="cartao">
+          <h3>Configuração em arquivo</h3>
+          <p>
+            Um <code>settings.json</code> com as chaves em português, feito para ser
+            editado à mão. O programa relê sozinho quando o arquivo muda: salvar no editor
+            já vale, sem reiniciar nada.
+          </p>
+          <p class="tecla"><code>%APPDATA%\PrintDev\</code></p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== galeria ========================== -->
+  <section id="galeria">
+    <div class="envolver">
+      <div class="cabecalho-secao">
+        <span class="selo">Por dentro</span>
+        <h2>Nada de visual nativo</h2>
+        <p class="subtitulo">
+          Design próprio de ponta a ponta, com tema escuro e claro trocáveis em execução.
+          Nenhuma janela do Windows repintada.
+        </p>
+      </div>
+
+      <div class="galeria">
+        <figure>
+          <img src="assets/painel-transferencia.png" width="980" height="680" loading="lazy"
+               alt="Painel de configurações do Print Dev, seção Área de transferência: o que copiar, como o caminho é escrito e uma prévia ao vivo do texto exato que será colado.">
+          <figcaption>Área de transferência — com prévia ao vivo do que será colado</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/painel-atalhos.png" width="980" height="680" loading="lazy"
+               alt="Painel de configurações, seção Atalhos: cada combinação de teclas mostrada em keycaps monoespaçados.">
+          <figcaption>Atalhos — todos configuráveis, valendo na hora</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/painel-captura.png" width="980" height="680" loading="lazy"
+               alt="Painel de configurações, seção Captura: modo padrão do seletor, escurecimento, lupa e atraso.">
+          <figcaption>Captura — do escurecimento ao zoom da lupa</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/painel-salvamento.png" width="980" height="680" loading="lazy"
+               alt="Painel de configurações, seção Salvamento: pasta, formato, qualidade e modelo de nome de arquivo.">
+          <figcaption>Salvamento — com prévia do nome do arquivo</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== versões ========================== -->
+  <section id="versoes">
+    <div class="envolver">
+      <div class="cabecalho-secao">
+        <span class="selo">Downloads</span>
+        <h2>Todas as versões</h2>
+        <p class="subtitulo">
+          A mais recente é sempre a recomendada. As anteriores continuam disponíveis —
+          aqui e <a href="https://github.com/marreiradigital/print-dev/releases">no GitHub</a>.
+        </p>
+      </div>
+
+      <div class="lista-versoes" id="lista-versoes">
+        <p class="aviso-carregando">Buscando as versões publicadas…</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= perguntas ========================= -->
+  <section id="perguntas">
+    <div class="envolver">
+      <div class="cabecalho-secao">
+        <span class="selo">Dúvidas</span>
+        <h2>Perguntas frequentes</h2>
+      </div>
+
+      <div class="perguntas">
+        <details>
+          <summary>O Windows disse que o arquivo não é seguro. É vírus?</summary>
+          <div>
+            <p>
+              Não. O instalador não é assinado com um certificado de código — que é um
+              serviço pago e anual — então o SmartScreen avisa por não reconhecer o
+              publicador, e não por ter encontrado alguma coisa.
+            </p>
+            <p>
+              Para instalar: <strong>Mais informações → Executar assim mesmo</strong>. Se
+              preferir conferir antes, o código-fonte inteiro está no GitHub e o instalador
+              é gerado pelo script <code>scripts/gerar-instalador.ps1</code> do próprio
+              repositório.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Precisa de administrador?</summary>
+          <div>
+            <p>
+              Não. Instala em <code>%LOCALAPPDATA%\Programs\PrintDev</code>, na sua conta.
+              Um capturador de tela não precisa de privilégio nenhum para funcionar, e
+              pedir UAC cobraria um custo sem entregar nada em troca.
+            </p>
+            <p>
+              Existe um modo elevado <em>opcional</em>, e ele resolve um problema
+              específico: o Windows não entrega atalho global a um programa de integridade
+              mais baixa que a janela em foco — sem ele, o <kbd>PrtSc</kbd> não funciona
+              com o Gerenciador de Tarefas em primeiro plano.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Alguma coisa é enviada para a internet?</summary>
+          <div>
+            <p>
+              Nada. Não há conta, telemetria, atualização automática nem envio para nuvem.
+              O reconhecimento de texto usa o motor que já vem no Windows, offline. As
+              capturas ficam só na pasta que você escolher.
+            </p>
+            <p>
+              Envio para a nuvem está fora de escopo de propósito: justamente a captura que
+              costuma ter segredo dentro.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Já uso o Lightshot / ShareX. Dá conflito?</summary>
+          <div>
+            <p>
+              O <kbd>PrtSc</kbd> só pode pertencer a um programa por vez, e quem registra
+              primeiro fica com ele. Se outro capturador estiver com a tecla, o Print Dev
+              <strong>escreve no log qual é o programa</strong> em vez de só dizer que
+              falhou, e continua tentando a cada 30 segundos — então basta fechar o outro,
+              sem reiniciar nada.
+            </p>
+            <p>
+              Também dá para configurar outro atalho, ou deixar o Print Dev encerrar o
+              concorrente sozinho. Esse último não é o padrão: encerrar processo alheio é
+              destrutivo demais para acontecer sem você ter pedido.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Posso usar no trabalho?</summary>
+          <div>
+            <p>
+              Pode, inclusive comercialmente, sem pagar nada. A licença é
+              <a href="https://creativecommons.org/licenses/by-nd/4.0/deed.pt-br">CC BY-ND 4.0</a>:
+              uso livre com crédito ao autor, sem distribuir versões modificadas.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Achei um defeito / quero sugerir algo.</summary>
+          <div>
+            <p>
+              Abra uma <a href="https://github.com/marreiradigital/print-dev/issues">issue no GitHub</a>.
+              Quanto mais concreto (versão, o que você esperava, o que aconteceu, e o log em
+              <code>%APPDATA%\PrintDev\logs\</code>), mais rápido vira correção.
+            </p>
+          </div>
+        </details>
+
+        <details>
+          <summary>Por que a captura saiu preta?</summary>
+          <div>
+            <p>
+              Conteúdo protegido — Netflix, Prime Video — e janelas marcadas pelo
+              desenvolvedor para serem excluídas de captura vêm pretas por decisão do
+              próprio Windows. Nenhum capturador de tela contorna isso, e o Print Dev avisa
+              quando detecta um quadro inteiramente preto em vez de salvar em silêncio.
+            </p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================== licença ========================== -->
+  <section id="licenca">
+    <div class="envolver">
+      <div class="cabecalho-secao">
+        <span class="selo">Licença</span>
+        <h2>Gratuito, com crédito</h2>
+        <p class="subtitulo">
+          <a href="https://creativecommons.org/licenses/by-nd/4.0/deed.pt-br">Creative Commons
+          Atribuição-SemDerivações 4.0 Internacional</a> — o resumo abaixo é para ler rápido;
+          o que vale é o
+          <a href="https://github.com/marreiradigital/print-dev/blob/main/LICENSE">texto da licença</a>.
+        </p>
+      </div>
+
+      <div class="licenca-grade">
+        <div class="licenca-coluna">
+          <h3>VOCÊ PODE</h3>
+          <ul class="pode">
+            <li>Usar de graça, para sempre</li>
+            <li>Usar no trabalho, inclusive comercialmente</li>
+            <li>Compartilhar o instalador e o link</li>
+            <li>Fazer <em>fork</em> aqui no GitHub</li>
+          </ul>
+        </div>
+        <div class="licenca-coluna">
+          <h3>VOCÊ PRECISA</h3>
+          <ul>
+            <li>Dar crédito ao autor</li>
+            <li>Indicar se houve mudanças</li>
+            <li>Linkar a licença</li>
+          </ul>
+        </div>
+        <div class="licenca-coluna">
+          <h3>VOCÊ NÃO PODE</h3>
+          <ul class="nao-pode">
+            <li>Distribuir versão modificada</li>
+            <li>Remover ou esconder a autoria</li>
+            <li>Impedir o que a licença permite</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="citacao-credito">
+        Print Dev, de <strong>Paulo Marreira</strong> — https://marreira.dev<br>
+        Licenciado sob CC BY-ND 4.0.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="envolver">
+    <div class="rodape-conteudo">
+      <div class="rodape-bloco">
+        <strong>PRINT DEV</strong>
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#recursos">Recursos</a>
+        <a href="#versoes">Versões</a>
+        <a href="#perguntas">Perguntas frequentes</a>
+      </div>
+      <div class="rodape-bloco">
+        <strong>CÓDIGO</strong>
+        <a href="https://github.com/marreiradigital/print-dev">Repositório</a>
+        <a href="https://github.com/marreiradigital/print-dev/releases">Todas as versões</a>
+        <a href="https://github.com/marreiradigital/print-dev/issues">Reportar ou sugerir</a>
+        <a href="https://github.com/marreiradigital/print-dev/blob/main/LICENSE">Licença</a>
+      </div>
+      <div class="rodape-bloco">
+        <strong>AUTOR</strong>
+        <a href="https://marreira.dev">marreira.dev</a>
+        <a href="https://github.com/marreiradigital">github.com/marreiradigital</a>
+      </div>
+    </div>
+
+    <div class="assinatura">
+      <span>Feito por <a href="https://marreira.dev">Paulo Marreira</a>.</span>
+      <span>CC BY-ND 4.0 · uso livre com crédito</span>
+    </div>
+  </div>
+</footer>
+
+<script type="module">
+import {
+  buscarVersoes, publicadas, instalador,
+  tamanhoLegivel, dataLegivel, numero, URL_RELEASES,
+} from "./assets/versoes.js";
+
+const lista = document.getElementById("lista-versoes");
+const botao = document.getElementById("botao-baixar");
+const rotulo = document.getElementById("rotulo-baixar");
+const linha = document.getElementById("linha-versao");
+
+function elemento(tag, classe, texto) {
+  const e = document.createElement(tag);
+  if (classe) e.className = classe;
+  if (texto != null) e.textContent = texto;
+  return e;
+}
+
+function cartaoDeVersao(versao, atual) {
+  const item = elemento("article", "versao");
+
+  const titulo = elemento("div", "versao-titulo");
+  titulo.append(elemento("span", null, numero(versao)));
+  if (atual) titulo.append(elemento("span", "etiqueta-atual", "MAIS RECENTE"));
+
+  const exe = instalador(versao);
+  const partes = [dataLegivel(versao.published_at)];
+  if (exe) partes.push(tamanhoLegivel(exe.size));
+  if (exe?.download_count) partes.push(`${exe.download_count} download(s)`);
+
+  const bloco = elemento("div");
+  bloco.style.display = "flex";
+  bloco.style.flexDirection = "column";
+  bloco.style.gap = "var(--gap-2)";
+  bloco.append(titulo, elemento("div", "versao-meta", partes.filter(Boolean).join("  ·  ")));
+
+  const acoes = elemento("div", "versao-acoes");
+  if (exe) {
+    const baixar = elemento("a", "botao botao-pequeno " + (atual ? "botao-primario" : "botao-secundario"), "Baixar .exe");
+    baixar.href = exe.browser_download_url;
+    acoes.append(baixar);
+  }
+  const notas = elemento("a", "botao botao-pequeno botao-secundario", "Notas");
+  notas.href = versao.html_url ?? URL_RELEASES;
+  acoes.append(notas);
+
+  item.append(bloco, acoes);
+
+  if (atual && versao.body?.trim()) {
+    item.append(elemento("div", "notas", versao.body.trim()));
+  }
+  return item;
+}
+
+const versoes = publicadas(await buscarVersoes());
+
+if (!versoes || versoes.length === 0) {
+  lista.replaceChildren();
+  const aviso = elemento("p", "aviso-carregando");
+  aviso.append("Não consegui listar as versões daqui. ");
+  const link = elemento("a", null, "Veja todas no GitHub");
+  link.href = URL_RELEASES;
+  aviso.append(link, ".");
+  lista.append(aviso);
+} else {
+  const recente = versoes[0];
+  const exe = instalador(recente);
+
+  if (exe) {
+    botao.href = exe.browser_download_url;
+    rotulo.textContent = `Baixar ${numero(recente)} para Windows`;
+  }
+
+  linha.replaceChildren(
+    elemento("span", null, `${tamanhoLegivel(exe?.size)} · sem administrador`),
+    elemento("span", null, "·"),
+    elemento("span", null, `publicada em ${dataLegivel(recente.published_at)}`),
+    elemento("span", null, "·"),
+    elemento("span", null, "sem nuvem, sem conta"),
+  );
+
+  lista.replaceChildren(...versoes.map((v, i) => cartaoDeVersao(v, i === 0)));
+}
+</script>
+</body>
+</html>
