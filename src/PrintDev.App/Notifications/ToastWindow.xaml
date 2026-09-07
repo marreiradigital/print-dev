@@ -71,6 +71,8 @@
                       Spacing="{StaticResource Gap.ButtonToButton}"
                       HorizontalAlignment="Right"
                       Margin="0,4,0,0">
+                <Button x:Name="AnnotateButton" Style="{StaticResource Button.Ghost}"
+                        Content="Anotar" />
                 <Button x:Name="CopyPathButton" Style="{StaticResource Button.Ghost}"
                         Content="Copiar caminho" />
                 <Button x:Name="OpenButton" Style="{StaticResource Button.Ghost}"

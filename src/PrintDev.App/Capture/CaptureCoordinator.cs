@@ -1,9 +1,13 @@
-﻿using PrintDev.Core.Capture;
+﻿using System.IO;
+using PrintDev.Annotation;
+using PrintDev.Core.Annotation;
+using PrintDev.Core.Capture;
 using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
+using PrintDev.Core.Runtime;
 using PrintDev.Notifications;
 using PrintDev.Overlay;
 using PrintDev.Core.Screens;
@@ -107,6 +111,15 @@ public sealed class CaptureCoordinator
             // garante que o usuario receba exatamente o que viu selecionado, mesmo que a
             // tela tenha mudado enquanto ele mirava.
             CapturedImage cropped = chosen.Frozen.Crop(chosen.Region);
+
+            if (_settings.Current.Save.PostCaptureAction == PostCaptureAction.Anotar)
+            {
+                // O editor JA grava e publica ao terminar; entregar antes salvaria duas
+                // vezes e deixaria um arquivo sem as marcas no meio do caminho.
+                Annotate(cropped, active);
+                return;
+            }
+
             Deliver(cropped, ModeName(chosen.Mode), active);
         }
         catch (Exception exception)
@@ -202,7 +215,53 @@ public sealed class CaptureCoordinator
             _toasts.Show(item, image.Bounds);
         }
 
+        if (result.SavedPath is not null && _settings.Current.Save.OpenFolderAfterSave)
+        {
+            ShellOpen.Folder(Path.GetDirectoryName(result.SavedPath)!);
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Abre o editor de anotação com a imagem indicada e entrega o resultado.
+    /// </summary>
+    public void Annotate(CapturedImage image, ActiveWindowInfo? active = null)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
+        try
+        {
+            var window = new AnnotationWindow(image, _settings.Current.Annotation);
+
+            if (window.ShowDialog() != true || window.Result is not { } edited)
+            {
+                return;
+            }
+
+            // A imagem anotada segue o MESMO caminho de qualquer captura: grava, publica
+            // e avisa. Um caminho separado aqui produziria comportamento diferente para
+            // a mesma acao, e e assim que nascem as inconsistencias.
+            Deliver(edited, "anotada", active ?? ActiveWindowInfo.Unknown);
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha no editor de anotação");
+        }
+    }
+
+    /// <summary>Abre o editor com uma captura que já está em disco.</summary>
+    public void AnnotateFile(string path)
+    {
+        CapturedImage? image = CapturedImage.FromFile(path);
+
+        if (image is null)
+        {
+            _log.Warning("Não consegui abrir {Arquivo} para anotar", path);
+            return;
+        }
+
+        Annotate(image);
     }
 
     /// <summary>

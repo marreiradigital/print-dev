@@ -1,0 +1,278 @@
+﻿<Window x:Class="PrintDev.Annotation.AnnotationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:ui="clr-namespace:PrintDev.Controls"
+        Title="Print Dev — Anotar"
+        Width="1020" Height="720" MinWidth="640" MinHeight="480"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        AllowsTransparency="False"
+        Background="{DynamicResource Brush.Surface.Base}"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        WindowStartupLocation="CenterScreen">
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="44" ResizeBorderThickness="6"
+                            GlassFrameThickness="0,0,0,1" CornerRadius="0"
+                            UseAeroCaptionButtons="False" NonClientFrameEdges="None" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <!--
+            Botao de ferramenta. Compacto e sem rotulo: sao oito ferramentas, e rotulo em
+            todas viraria uma parede de texto. A dica de tela traz o nome e o atalho.
+        -->
+        <Style x:Key="ToolButton" TargetType="RadioButton">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Root" CornerRadius="8" Background="Transparent">
+                            <Path x:Name="Glyph" Width="18" Height="18" Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                  Stroke="{DynamicResource Brush.Text.Secondary}"
+                                  StrokeThickness="1.6"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  StrokeLineJoin="Round" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Surface.Hover}" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Text.Primary}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Accent.Subtle}" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Accent.Text}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            A ferramenta de esconder e a UNICA que nao usa o acento quando ativa: recebe
+            hachura diagonal, visual de area censurada. Ela e o motivo emocional do
+            produto existir, e nao pode parecer mais um icone na fila.
+        -->
+        <Style x:Key="RedactButton" TargetType="RadioButton" BasedOn="{StaticResource ToolButton}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Root" CornerRadius="8" Background="Transparent"
+                                BorderThickness="1" BorderBrush="Transparent">
+                            <Grid>
+                                <Rectangle x:Name="Hatch" Opacity="0">
+                                    <Rectangle.Fill>
+                                        <DrawingBrush TileMode="Tile" Viewport="0,0,6,6"
+                                                      ViewportUnits="Absolute">
+                                            <DrawingBrush.Drawing>
+                                                <GeometryDrawing Brush="#24FFFFFF">
+                                                    <GeometryDrawing.Geometry>
+                                                        <RectangleGeometry Rect="0,0,3,6" />
+                                                    </GeometryDrawing.Geometry>
+                                                </GeometryDrawing>
+                                            </DrawingBrush.Drawing>
+                                            <DrawingBrush.Transform>
+                                                <RotateTransform Angle="45" />
+                                            </DrawingBrush.Transform>
+                                        </DrawingBrush>
+                                    </Rectangle.Fill>
+                                </Rectangle>
+                                <Path x:Name="Glyph" Width="18" Height="18" Stretch="Uniform"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Stroke="{DynamicResource Brush.Text.Secondary}"
+                                      StrokeThickness="1.6"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Surface.Hover}" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Text.Primary}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Hatch" Property="Opacity" Value="1" />
+                                <Setter TargetName="Root" Property="BorderBrush"
+                                        Value="{DynamicResource Brush.Border.Strong}" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Text.Primary}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SwatchButton" TargetType="RadioButton">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="22" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Ellipse x:Name="Ring" Stroke="{TemplateBinding Background}"
+                                     StrokeThickness="2" Opacity="0" Margin="-3" />
+                            <Ellipse Fill="{TemplateBinding Background}" Margin="2" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Ring" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Barra de titulo -->
+        <Grid Grid.Row="0">
+            <TextBlock Style="{StaticResource Type.BodyMedium}" Margin="16,0,0,0"
+                       VerticalAlignment="Center" Text="Anotar" />
+            <ui:Stack Orientation="Horizontal" HorizontalAlignment="Right"
+                      VerticalAlignment="Center" Margin="0,0,6,0" Spacing="0">
+                <Button x:Name="CloseButton" Width="46" Height="34"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Style="{StaticResource Button.Ghost}" Content="✕" ToolTip="Fechar (Esc)" />
+            </ui:Stack>
+        </Grid>
+
+        <!-- Imagem -->
+        <Border Grid.Row="1" Background="{DynamicResource Brush.Surface.Sunken}"
+                Padding="20" ClipToBounds="True">
+            <Grid x:Name="CanvasHost" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+
+        <!-- Barra de ferramentas -->
+        <Border Grid.Row="2" Background="{DynamicResource Brush.Surface.Elevated}"
+                BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                Padding="16,10,16,12">
+            <ui:Stack Spacing="10">
+
+                <ui:Stack Orientation="Horizontal" Spacing="6">
+                    <RadioButton x:Name="ToolArrow" Style="{StaticResource ToolButton}" IsChecked="True"
+                                 ToolTip="Seta (1)"
+                                 Tag="M 3,15 L 15,3 M 9,3 L 15,3 L 15,9" />
+                    <RadioButton x:Name="ToolRectangle" Style="{StaticResource ToolButton}"
+                                 ToolTip="Retângulo (2)"
+                                 Tag="M 2.5,4 L 15.5,4 L 15.5,14 L 2.5,14 Z" />
+                    <RadioButton x:Name="ToolEllipse" Style="{StaticResource ToolButton}"
+                                 ToolTip="Elipse (3)"
+                                 Tag="M 9,3.5 A 6.5,5.5 0 1 1 8.9,3.5 Z" />
+                    <RadioButton x:Name="ToolPen" Style="{StaticResource ToolButton}"
+                                 ToolTip="Caneta (4)"
+                                 Tag="M 3,15 C 5,7 8,13 10,8 C 12,3 14,7 15,5" />
+                    <RadioButton x:Name="ToolHighlight" Style="{StaticResource ToolButton}"
+                                 ToolTip="Marca-texto (5)"
+                                 Tag="M 3,12 L 11,4 L 15,8 L 7,16 L 3,16 Z" />
+                    <RadioButton x:Name="ToolText" Style="{StaticResource ToolButton}"
+                                 ToolTip="Texto (6)"
+                                 Tag="M 4,4 L 14,4 M 9,4 L 9,15" />
+                    <RadioButton x:Name="ToolStep" Style="{StaticResource ToolButton}"
+                                 ToolTip="Numeração de passos (7)"
+                                 Tag="M 9,2.5 A 6.5,6.5 0 1 1 8.9,2.5 Z M 8,7 L 9.5,6 L 9.5,13" />
+
+                    <Border Width="1" Margin="6,4,6,4"
+                            Background="{DynamicResource Brush.Border.Subtle}" />
+
+                    <!-- Isolada entre divisorias: posicao comunica que ela e diferente. -->
+                    <RadioButton x:Name="ToolRedact" Style="{StaticResource RedactButton}"
+                                 ToolTip="Esconder — apaga os pixels de verdade (8)"
+                                 Tag="M 1.5,9 C 4,4.5 7,2.5 9,2.5 C 11,2.5 14,4.5 16.5,9 C 14,13.5 11,15.5 9,15.5 C 7,15.5 4,13.5 1.5,9 Z M 3,15 L 15,3" />
+
+                    <Border Width="1" Margin="6,4,6,4"
+                            Background="{DynamicResource Brush.Border.Subtle}" />
+
+                    <Button x:Name="UndoButton" Style="{StaticResource Button.Ghost}"
+                            Content="Desfazer" ToolTip="Ctrl+Z" />
+                    <Button x:Name="RedoButton" Style="{StaticResource Button.Ghost}"
+                            Content="Refazer" ToolTip="Ctrl+Y" />
+
+                    <!-- A acao mais provavel ganha o unico botao magenta da tela. -->
+                    <Button x:Name="CopyButton" Style="{StaticResource Button.Primary}"
+                            Content="Copiar" HorizontalAlignment="Right" Margin="12,0,0,0" />
+                    <Button x:Name="SaveButton" Style="{StaticResource Button.Secondary}"
+                            Content="Salvar" />
+                </ui:Stack>
+
+                <!-- Segunda linha: opcoes da ferramenta ativa. -->
+                <ui:Stack Orientation="Horizontal" Spacing="10" x:Name="OptionsRow">
+                    <ui:Stack x:Name="ColorOptions" Orientation="Horizontal" Spacing="8"
+                              VerticalAlignment="Center">
+                        <RadioButton x:Name="ColorRed" Style="{StaticResource SwatchButton}"
+                                     Background="#FFFF3B30" IsChecked="True" GroupName="cor" />
+                        <RadioButton x:Name="ColorAmber" Style="{StaticResource SwatchButton}"
+                                     Background="#FFFFC245" GroupName="cor" />
+                        <RadioButton x:Name="ColorGreen" Style="{StaticResource SwatchButton}"
+                                     Background="#FF3DDC97" GroupName="cor" />
+                        <RadioButton x:Name="ColorBlue" Style="{StaticResource SwatchButton}"
+                                     Background="#FF57B6FF" GroupName="cor" />
+                        <RadioButton x:Name="ColorMagenta" Style="{StaticResource SwatchButton}"
+                                     Background="#FFEC008C" GroupName="cor" />
+                        <RadioButton x:Name="ColorWhite" Style="{StaticResource SwatchButton}"
+                                     Background="#FFFFFFFF" GroupName="cor" />
+
+                        <Border Width="1" Margin="4,2,4,2"
+                                Background="{DynamicResource Brush.Border.Subtle}" />
+
+                        <!-- Tres espessuras, e nao um controle continuo: tres opcoes
+                             decidem mais rapido que um intervalo. -->
+                        <RadioButton x:Name="ThinStroke" Style="{StaticResource ToolButton}"
+                                     Width="30" Height="28" ToolTip="Fino"
+                                     Tag="M 2,9 L 16,9" IsChecked="True" GroupName="espessura" />
+                        <RadioButton x:Name="MediumStroke" Style="{StaticResource ToolButton}"
+                                     Width="30" Height="28" ToolTip="Médio"
+                                     Tag="M 2,9 L 16,9 M 2,7.5 L 16,7.5 M 2,10.5 L 16,10.5"
+                                     GroupName="espessura" />
+                        <RadioButton x:Name="ThickStroke" Style="{StaticResource ToolButton}"
+                                     Width="30" Height="28" ToolTip="Grosso"
+                                     Tag="M 2,9 L 16,9 M 2,6 L 16,6 M 2,12 L 16,12"
+                                     GroupName="espessura" />
+                    </ui:Stack>
+
+                    <!-- Opcoes da ferramenta de esconder, so quando ela esta ativa. -->
+                    <ui:Stack x:Name="RedactOptions" Orientation="Horizontal" Spacing="10"
+                              VerticalAlignment="Center" Visibility="Collapsed">
+                        <ComboBox x:Name="RedactStyle" Style="{StaticResource Input.Combo}"
+                                  Height="30" MinWidth="150" />
+                        <TextBlock Style="{StaticResource Type.Small}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Brush.Warning}"
+                                   Text="Ao salvar ou copiar, os pixels originais são apagados." />
+                    </ui:Stack>
+                </ui:Stack>
+
+            </ui:Stack>
+        </Border>
+
+        <!-- Campo de texto que aparece no ponto clicado. -->
+        <TextBox x:Name="TextEntry" Grid.Row="1" Style="{StaticResource Input.Text}"
+                 Visibility="Collapsed" Width="260"
+                 HorizontalAlignment="Left" VerticalAlignment="Top"
+                 Tag="Digite e pressione Enter" />
+    </Grid>
+</Window>

@@ -31,6 +31,7 @@ public partial class ToastWindow : Window
 
         // Sem arquivo em disco nao ha caminho para copiar nem o que abrir ou desfazer.
         bool saved = item.Path is not null;
+        AnnotateButton.IsEnabled = saved;
         CopyPathButton.IsEnabled = saved;
         OpenButton.IsEnabled = saved;
         UndoButton.IsEnabled = saved;
@@ -40,6 +41,7 @@ public partial class ToastWindow : Window
             Headline.Text = "Captura copiada (não deu para salvar)";
         }
 
+        AnnotateButton.Click += (_, _) => Raise(ToastAction.Annotate);
         CopyPathButton.Click += (_, _) => Raise(ToastAction.CopyPath);
         OpenButton.Click += (_, _) => Raise(ToastAction.Open);
         UndoButton.Click += (_, _) => Raise(ToastAction.Undo);
@@ -148,6 +150,9 @@ public partial class ToastWindow : Window
 /// <summary>O que o usuário escolheu no aviso.</summary>
 internal enum ToastAction
 {
+    /// <summary>Abrir o editor de anotação com esta captura.</summary>
+    Annotate,
+
     /// <summary>Copiar só o caminho, em texto.</summary>
     CopyPath,
 

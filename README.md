@@ -24,7 +24,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 6 | Overlay de seleção multimonitor | ✅ |
 | 7 | Aviso de captura e histórico na bandeja | ✅ |
 | 8 | Painel de configurações | ✅ |
-| 9 | Anotação com borrar/pixelar + barra pós-captura | ⬜ |
+| 9 | Anotação com borrar/pixelar | ✅ |
 | 10 | Fixar na tela, conta-gotas, repetir região | ⬜ |
 | 11 | OCR e limpeza automática | ⬜ |
 | 12 | Ícone, publicação, roteiro de testes | ⬜ |
@@ -134,6 +134,41 @@ definição, então quem clicou errado precisa poder voltar atrás do voltar atr
 O menu da bandeja tem **Capturas recentes**, com miniatura de cada uma. Clicar recopia —
 e a imagem vem do arquivo em disco, não da miniatura, porque guardar vinte capturas de
 tela cheia em memória passaria de cem megabytes.
+
+## Anotar e esconder
+
+Abre pelo botão **Anotar** no aviso, ou automaticamente com
+`salvamento.acaoAposCapturar: "anotar"`.
+
+| Ferramenta | Tecla |
+|---|---|
+| Seta · Retângulo · Elipse · Caneta | `1` `2` `3` `4` |
+| Marca-texto · Texto · Numeração de passos | `5` `6` `7` |
+| **Esconder** | `8` |
+| Desfazer · Refazer | `Ctrl+Z` · `Ctrl+Y` |
+| Copiar e fechar | `Ctrl+Enter` · `Esc` cancela |
+
+O modelo é vetorial: desfazer é remover o último item da lista, não guardar uma cópia da
+imagem por traço — em captura de tela cheia isso custaria oito megabytes por marca.
+
+### A ferramenta de esconder
+
+É o motivo de o produto existir para quem programa: token, chave de API, e-mail de
+cliente e nome de banco aparecem em captura de tela o tempo todo.
+
+**A operação é destrutiva de propósito.** Desenhar um retângulo por cima esconde na tela e
+não esconde no arquivo — qualquer editor separa as camadas de novo. Aqui os bytes
+originais deixam de existir, e é isso que o aviso na barra promete.
+
+| Estilo | Quando usar |
+|---|---|
+| **Pixelar** (padrão) | Comunica melhor: o texto some, mas continua visível que *havia* algo ali |
+| Tarja sólida | Quando nem a existência do conteúdo deve aparecer |
+| Desfocar | O menos seguro dos três — com raio pequeno, texto desfocado pode ser recuperado |
+
+Na barra ela fica **isolada entre dois divisores** e é a única ferramenta que não usa a
+cor de acento quando ativa: recebe hachura diagonal, visual de área censurada. Não pode
+parecer mais um ícone na fila.
 
 ## Como o Ctrl+V acerta sozinho
 

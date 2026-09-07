@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Bootstrap;
 using PrintDev.Capture;
+using PrintDev.Notifications;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
@@ -89,6 +90,15 @@ public partial class App : Application
         // nada, e o usuario so descobre no proximo logon.
         _services.GetRequiredService<AutoStartService>().RepairIfMoved();
         _services.GetRequiredService<TrayIconHost>().Show();
+
+        // O aviso pede a anotacao por evento; e aqui que o pedido encontra quem executa.
+        _services.GetRequiredService<ToastHost>().AnnotateRequested += (_, item) =>
+        {
+            if (item.Path is not null)
+            {
+                _services.GetRequiredService<CaptureCoordinator>().AnnotateFile(item.Path);
+            }
+        };
 
         StartHotkeys(settings);
 

@@ -33,6 +33,16 @@ public sealed class ToastHost
     private readonly ILogger _log;
     private readonly List<ToastWindow> _visible = [];
 
+    /// <summary>
+    /// Pedido de anotação vindo do aviso.
+    /// <para>
+    /// É um evento, e não uma chamada direta ao coordenador de captura: o coordenador já
+    /// depende deste host para mostrar o aviso, e a chamada de volta fecharia um ciclo
+    /// que o container recusaria montar.
+    /// </para>
+    /// </summary>
+    public event EventHandler<CaptureHistoryItem>? AnnotateRequested;
+
     public ToastHost(
         ISettingsService settings,
         ClipboardWriter clipboard,
@@ -132,6 +142,10 @@ public sealed class ToastHost
 
         switch (action)
         {
+            case ToastAction.Annotate:
+                AnnotateRequested?.Invoke(this, item);
+                break;
+
             case ToastAction.CopyPath:
                 CopyPath(item.Path);
                 break;
