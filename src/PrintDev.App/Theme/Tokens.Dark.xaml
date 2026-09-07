@@ -47,7 +47,6 @@
     <Color x:Key="Color.Text.OnAccent">#FF0A0A0C</Color>
 
     <!-- ==== ACENTO - magenta de registro ==== -->
-    <Color x:Key="Color.Accent.700">#FFA8006B</Color>
     <Color x:Key="Color.Accent.600">#FFC9007A</Color>
     <Color x:Key="Color.Accent.500">#FFEC008C</Color>
     <Color x:Key="Color.Accent.400">#FFFF3DA3</Color>
@@ -60,8 +59,6 @@
     <Color x:Key="Color.Warning">#FFFFC245</Color>
     <Color x:Key="Color.Danger">#FFFF6250</Color>
     <Color x:Key="Color.Info">#FF57B6FF</Color>
-    <Color x:Key="Color.Success.Subtle">#243DDC97</Color>
-    <Color x:Key="Color.Warning.Subtle">#24FFC245</Color>
     <Color x:Key="Color.Danger.Subtle">#24FF6250</Color>
 
     <!--
@@ -100,16 +97,12 @@
     <SolidColorBrush x:Key="Brush.Text.OnAccent" Color="{StaticResource Color.Text.OnAccent}" />
 
     <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent.500}" />
-    <SolidColorBrush x:Key="Brush.Accent.Hover" Color="{StaticResource Color.Accent.400}" />
-    <SolidColorBrush x:Key="Brush.Accent.Press" Color="{StaticResource Color.Accent.600}" />
     <SolidColorBrush x:Key="Brush.Accent.Text" Color="{StaticResource Color.Accent.300}" />
     <SolidColorBrush x:Key="Brush.Accent.Subtle" Color="{StaticResource Color.Accent.Subtle}" />
     <SolidColorBrush x:Key="Brush.Accent.Ring" Color="{StaticResource Color.Accent.Ring}" />
 
-    <SolidColorBrush x:Key="Brush.Success" Color="{StaticResource Color.Success}" />
     <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
     <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Color.Danger}" />
-    <SolidColorBrush x:Key="Brush.Info" Color="{StaticResource Color.Info}" />
     <SolidColorBrush x:Key="Brush.Danger.Subtle" Color="{StaticResource Color.Danger.Subtle}" />
 
     <SolidColorBrush x:Key="Brush.Veil" Color="{StaticResource Color.Veil}" />

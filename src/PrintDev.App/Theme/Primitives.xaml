@@ -12,14 +12,6 @@
     -->
 
     <!-- ==== ESCALA DE ESPACO ==== -->
-    <sys:Double x:Key="Space.2XS">4</sys:Double>
-    <sys:Double x:Key="Space.XS">8</sys:Double>
-    <sys:Double x:Key="Space.SM">12</sys:Double>
-    <sys:Double x:Key="Space.MD">16</sys:Double>
-    <sys:Double x:Key="Space.LG">24</sys:Double>
-    <sys:Double x:Key="Space.XL">32</sys:Double>
-    <sys:Double x:Key="Space.2XL">48</sys:Double>
-    <sys:Double x:Key="Space.3XL">64</sys:Double>
 
     <!--
         ==== ESPACOS SEMANTICOS ====
@@ -46,19 +38,13 @@
     <Thickness x:Key="Pad.Button">16,0,16,0</Thickness>
     <Thickness x:Key="Pad.ButtonSmall">12,0,12,0</Thickness>
     <Thickness x:Key="Pad.Input">12,0,12,0</Thickness>
-    <Thickness x:Key="Pad.Popover">8</Thickness>
     <Thickness x:Key="Pad.Toolbar">6</Thickness>
-    <Thickness x:Key="Pad.Badge">8,3,8,3</Thickness>
 
     <!-- ==== ALTURAS ==== -->
     <sys:Double x:Key="Size.Control">36</sys:Double>
     <sys:Double x:Key="Size.ControlSmall">30</sys:Double>
-    <sys:Double x:Key="Size.Row">56</sys:Double>
-    <sys:Double x:Key="Size.TitleBar">48</sys:Double>
     <sys:Double x:Key="Size.NavItem">36</sys:Double>
-    <sys:Double x:Key="Size.Toolbar">44</sys:Double>
     <sys:Double x:Key="Size.Icon">20</sys:Double>
-    <sys:Double x:Key="Size.IconSmall">16</sys:Double>
 
     <!--
         ==== RAIOS ====
@@ -69,9 +55,7 @@
     <CornerRadius x:Key="Radius.SM">6</CornerRadius>
     <CornerRadius x:Key="Radius.MD">10</CornerRadius>
     <CornerRadius x:Key="Radius.LG">12</CornerRadius>
-    <CornerRadius x:Key="Radius.Pill">999</CornerRadius>
     <!-- A selecao NUNCA tem canto arredondado: ela precisa dizer exatamente onde corta. -->
-    <CornerRadius x:Key="Radius.None">0</CornerRadius>
 
     <!--
         ==== ELEVACAO ====
@@ -93,15 +77,7 @@
         Nenhum LinearEase no projeto inteiro: movimento linear parece mecanico porque
         nada no mundo fisico se move assim.
     -->
-    <Duration x:Key="Dur.Instant">0:0:0.09</Duration>
-    <Duration x:Key="Dur.Fast">0:0:0.14</Duration>
-    <Duration x:Key="Dur.Base">0:0:0.22</Duration>
-    <Duration x:Key="Dur.Slow">0:0:0.32</Duration>
 
-    <CubicEase x:Key="Ease.Out" EasingMode="EaseOut" />
-    <QuinticEase x:Key="Ease.Decelerate" EasingMode="EaseOut" />
-    <QuarticEase x:Key="Ease.Standard" EasingMode="EaseInOut" />
     <!-- Usado em exatamente DOIS lugares. Mais que isso vira desenho animado. -->
-    <BackEase x:Key="Ease.Overshoot" EasingMode="EaseOut" Amplitude="0.22" />
 
 </ResourceDictionary>

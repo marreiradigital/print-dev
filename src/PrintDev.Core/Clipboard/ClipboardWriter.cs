@@ -234,10 +234,16 @@ public sealed class ClipboardWriter
             int error = Marshal.GetLastWin32Error();
             if (attempt == OpenAttempts)
             {
+                // O acesso negado é o caso esperado — outro programa está com a área
+                // aberta — e merece nome, e não um número que ninguém vai procurar.
+                string causa = error == NativeMethods.ERROR_ACCESS_DENIED
+                    ? "outro programa está com ela aberta"
+                    : $"erro {error}";
+
                 _log.Warning(
-                    "Área de transferência ocupada após {Tentativas} tentativas (erro {Erro}).",
+                    "Área de transferência ocupada após {Tentativas} tentativas: {Causa}.",
                     OpenAttempts,
-                    error);
+                    causa);
                 return false;
             }
 

@@ -51,6 +51,9 @@ internal static partial class NativeMethods
     internal static extern IntPtr MonitorFromPoint(POINT point, uint flags);
 
     [DllImport("user32.dll")]
+    internal static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
+
+    [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetCursorPos(out POINT point);
 

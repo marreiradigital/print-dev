@@ -1,4 +1,5 @@
-﻿using PrintDev.Core.Interop;
+﻿using System.Runtime.InteropServices;
+using PrintDev.Core.Interop;
 
 namespace PrintDev.Core.Screens;
 
@@ -43,6 +44,58 @@ public static class WindowPlacement
     /// </summary>
     public static bool BringToFront(IntPtr window)
         => window != IntPtr.Zero && NativeMethods.SetForegroundWindow(window);
+
+    /// <summary>
+    /// Trava o tamanho e a posição de uma janela maximizada na área de trabalho do
+    /// monitor em que ela está, respondendo a <c>WM_GETMINMAXINFO</c>.
+    /// <para>
+    /// Resolve DOIS defeitos com uma solução só. Sem isto, uma janela sem moldura nativa,
+    /// ao maximizar, cobre a barra de tarefas <b>e</b> sangra oito pixels para fora da
+    /// tela em cada lado — porque o Windows a posiciona em (-8, -8) contando com a
+    /// moldura que aqui não existe.
+    /// </para>
+    /// </summary>
+    /// <param name="minimumWidth">
+    /// Largura mínima em <b>pixels físicos</b>. O Windows não escala este valor: passá-lo
+    /// em unidades independentes de dispositivo daria um mínimo errado em monitor com
+    /// escala diferente de 100%.
+    /// </param>
+    /// <param name="minimumHeight">Altura mínima, em pixels físicos.</param>
+    /// <returns>
+    /// <see langword="true"/> quando os limites foram escritos — e só então a mensagem
+    /// pode ser dada como tratada.
+    /// </returns>
+    public static bool ClampMaximizeToWorkArea(
+        IntPtr window,
+        IntPtr minMaxInfo,
+        int minimumWidth,
+        int minimumHeight)
+    {
+        if (window == IntPtr.Zero || minMaxInfo == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        IntPtr monitor = NativeMethods.MonitorFromWindow(window, NativeMethods.MONITOR_DEFAULTTONEAREST);
+
+        var info = new MONITORINFOEX { Size = Marshal.SizeOf<MONITORINFOEX>() };
+        if (!NativeMethods.GetMonitorInfo(monitor, ref info))
+        {
+            return false;
+        }
+
+        var limits = Marshal.PtrToStructure<MINMAXINFO>(minMaxInfo);
+
+        limits.MaxPosition.X = info.WorkArea.Left - info.Monitor.Left;
+        limits.MaxPosition.Y = info.WorkArea.Top - info.Monitor.Top;
+        limits.MaxSize.X = info.WorkArea.Right - info.WorkArea.Left;
+        limits.MaxSize.Y = info.WorkArea.Bottom - info.WorkArea.Top;
+        limits.MinTrackSize.X = minimumWidth;
+        limits.MinTrackSize.Y = minimumHeight;
+
+        Marshal.StructureToPtr(limits, minMaxInfo, fDeleteOld: true);
+        return true;
+    }
 
     /// <summary>
     /// Pede ao compositor do Windows para arredondar os cantos da janela.

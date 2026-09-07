@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -19,7 +18,6 @@ namespace PrintDev.Settings;
 public partial class SettingsWindow : Window
 {
     private const int WM_GETMINMAXINFO = 0x0024;
-    private const int MONITOR_DEFAULTTONEAREST = 0x0002;
 
     private readonly SettingsViewModel _model;
     private readonly IAppPaths _paths;
@@ -86,26 +84,13 @@ public partial class SettingsWindow : Window
             return IntPtr.Zero;
         }
 
-        var info = Marshal.PtrToStructure<MINMAXINFO>(lParam);
-        IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        DpiScale dpi = VisualTreeHelper.GetDpi(this);
 
-        var monitorInfo = new MONITORINFO { Size = Marshal.SizeOf<MONITORINFO>() };
-        if (GetMonitorInfo(monitor, ref monitorInfo))
-        {
-            info.MaxPosition.X = monitorInfo.WorkArea.Left - monitorInfo.Monitor.Left;
-            info.MaxPosition.Y = monitorInfo.WorkArea.Top - monitorInfo.Monitor.Top;
-            info.MaxSize.X = monitorInfo.WorkArea.Right - monitorInfo.WorkArea.Left;
-            info.MaxSize.Y = monitorInfo.WorkArea.Bottom - monitorInfo.WorkArea.Top;
-
-            // O tamanho minimo vem em PIXELS FISICOS. Sem multiplicar pela escala, a
-            // janela ficaria com o minimo errado num monitor com escala diferente de 100%.
-            DpiScale dpi = VisualTreeHelper.GetDpi(this);
-            info.MinTrackSize.X = (int)(MinWidth * dpi.DpiScaleX);
-            info.MinTrackSize.Y = (int)(MinHeight * dpi.DpiScaleY);
-
-            Marshal.StructureToPtr(info, lParam, true);
-            handled = true;
-        }
+        handled = WindowPlacement.ClampMaximizeToWorkArea(
+            hwnd,
+            lParam,
+            (int)(MinWidth * dpi.DpiScaleX),
+            (int)(MinHeight * dpi.DpiScaleY));
 
         return IntPtr.Zero;
     }
@@ -218,48 +203,4 @@ public partial class SettingsWindow : Window
             _model.Folder = dialog.FolderName;
         }
     }
-
-    // ---- Estruturas do WM_GETMINMAXINFO ----
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT
-    {
-        public int X;
-        public int Y;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MINMAXINFO
-    {
-        public POINT Reserved;
-        public POINT MaxSize;
-        public POINT MaxPosition;
-        public POINT MinTrackSize;
-        public POINT MaxTrackSize;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO
-    {
-        public int Size;
-        public RECT Monitor;
-        public RECT WorkArea;
-        public int Flags;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr window, int flags);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
 }

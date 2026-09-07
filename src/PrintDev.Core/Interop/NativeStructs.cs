@@ -23,6 +23,19 @@ internal struct POINT
     public int Y;
 }
 
+/// <summary>
+/// Limites que a janela informa ao Windows em <c>WM_GETMINMAXINFO</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct MINMAXINFO
+{
+    public POINT Reserved;
+    public POINT MaxSize;
+    public POINT MaxPosition;
+    public POINT MinTrackSize;
+    public POINT MaxTrackSize;
+}
+
 /// <summary>Informações de um monitor, com o nome do dispositivo.</summary>
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 internal struct MONITORINFOEX
