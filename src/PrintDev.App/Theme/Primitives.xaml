@@ -18,23 +18,23 @@
         E ISTO que a interface usa, nunca os numeros crus. O nome carrega a regra:
         quando alguem escreve Gap.LabelToControl, o valor certo vem junto.
 
+        Nem todo espacamento do projeto passa por aqui: parte do XAML usa o numero
+        direto. Os tokens que ninguem consumia foram removidos em vez de mantidos
+        como promessa - token declarado e nao usado e pior que numero solto, porque
+        finge uma regra que o codigo nao segue.
+
         Os minimos sao inegociaveis: nada pode ficar colado.
     -->
     <sys:Double x:Key="Gap.LabelToControl">6</sys:Double>
     <sys:Double x:Key="Gap.LabelToHint">4</sys:Double>
     <sys:Double x:Key="Gap.IconToText">8</sys:Double>
-    <sys:Double x:Key="Gap.FieldToField">20</sys:Double>
-    <sys:Double x:Key="Gap.FieldToAction">28</sys:Double>
     <sys:Double x:Key="Gap.CardToCard">24</sys:Double>
-    <sys:Double x:Key="Gap.SectionToSection">40</sys:Double>
     <sys:Double x:Key="Gap.ButtonToButton">10</sys:Double>
     <sys:Double x:Key="Gap.ToolbarItems">6</sys:Double>
 
     <!-- ==== PADDINGS ==== -->
-    <Thickness x:Key="Pad.Card">20</Thickness>
     <Thickness x:Key="Pad.CardTight">16</Thickness>
     <Thickness x:Key="Pad.Row">20,14,20,14</Thickness>
-    <Thickness x:Key="Pad.Page">32,28,32,40</Thickness>
     <Thickness x:Key="Pad.Button">16,0,16,0</Thickness>
     <Thickness x:Key="Pad.ButtonSmall">12,0,12,0</Thickness>
     <Thickness x:Key="Pad.Input">12,0,12,0</Thickness>
