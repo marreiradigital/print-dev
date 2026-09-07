@@ -124,6 +124,59 @@ public sealed class ClipboardWriter
     }
 
     /// <summary>
+    /// Limpa a área de transferência, mas <b>só se o conteúdo dela ainda for nosso</b>.
+    /// <para>
+    /// É o que fecha o "Desfazer": sem isso, o arquivo vai para a Lixeira e o caminho
+    /// dele continua colável — a próxima colagem num terminal entrega um caminho morto.
+    /// </para>
+    /// <para>
+    /// A conferência de dono não é zelo excessivo: entre a captura e o arrependimento a
+    /// pessoa pode ter copiado outra coisa, e apagar o que ela copiou depois seria um
+    /// estrago bem maior do que o que se está desfazendo.
+    /// </para>
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> quando limpou. <see langword="false"/> quando o conteúdo já
+    /// era de outro programa — que também é um desfecho correto, e não um erro.
+    /// </returns>
+    public bool ClearIfOwned(IntPtr owner)
+    {
+        if (owner == IntPtr.Zero || NativeMethods.GetClipboardOwner() != owner)
+        {
+            return false;
+        }
+
+        if (!OpenWithRetry(owner))
+        {
+            _log.Warning("Não consegui abrir a área de transferência para limpá-la.");
+            return false;
+        }
+
+        try
+        {
+            // Entre a checagem de dono e o Open outro programa pode ter assumido; com a
+            // area aberta, a resposta e definitiva.
+            if (NativeMethods.GetClipboardOwner() != owner)
+            {
+                return false;
+            }
+
+            if (!NativeMethods.EmptyClipboard())
+            {
+                _log.Warning("Não consegui esvaziar a área de transferência.");
+                return false;
+            }
+
+            _log.Debug("Área de transferência limpa: o conteúdo era nosso.");
+            return true;
+        }
+        finally
+        {
+            NativeMethods.CloseClipboard();
+        }
+    }
+
+    /// <summary>
     /// Monta os blocos <b>na ordem em que serão publicados</b>.
     /// <para>
     /// A ordem é a regra inteira do produto. A documentação do Windows é explícita: os

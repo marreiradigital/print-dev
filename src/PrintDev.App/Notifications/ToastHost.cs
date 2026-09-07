@@ -29,7 +29,7 @@ public sealed class ToastHost
     private readonly ISettingsService _settings;
     private readonly ClipboardWriter _clipboard;
     private readonly HotkeyMessageWindow _messageWindow;
-    private readonly CaptureHistory _history;
+    private readonly CaptureUndoService _undo;
     private readonly ILogger _log;
     private readonly List<ToastWindow> _visible = [];
 
@@ -50,13 +50,13 @@ public sealed class ToastHost
         ISettingsService settings,
         ClipboardWriter clipboard,
         HotkeyMessageWindow messageWindow,
-        CaptureHistory history,
+        CaptureUndoService undo,
         ILogger log)
     {
         _settings = settings;
         _clipboard = clipboard;
         _messageWindow = messageWindow;
-        _history = history;
+        _undo = undo;
         _log = log.ForContext<ToastHost>();
     }
 
@@ -138,10 +138,31 @@ public sealed class ToastHost
     {
         CaptureHistoryItem item = toast.Item;
 
-        if (item.Path is null)
+        // Desfazer é a única ação que faz sentido sem arquivo: sobra tirar do histórico e
+        // devolver a área de transferência.
+        if (action == ToastAction.Undo)
         {
+            UndoOutcome resultado = _undo.Undo(item);
+
+            if (resultado.Success)
+            {
+                toast.Dismiss();
+            }
+            else
+            {
+                toast.ShowFailure(resultado.Message);
+            }
+
             return;
         }
+
+        if (item.Path is null)
+        {
+            toast.Dismiss();
+            return;
+        }
+
+        toast.Dismiss();
 
         switch (action)
         {
@@ -164,10 +185,6 @@ public sealed class ToastHost
                 }
 
                 break;
-
-            case ToastAction.Undo:
-                Undo(item);
-                break;
         }
     }
 
@@ -178,23 +195,4 @@ public sealed class ToastHost
         _log.Debug("Caminho copiado a pedido do aviso");
     }
 
-    /// <summary>
-    /// Desfaz a captura: manda o arquivo para a Lixeira e tira o histórico dele.
-    /// <para>
-    /// Vai para a Lixeira, e não para o nada, porque desfazer é reversível por
-    /// definição — quem clicou errado precisa poder voltar atrás do voltar atrás.
-    /// </para>
-    /// </summary>
-    private void Undo(CaptureHistoryItem item)
-    {
-        if (RecycleBin.Send(item.Path!))
-        {
-            _history.Remove(item);
-            _log.Information("Captura desfeita: {Arquivo} foi para a Lixeira", item.Path);
-        }
-        else
-        {
-            _log.Warning("Não consegui mandar {Arquivo} para a Lixeira", item.Path);
-        }
-    }
 }

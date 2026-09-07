@@ -36,6 +36,7 @@ public sealed class CaptureCoordinator
     private readonly ToastHost _toasts;
     private readonly HotkeyMessageWindow _messageWindow;
     private readonly ISettingsService _settings;
+    private readonly CaptureUndoService _undo;
     private readonly ILogger _log;
 
     private CaptureResult? _last;
@@ -50,6 +51,7 @@ public sealed class CaptureCoordinator
         ToastHost toasts,
         HotkeyMessageWindow messageWindow,
         ISettingsService settings,
+        CaptureUndoService undo,
         ILogger log)
     {
         _pipeline = pipeline;
@@ -60,6 +62,7 @@ public sealed class CaptureCoordinator
         _toasts = toasts;
         _messageWindow = messageWindow;
         _settings = settings;
+        _undo = undo;
         _log = log.ForContext<CaptureCoordinator>();
     }
 
@@ -78,6 +81,11 @@ public sealed class CaptureCoordinator
             case HotkeyAction.PasteAsImage:
                 RepublishAndPaste(ClipboardContent.Imagem);
                 return _last;
+
+            // Desfazer não captura nada, então sai antes de congelar a tela.
+            case HotkeyAction.UndoLastCapture:
+                UndoLast();
+                return null;
         }
 
         // A janela em primeiro plano precisa ser lida ANTES de qualquer coisa nossa
@@ -101,6 +109,30 @@ public sealed class CaptureCoordinator
             HotkeyAction.Ocr => StartOcr(),
             _ => NotYet(action),
         };
+    }
+
+    /// <summary>
+    /// Desfaz a captura mais recente pelo atalho global.
+    /// <para>
+    /// É a saída para capturar por engano: o aviso na tela não rouba o foco — e não deve
+    /// —, então nenhuma tecla chega até ele. Sem este atalho, arrepender-se só tinha
+    /// conserto pelo mouse, dentro dos poucos segundos em que o aviso fica visível.
+    /// </para>
+    /// </summary>
+    private void UndoLast()
+    {
+        UndoOutcome resultado = _undo.UndoLast();
+
+        if (!resultado.Success)
+        {
+            _log.Warning("Desfazer pelo atalho não deu certo: {Motivo}", resultado.Message);
+            return;
+        }
+
+        // A captura desfeita deixa de ser a "última": os atalhos de colagem forçada
+        // republicariam um arquivo que agora está na Lixeira.
+        _last = null;
+        _lastRegion = PixelRect.Empty;
     }
 
     /// <summary>

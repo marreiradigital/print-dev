@@ -149,6 +149,7 @@ public sealed class HotkeyManager : IDisposable
         yield return (HotkeyAction.PasteAsImage, settings.PasteAsImage);
         yield return (HotkeyAction.ColorPicker, settings.ColorPicker);
         yield return (HotkeyAction.Ocr, settings.Ocr);
+        yield return (HotkeyAction.UndoLastCapture, settings.UndoLastCapture);
     }
 
     private void OnHotkeyPressed(object? sender, int id)

@@ -38,6 +38,16 @@ internal static partial class NativeMethods
     internal static extern bool EmptyClipboard();
 
     /// <summary>
+    /// Quem publicou o conteúdo atual.
+    /// <para>
+    /// É como se sabe se o que está na área de transferência ainda é nosso. Limpar sem
+    /// conferir isso apagaria o que a pessoa copiou de outro programa no meio do caminho.
+    /// </para>
+    /// </summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr GetClipboardOwner();
+
+    /// <summary>
     /// Publica um formato. Em caso de sucesso, a <b>propriedade do bloco de memória
     /// passa para o sistema</b> e liberá-lo aqui corromperia a área de transferência.
     /// </summary>

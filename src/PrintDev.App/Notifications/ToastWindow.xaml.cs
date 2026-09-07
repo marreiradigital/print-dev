@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -34,7 +35,10 @@ public partial class ToastWindow : Window
         AnnotateButton.IsEnabled = saved;
         PinButton.IsEnabled = saved;
         CopyPathButton.IsEnabled = saved;
-        UndoButton.IsEnabled = saved;
+
+        // Desfazer continua valendo sem arquivo: sobra tirar do histórico e devolver a
+        // área de transferência. Desabilitar aqui deixaria a captura indesejada colada.
+        UndoButton.IsEnabled = true;
 
         if (!saved)
         {
@@ -139,11 +143,31 @@ public partial class ToastWindow : Window
         Dismiss();
     }
 
-    private void Raise(ToastAction action)
+    /// <summary>
+    /// Troca o aviso por uma mensagem de falha, em vez de sumir.
+    /// <para>
+    /// Ação que falha em silêncio é pior que ação que não existe: a pessoa fica achando
+    /// que deu certo. O aviso para de contar o tempo e só sai por clique.
+    /// </para>
+    /// </summary>
+    internal void ShowFailure(string message)
     {
-        ActionChosen?.Invoke(this, action);
-        Dismiss();
+        _timer.Stop();
+
+        Headline.Text = message;
+        Headline.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Danger");
+
+        AnnotateButton.IsEnabled = false;
+        PinButton.IsEnabled = false;
+        CopyPathButton.IsEnabled = false;
+        UndoButton.IsEnabled = false;
     }
+
+    /// <summary>
+    /// Quem trata a ação decide se o aviso some. É o que permite manter o aviso na tela
+    /// com a mensagem de erro quando desfazer não dá certo.
+    /// </summary>
+    private void Raise(ToastAction action) => ActionChosen?.Invoke(this, action);
 
     /// <summary>Formata um número com separador de milhar, para o log e a interface.</summary>
     internal static string Number(int value) => value.ToString("N0", CultureInfo.CurrentCulture);

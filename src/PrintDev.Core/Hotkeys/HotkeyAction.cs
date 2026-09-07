@@ -31,4 +31,15 @@ public enum HotkeyAction
 
     /// <summary>Recorta uma área e copia o texto reconhecido nela.</summary>
     Ocr,
+
+    /// <summary>
+    /// Desfaz a captura mais recente: manda o arquivo para a Lixeira, tira do histórico e
+    /// limpa a área de transferência.
+    /// <para>
+    /// Existe como atalho <b>global</b> por um motivo concreto: o aviso de captura não
+    /// rouba o foco — e não deve —, então nenhuma tecla chega até ele. Sem isto, capturar
+    /// por engano só tinha conserto pelo mouse, dentro dos quatro segundos do aviso.
+    /// </para>
+    /// </summary>
+    UndoLastCapture,
 }

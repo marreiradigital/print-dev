@@ -225,6 +225,14 @@ public sealed record HotkeySettings
 
     [JsonPropertyName("reconhecerTexto")]
     public string Ocr { get; init; } = "Ctrl+Alt+T";
+
+    /// <summary>
+    /// Ctrl+Alt+Z, e não Ctrl+Z nem Ctrl+Shift+Z: os dois são desfazer e refazer dentro
+    /// de praticamente todo programa, e tomá-los globalmente quebraria o desfazer alheio
+    /// da máquina inteira para resolver um problema nosso.
+    /// </summary>
+    [JsonPropertyName("desfazerUltimaCaptura")]
+    public string UndoLastCapture { get; init; } = "Ctrl+Alt+Z";
 }
 
 /// <summary>Ferramentas de anotação.</summary>

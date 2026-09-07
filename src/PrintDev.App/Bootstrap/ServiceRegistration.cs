@@ -49,6 +49,7 @@ public static class ServiceRegistration
         services.AddSingleton<SettingsWindowHost>();
         services.AddSingleton<ClipboardWriter>();
         services.AddSingleton<CaptureHistory>();
+        services.AddSingleton<CaptureUndoService>();
         services.AddSingleton<ToastHost>();
         services.AddSingleton<OverlayCoordinator>();
         services.AddSingleton<WindowsOcrService>();
