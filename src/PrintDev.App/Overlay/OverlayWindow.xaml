@@ -1,0 +1,145 @@
+﻿<Window x:Class="PrintDev.Overlay.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:PrintDev.Controls"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        AllowsTransparency="False"
+        Background="#FF000000"
+        Cursor="Cross"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display">
+
+    <!--
+        ATENCAO: AllowsTransparency fica em FALSE, e isso NAO e negociavel.
+
+        True poria a janela em modo "layered", o que mata a aceleracao por hardware do
+        WPF, quebra a renderizacao suave de texto e faz o arrasto da selecao cair para
+        poucos quadros por segundo numa area de 3286x1080.
+
+        Nao e preciso transparencia: o "fundo" e a foto da propria tela, congelada, e o
+        escurecimento e desenhado por cima dela.
+    -->
+
+    <Window.Resources>
+        <!--
+            Botao do seletor de modo. Um estilo local, e nao a biblioteca de controles:
+            o overlay e a unica tela que aparece por cima do trabalho alheio, e por isso
+            usa uma versao mais discreta e mais compacta.
+        -->
+        <Style x:Key="ModeButton" TargetType="RadioButton">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="12,0,14,0" />
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Root"
+                                CornerRadius="8"
+                                Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <ui:Stack Orientation="Horizontal"
+                                      Spacing="{StaticResource Gap.IconToText}"
+                                      VerticalAlignment="Center">
+                                <Path x:Name="Glyph"
+                                      Width="16" Height="16"
+                                      Stretch="Uniform"
+                                      Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Stroke="{DynamicResource Brush.Text.Secondary}"
+                                      StrokeThickness="1.6"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" />
+                                <TextBlock x:Name="Label"
+                                           Style="{StaticResource Type.Small}"
+                                           Foreground="{DynamicResource Brush.Text.Secondary}"
+                                           VerticalAlignment="Center"
+                                           Text="{TemplateBinding Content}" />
+                            </ui:Stack>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Surface.Hover}" />
+                                <Setter TargetName="Label" Property="Foreground"
+                                        Value="{DynamicResource Brush.Text.Primary}" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Text.Primary}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="Background"
+                                        Value="{DynamicResource Brush.Accent.Subtle}" />
+                                <Setter TargetName="Label" Property="Foreground"
+                                        Value="{DynamicResource Brush.Accent.Text}" />
+                                <Setter TargetName="Label" Property="FontWeight" Value="Medium" />
+                                <Setter TargetName="Glyph" Property="Stroke"
+                                        Value="{DynamicResource Brush.Accent.Text}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <!-- A tela congelada, desenhada um pixel fisico para um pixel da imagem. -->
+        <Image x:Name="FrozenView" Stretch="Fill"
+               RenderOptions.BitmapScalingMode="NearestNeighbor" />
+
+        <!-- Veu, moldura, alcas, badge, mira e lupa. -->
+        <ContentPresenter x:Name="LayerHost" />
+
+        <!--
+            Barra de modos. So aparece no monitor onde o cursor esta: repetida em todos,
+            viraria poluicao.
+        -->
+        <Border x:Name="Toolbar"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,32"
+                CornerRadius="{StaticResource Radius.LG}"
+                Padding="{StaticResource Pad.Toolbar}"
+                Background="{DynamicResource Brush.Surface.Elevated}"
+                BorderThickness="1"
+                BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                Effect="{StaticResource Shadow.Floating}"
+                Visibility="Collapsed">
+            <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.ToolbarItems}">
+                <RadioButton x:Name="ModeRegion" Style="{StaticResource ModeButton}"
+                             Content="Região" IsChecked="True"
+                             Tag="M 2,6 L 2,2 L 6,2 M 10,2 L 14,2 L 14,6 M 14,10 L 14,14 L 10,14 M 6,14 L 2,14 L 2,10" />
+                <RadioButton x:Name="ModeWindow" Style="{StaticResource ModeButton}"
+                             Content="Janela"
+                             Tag="M 1.5,3.5 L 14.5,3.5 L 14.5,13 L 1.5,13 Z M 1.5,6.5 L 14.5,6.5" />
+                <RadioButton x:Name="ModeMonitor" Style="{StaticResource ModeButton}"
+                             Content="Monitor"
+                             Tag="M 1.5,2.5 L 14.5,2.5 L 14.5,11 L 1.5,11 Z M 5,14 L 11,14" />
+                <RadioButton x:Name="ModeEverything" Style="{StaticResource ModeButton}"
+                             Content="Tudo"
+                             Tag="M 1,3.5 L 9,3.5 L 9,10 L 1,10 Z M 7,6 L 15,6 L 15,12.5 L 7,12.5" />
+            </ui:Stack>
+        </Border>
+
+        <!-- Dicas de teclado, no primeiro uso da sessao. -->
+        <Border x:Name="Hints"
+                VerticalAlignment="Bottom"
+                HorizontalAlignment="Center"
+                Margin="0,0,0,88"
+                CornerRadius="{StaticResource Radius.SM}"
+                Padding="14,7,14,7"
+                Background="{DynamicResource Brush.Surface.Elevated}"
+                Opacity="0.92"
+                Visibility="Collapsed">
+            <TextBlock Style="{StaticResource Type.Small}"
+                       Foreground="{DynamicResource Brush.Text.Secondary}"
+                       Text="Arraste para selecionar · Tab troca o modo · clique captura a janela · Esc cancela" />
+        </Border>
+    </Grid>
+</Window>

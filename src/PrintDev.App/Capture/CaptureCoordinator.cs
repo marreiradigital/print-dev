@@ -3,6 +3,7 @@ using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
+using PrintDev.Overlay;
 using PrintDev.Core.Screens;
 using Serilog;
 
@@ -19,6 +20,7 @@ namespace PrintDev.Capture;
 public sealed class CaptureCoordinator
 {
     private readonly CapturePipeline _pipeline;
+    private readonly OverlayCoordinator _overlay;
     private readonly ClipboardWriter _clipboard;
     private readonly HotkeyMessageWindow _messageWindow;
     private readonly ISettingsService _settings;
@@ -28,12 +30,14 @@ public sealed class CaptureCoordinator
 
     public CaptureCoordinator(
         CapturePipeline pipeline,
+        OverlayCoordinator overlay,
         ClipboardWriter clipboard,
         HotkeyMessageWindow messageWindow,
         ISettingsService settings,
         ILogger log)
     {
         _pipeline = pipeline;
+        _overlay = overlay;
         _clipboard = clipboard;
         _messageWindow = messageWindow;
         _settings = settings;
@@ -61,14 +65,55 @@ public sealed class CaptureCoordinator
         // aparecer na tela, senao o nome que vai para o arquivo e o do proprio Print Dev.
         ActiveWindowInfo active = ActiveWindowInfo.Current();
 
+        if (action == HotkeyAction.Capture)
+        {
+            // O seletor e assincrono por natureza: ele fica na tela ate o usuario
+            // escolher. Nada pode bloquear a thread de interface enquanto isso.
+            _ = SelectRegionAsync(active);
+            return null;
+        }
+
         return action switch
         {
-            HotkeyAction.Capture => CaptureCurrentMonitor(active, "regiao"),
             HotkeyAction.FullScreen => CaptureCurrentMonitor(active, "monitor"),
             HotkeyAction.ActiveWindow => CaptureActiveWindow(active),
             _ => NotYet(action),
         };
     }
+
+    /// <summary>
+    /// Abre o seletor de área e grava o que o usuário escolher.
+    /// </summary>
+    private async Task SelectRegionAsync(ActiveWindowInfo active)
+    {
+        try
+        {
+            OverlayResult? chosen = await _overlay.ShowAsync(_settings.Current).ConfigureAwait(true);
+
+            if (chosen is null)
+            {
+                return;
+            }
+
+            // O recorte sai da imagem CONGELADA, e nao de uma nova captura: e o que
+            // garante que o usuario receba exatamente o que viu selecionado, mesmo que a
+            // tela tenha mudado enquanto ele mirava.
+            CapturedImage cropped = chosen.Frozen.Crop(chosen.Region);
+            Deliver(cropped, ModeName(chosen.Mode), active);
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha no seletor de área");
+        }
+    }
+
+    private static string ModeName(CaptureMode mode) => mode switch
+    {
+        CaptureMode.Janela => "janela",
+        CaptureMode.Monitor => "monitor",
+        CaptureMode.TelaInteira => "telaInteira",
+        _ => "regiao",
+    };
 
     /// <summary>Captura todos os monitores num quadro só.</summary>
     public CaptureResult? CaptureEverything()
@@ -116,16 +161,7 @@ public sealed class CaptureCoordinator
     {
         try
         {
-            CapturedImage image = capture();
-            CaptureResult result = _pipeline.Save(image, mode, active);
-            _last = result;
-
-            if (_settings.Current.Clipboard.CopyAutomatically)
-            {
-                Publish(result, _settings.Current.Clipboard.Content);
-            }
-
-            return result;
+            return Deliver(capture(), mode, active);
         }
         catch (Exception exception)
         {
@@ -134,6 +170,23 @@ public sealed class CaptureCoordinator
             _log.Error(exception, "Falha ao capturar ({Modo})", mode);
             return null;
         }
+    }
+
+    /// <summary>
+    /// Grava a captura e a publica na área de transferência. Todo caminho de captura
+    /// termina aqui, para o comportamento ser o mesmo venha de onde vier.
+    /// </summary>
+    private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active)
+    {
+        CaptureResult result = _pipeline.Save(image, mode, active);
+        _last = result;
+
+        if (_settings.Current.Clipboard.CopyAutomatically)
+        {
+            Publish(result, _settings.Current.Clipboard.Content);
+        }
+
+        return result;
     }
 
     /// <summary>

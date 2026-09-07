@@ -119,4 +119,55 @@ internal static partial class NativeMethods
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool DeleteDC(IntPtr hdc);
+
+    /// <summary>Janela raiz da hierarquia.</summary>
+    internal const uint GA_ROOT = 2;
+
+    /// <summary>Índice do estilo estendido em GetWindowLong.</summary>
+    internal const int GWL_EXSTYLE = -20;
+
+    /// <summary>Janela de ferramenta: não aparece na barra de tarefas.</summary>
+    internal const int WS_EX_TOOLWINDOW = 0x00000080;
+
+    /// <summary>Janela transparente a cliques.</summary>
+    internal const int WS_EX_TRANSPARENT = 0x00000020;
+
+    internal delegate bool EnumWindowsProc(IntPtr window, IntPtr data);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool EnumWindows(EnumWindowsProc callback, IntPtr data);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsWindowVisible(IntPtr window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool IsIconic(IntPtr window);
+
+    [DllImport("user32.dll")]
+    internal static extern IntPtr GetAncestor(IntPtr window, uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
+    internal static extern IntPtr GetWindowLongPtr(IntPtr window, int index);
+
+    /// <summary>Lê o estilo estendido. Envolve a versão de 64 bits.</summary>
+    internal static int GetWindowLong(IntPtr window, int index)
+        => (int)GetWindowLongPtr(window, index).ToInt64();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetWindowPos(
+        IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
+
+    /// <summary>Mantém a janela acima das demais.</summary>
+    internal static readonly IntPtr HWND_TOPMOST = new(-1);
+
+    internal const uint SWP_NOACTIVATE = 0x0010;
+    internal const uint SWP_SHOWWINDOW = 0x0040;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetForegroundWindow(IntPtr window);
 }

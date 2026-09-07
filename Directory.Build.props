@@ -13,7 +13,16 @@
     -->
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
-    <Platforms>x64</Platforms>
+    <!--
+      PlatformTarget fixa o processo em 64 bits (obrigatorio: varias estruturas de
+      interoperacao tem tamanho diferente em 32 bits).
+
+      <Platforms>x64</Platforms> foi REMOVIDO de proposito. Com ele, a solucao passava a
+      ter a plataforma x64 e a saida ia para bind\Debug, enquanto compilar o projeto
+      sozinho continuava indo para bin\Debug - duas pastas de saida para o mesmo codigo,
+      e um executavel velho rodando sem ninguem perceber. Com apenas PlatformTarget a
+      saida e sempre bin\Debug.
+    -->
     <PlatformTarget>x64</PlatformTarget>
 
     <Nullable>enable</Nullable>

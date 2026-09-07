@@ -21,7 +21,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 3 | Atalho global + captura + salvamento | ✅ |
 | 4 | Área de transferência multiformato | ✅ |
 | 5 | Design system (base) | ✅ |
-| 6 | Overlay de seleção multimonitor | ⬜ |
+| 6 | Overlay de seleção multimonitor | ✅ |
 | 7 | Barra pós-captura, aviso, histórico | ⬜ |
 | 8 | Painel de configurações | ⬜ |
 | 9 | Anotação com borrar/pixelar | ⬜ |
@@ -67,6 +67,38 @@ dotnet run --project src/PrintDev.App
 
 As três convenções do Windows são aceitas (`--nome`, `-n`, `/nome`), sem diferenciar maiúsculas.
 Argumento desconhecido nunca derruba o app — vai para o log e a execução segue.
+
+## O seletor de área
+
+`PrtSc` congela a tela e abre o seletor sobre **todos os monitores**. Arraste para
+recortar; solte e a captura já está salva e na área de transferência.
+
+| Gesto | O que faz |
+|---|---|
+| Arrastar | Recorta a região |
+| Clique simples | Captura a janela sob o cursor |
+| `Tab` ou `1` `2` `3` `4` | Troca entre Região, Janela, Monitor e Tudo |
+| Setas | Movem a seleção 1 px · com `Shift`, 10 px · com `Ctrl`, redimensionam |
+| Roda do mouse | Ajusta a ampliação da lupa |
+| `Enter` | Confirma · `Esc` limpa a seleção e, sem seleção, cancela |
+| Botão direito | Cancela |
+
+A lupa mostra a grade de pixels, marca a célula exata sob o cursor e lê a cor em HEX
+junto com a coordenada.
+
+### Por que uma janela por monitor
+
+Uma única janela cobrindo tudo teria dois problemas insolúveis nesta máquina: seria
+escalada pelo fator de um monitor só, deformando lupa, badge e barra no outro; e
+pintaria por cima dos **buracos do desktop virtual**, que existem de verdade quando as
+telas têm alturas diferentes. Com uma janela por monitor, cada uma desenha só a
+interseção da seleção com a própria tela — a moldura corta sozinha na borda e não
+aparece no vazio.
+
+O estado da seleção é compartilhado e vive em **pixels físicos**, e a posição do cursor
+vem sempre do Windows, nunca do evento do WPF: durante um arrasto que saiu da janela de
+origem, as coordenadas do evento ficam negativas ou maiores que o monitor. É isso que faz
+arrastar de uma tela para a outra funcionar sem nenhum caso especial.
 
 ## Como o Ctrl+V acerta sozinho
 
@@ -115,7 +147,7 @@ Todos configuráveis em `settings.json`, seção `atalhos`. Mudar lá vale na ho
 
 | Atalho padrão | Ação |
 |---|---|
-| `PrtSc` | Abre o seletor de área *(hoje captura o monitor sob o cursor; o seletor chega na fase 6)* |
+| `PrtSc` | Abre o seletor de área |
 | `Ctrl+PrtSc` | Captura o monitor sob o cursor |
 | `Shift+PrtSc` | Captura a janela em primeiro plano |
 | `Ctrl+Shift+PrtSc` | Repete o último recorte, na mesma posição |
