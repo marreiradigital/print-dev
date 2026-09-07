@@ -41,3 +41,4 @@ desktop.ini
 capturas-de-teste/
 # configuracao local de execucao
 *.local.json
+publish/

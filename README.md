@@ -47,6 +47,11 @@ dotnet test
 dotnet run --project src/PrintDev.App
 ```
 
+> **Compile em Release antes de publicar.** `TreatWarningsAsErrors` só vale em Release, e
+> ele pega defeitos que o Debug deixa passar — entre eles um caminho que voltaria **vazio**
+> no executável de arquivo único, quebrando a inicialização automática justamente na
+> versão que o usuário instala.
+
 > **Encerre o programa antes de compilar.** O Windows tranca o executável em uso, e o
 > build falha na cópia — mas o erro aparece no meio da saída e é fácil de não ver. O
 > sintoma é traiçoeiro: a compilação "passa", você testa, e está testando o binário

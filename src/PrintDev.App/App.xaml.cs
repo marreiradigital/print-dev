@@ -85,7 +85,7 @@ public partial class App : Application
         LoggingSetup.ApplyLevel(settings.Current.Advanced.LogLevel, _log);
         settings.Changed += (_, current) => LoggingSetup.ApplyLevel(current.Advanced.LogLevel, _log);
 
-        StartTheme(settings);
+        StartTheme(_services, settings);
 
         // Programa movido de pasta deixa a entrada de inicializacao apontando para o
         // nada, e o usuario so descobre no proximo logon.
@@ -111,7 +111,7 @@ public partial class App : Application
             }
         };
 
-        StartHotkeys(settings);
+        StartHotkeys(_services, settings);
 
         if (Options.OpenSettings)
         {
@@ -154,9 +154,9 @@ public partial class App : Application
     /// <summary>
     /// Aplica o tema e passa a acompanhar o do Windows.
     /// </summary>
-    private void StartTheme(ISettingsService settings)
+    private void StartTheme(ServiceProvider services, ISettingsService settings)
     {
-        var theme = _services!.GetRequiredService<ThemeService>();
+        var theme = services.GetRequiredService<ThemeService>();
         theme.Apply(settings.Current.General.Theme);
 
         // O WPF nao avisa quando nao acha uma fonte embutida: cai na de reserva em
@@ -167,7 +167,7 @@ public partial class App : Application
         // A janela de mensagens que ja existe para os atalhos tambem recebe o aviso de
         // mudanca de cor do sistema. O programa pode nao ter janela nenhuma visivel
         // quando o usuario troca o tema do Windows.
-        var messageWindow = _services.GetRequiredService<HotkeyMessageWindow>();
+        var messageWindow = services.GetRequiredService<HotkeyMessageWindow>();
         messageWindow.SystemColorsChanged += (_, _) =>
             Dispatcher.BeginInvoke(theme.OnSystemColorsChanged);
 
@@ -179,13 +179,13 @@ public partial class App : Application
     /// Registra os atalhos globais e liga o vigia que os reavê quando outro programa
     /// toma a tecla.
     /// </summary>
-    private void StartHotkeys(ISettingsService settings)
+    private void StartHotkeys(ServiceProvider services, ISettingsService settings)
     {
-        var hotkeys = _services!.GetRequiredService<HotkeyManager>();
+        var hotkeys = services.GetRequiredService<HotkeyManager>();
         hotkeys.Triggered += (_, action) => Dispatcher.BeginInvoke(() => OnHotkey(action));
         hotkeys.Apply(settings.Current.Hotkeys);
 
-        var guardian = _services.GetRequiredService<HotkeyGuardian>();
+        var guardian = services.GetRequiredService<HotkeyGuardian>();
         guardian.Start();
 
         // Atalho trocado no arquivo de configuracoes vale na hora, sem reiniciar.

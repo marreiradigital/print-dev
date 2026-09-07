@@ -20,9 +20,17 @@ public sealed class AutoStartService
 
     public AutoStartService(ILogger log) => _log = log.ForContext<AutoStartService>();
 
-    /// <summary>Caminho do executável em execução.</summary>
+    /// <summary>
+    /// Caminho do executável em execução.
+    /// <para>
+    /// A reserva usa <see cref="AppContext.BaseDirectory"/>, e não a localização do
+    /// assembly: num executável de arquivo único a localização volta <b>vazia</b>, e a
+    /// entrada de inicialização apontaria para lugar nenhum — justamente na versão
+    /// publicada, que é a que o usuário instala.
+    /// </para>
+    /// </summary>
     public static string ExecutablePath => Environment.ProcessPath
-        ?? Path.ChangeExtension(System.Reflection.Assembly.GetEntryAssembly()!.Location, ".exe");
+        ?? Path.Combine(AppContext.BaseDirectory, "PrintDev.exe");
 
     /// <summary>Existe entrada no registro para subir com o Windows.</summary>
     public bool IsRunKeyEnabled
