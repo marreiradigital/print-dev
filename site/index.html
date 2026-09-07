@@ -578,10 +578,21 @@
 </footer>
 
 <script type="module">
-import {
-  buscarVersoes, publicadas, instalador, renderizarNotas,
-  tamanhoLegivel, dataLegivel, numero, URL_RELEASES,
-} from "./assets/versoes.js";
+/*
+  O módulo entra por import DINÂMICO dentro de um try, por dois motivos.
+
+  1. A URL leva a versão do site. HTML e módulo são arquivos separados, cada um
+     com seu próprio cache de 10 minutos no GitHub Pages: sem isso, um deploy que
+     mexa nos dois pode entregar a um visitante o HTML novo com o módulo velho —
+     e aí o import falha, o script inteiro morre antes da primeira linha, e a
+     lista de versões fica parada em "Buscando…" para sempre.
+
+  2. Import estático que falha derruba o módulo todo, sem chance de reagir. Com
+     import dinâmico dentro de try, a falha vira a mensagem honesta de sempre e
+     o visitante ainda chega no download pelo GitHub.
+*/
+const VERSAO_DO_SITE = "__VERSAO_DO_SITE__";
+const URL_RELEASES_PADRAO = "https://github.com/marreiradigital/print-dev/releases";
 
 const lista = document.getElementById("lista-versoes");
 const botao = document.getElementById("botao-baixar");
@@ -595,72 +606,85 @@ function elemento(tag, classe, texto) {
   return e;
 }
 
-function cartaoDeVersao(versao, atual) {
-  const item = elemento("article", "versao");
-
-  const titulo = elemento("div", "versao-titulo");
-  titulo.append(elemento("span", null, numero(versao)));
-  if (atual) titulo.append(elemento("span", "etiqueta-atual", "MAIS RECENTE"));
-
-  const exe = instalador(versao);
-  const partes = [dataLegivel(versao.published_at)];
-  if (exe) partes.push(tamanhoLegivel(exe.size));
-  if (exe?.download_count) partes.push(`${exe.download_count} download(s)`);
-
-  const bloco = elemento("div");
-  bloco.style.display = "flex";
-  bloco.style.flexDirection = "column";
-  bloco.style.gap = "var(--gap-2)";
-  bloco.append(titulo, elemento("div", "versao-meta", partes.filter(Boolean).join("  ·  ")));
-
-  const acoes = elemento("div", "versao-acoes");
-  if (exe) {
-    const baixar = elemento("a", "botao botao-pequeno " + (atual ? "botao-primario" : "botao-secundario"), "Baixar .exe");
-    baixar.href = exe.browser_download_url;
-    acoes.append(baixar);
-  }
-  const notas = elemento("a", "botao botao-pequeno botao-secundario", "Notas");
-  notas.href = versao.html_url ?? URL_RELEASES;
-  acoes.append(notas);
-
-  item.append(bloco, acoes);
-
-  if (atual && versao.body?.trim()) {
-    const notas = elemento("div", "notas");
-    renderizarNotas(versao.body.trim(), notas);
-    item.append(notas);
-  }
-  return item;
-}
-
-const versoes = publicadas(await buscarVersoes());
-
-if (!versoes || versoes.length === 0) {
+function semLista(url) {
   lista.replaceChildren();
   const aviso = elemento("p", "aviso-carregando");
   aviso.append("Não consegui listar as versões daqui. ");
   const link = elemento("a", null, "Veja todas no GitHub");
-  link.href = URL_RELEASES;
+  link.href = url;
   aviso.append(link, ".");
   lista.append(aviso);
-} else {
-  const recente = versoes[0];
-  const exe = instalador(recente);
+}
 
-  if (exe) {
-    botao.href = exe.browser_download_url;
-    rotulo.textContent = `Baixar ${numero(recente)} para Windows`;
+try {
+  const {
+    buscarVersoes, publicadas, instalador, renderizarNotas,
+    tamanhoLegivel, dataLegivel, numero, URL_RELEASES,
+  } = await import(`./assets/versoes.js?v=${VERSAO_DO_SITE}`);
+
+  function cartaoDeVersao(versao, atual) {
+    const item = elemento("article", "versao");
+
+    const titulo = elemento("div", "versao-titulo");
+    titulo.append(elemento("span", null, numero(versao)));
+    if (atual) titulo.append(elemento("span", "etiqueta-atual", "MAIS RECENTE"));
+
+    const exe = instalador(versao);
+    const partes = [dataLegivel(versao.published_at)];
+    if (exe) partes.push(tamanhoLegivel(exe.size));
+    if (exe?.download_count) partes.push(`${exe.download_count} download(s)`);
+
+    const bloco = elemento("div", "versao-identificacao");
+    bloco.append(titulo, elemento("div", "versao-meta", partes.filter(Boolean).join("  ·  ")));
+
+    const acoes = elemento("div", "versao-acoes");
+    if (exe) {
+      const baixar = elemento("a", "botao botao-pequeno " + (atual ? "botao-primario" : "botao-secundario"), "Baixar .exe");
+      baixar.href = exe.browser_download_url;
+      acoes.append(baixar);
+    }
+    const notas = elemento("a", "botao botao-pequeno botao-secundario", "Notas");
+    notas.href = versao.html_url ?? URL_RELEASES;
+    acoes.append(notas);
+
+    item.append(bloco, acoes);
+
+    if (atual && versao.body?.trim()) {
+      const corpo = elemento("div", "notas");
+      renderizarNotas(versao.body.trim(), corpo);
+      item.append(corpo);
+    }
+    return item;
   }
 
-  linha.replaceChildren(
-    elemento("span", null, `${tamanhoLegivel(exe?.size)} · sem administrador`),
-    elemento("span", null, "·"),
-    elemento("span", null, `publicada em ${dataLegivel(recente.published_at)}`),
-    elemento("span", null, "·"),
-    elemento("span", null, "sem nuvem, sem conta"),
-  );
+  const versoes = publicadas(await buscarVersoes());
 
-  lista.replaceChildren(...versoes.map((v, i) => cartaoDeVersao(v, i === 0)));
+  if (!versoes || versoes.length === 0) {
+    semLista(URL_RELEASES);
+  } else {
+    const recente = versoes[0];
+    const exe = instalador(recente);
+
+    if (exe) {
+      botao.href = exe.browser_download_url;
+      rotulo.textContent = `Baixar ${numero(recente)} para Windows`;
+    }
+
+    linha.replaceChildren(
+      elemento("span", null, `${tamanhoLegivel(exe?.size)} · sem administrador`),
+      elemento("span", null, "·"),
+      elemento("span", null, `publicada em ${dataLegivel(recente.published_at)}`),
+      elemento("span", null, "·"),
+      elemento("span", null, "sem nuvem, sem conta"),
+    );
+
+    lista.replaceChildren(...versoes.map((v, i) => cartaoDeVersao(v, i === 0)));
+  }
+} catch (erro) {
+  // O botão do herói já nasce apontando para releases/latest no HTML, então o
+  // download continua funcionando mesmo daqui.
+  console.error("Print Dev: falha ao montar a lista de versões.", erro);
+  semLista(URL_RELEASES_PADRAO);
 }
 </script>
 </body>

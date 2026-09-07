@@ -61,6 +61,24 @@ jobs:
             > site/assets/releases.json
           echo "Versoes no retrato: $(jq 'length' site/assets/releases.json)"
 
+      # Carimba a versao do site na URL do modulo.
+      #
+      # index.html e versoes.js sao arquivos separados, cada um com seu proprio
+      # cache de 10 minutos no Pages. Sem o carimbo, um deploy que mexa nos dois
+      # pode entregar a um visitante o HTML novo com o modulo velho - e o import
+      # falha com "does not provide an export named ...", derrubando a lista de
+      # versoes inteira. Aconteceu de verdade na primeira publicacao.
+      - name: Carimbar a versao do site
+        run: |
+          set -euo pipefail
+          CARIMBO="${GITHUB_SHA:0:12}"
+          sed -i "s/__VERSAO_DO_SITE__/${CARIMBO}/g" site/index.html
+          if grep -q "__VERSAO_DO_SITE__" site/index.html; then
+            echo "O marcador de versao sobrou no HTML." >&2
+            exit 1
+          fi
+          echo "Modulo versionado com ${CARIMBO}"
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

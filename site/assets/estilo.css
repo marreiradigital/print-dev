@@ -455,6 +455,11 @@ kbd {
   font-size: 1.05rem;
   font-weight: 500;
 }
+.versao-identificacao {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
 .versao-meta {
   color: var(--texto-fraco);
   font-size: 0.85rem;
