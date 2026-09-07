@@ -39,7 +39,7 @@
     <Product>Print Dev</Product>
     <Company>Marreira Digital</Company>
     <Authors>Paulo Marreira</Authors>
-    <Version>0.1.0</Version>
+    <Version>0.1.1</Version>
     <NeutralLanguage>pt-BR</NeutralLanguage>
     <Copyright>Copyright (c) 2026 Paulo Marreira</Copyright>
   </PropertyGroup>
