@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Bootstrap;
+using PrintDev.Capture;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
@@ -114,9 +115,8 @@ public partial class App : Application
 
     private void OnHotkey(HotkeyAction action)
     {
-        // TODO(fase 3b): ligar na captura de tela. Ate la, o registro no log ja prova
-        // que a tecla chegou ao programa, que e o que este commit entrega.
-        _log.Information("Atalho acionado: {Acao}", action);
+        _log.Debug("Atalho acionado: {Acao}", action);
+        _services!.GetRequiredService<CaptureCoordinator>().Execute(action);
     }
 
     /// <summary>

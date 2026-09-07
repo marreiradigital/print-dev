@@ -18,7 +18,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 0 | Fundação: solução, convenções, auditoria de dependência | ✅ |
 | 1 | Bandeja, ciclo de vida, log em arquivo, instância única | ✅ |
 | 2 | Configurações em `settings.json` (núcleo) | ✅ |
-| 3 | Atalho global + captura + salvamento | ⬜ |
+| 3 | Atalho global + captura + salvamento | ✅ |
 | 4 | Área de transferência multiformato | ⬜ |
 | 5 | Design system (base) | ⬜ |
 | 6 | Overlay de seleção multimonitor | ⬜ |
@@ -74,7 +74,7 @@ Todos configuráveis em `settings.json`, seção `atalhos`. Mudar lá vale na ho
 
 | Atalho padrão | Ação |
 |---|---|
-| `PrtSc` | Abre o seletor de área |
+| `PrtSc` | Abre o seletor de área *(hoje captura o monitor sob o cursor; o seletor chega na fase 6)* |
 | `Ctrl+PrtSc` | Captura o monitor sob o cursor |
 | `Shift+PrtSc` | Captura a janela em primeiro plano |
 | `Ctrl+Shift+PrtSc` | Repete o último recorte, na mesma posição |

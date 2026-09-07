@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using PrintDev.Capture;
+using PrintDev.Core.Capture;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
@@ -31,6 +33,9 @@ public static class ServiceRegistration
         services.AddSingleton<HotkeyMessageWindow>();
         services.AddSingleton<HotkeyManager>();
         services.AddSingleton<HotkeyGuardian>();
+
+        services.AddSingleton<CapturePipeline>();
+        services.AddSingleton<CaptureCoordinator>();
         services.AddSingleton<TrayIconHost>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
