@@ -68,6 +68,44 @@ dotnet run --project src/PrintDev.App
 As três convenções do Windows são aceitas (`--nome`, `-n`, `/nome`), sem diferenciar maiúsculas.
 Argumento desconhecido nunca derruba o app — vai para o log e a execução segue.
 
+## Atalhos
+
+Todos configuráveis em `settings.json`, seção `atalhos`. Mudar lá vale na hora.
+
+| Atalho padrão | Ação |
+|---|---|
+| `PrtSc` | Abre o seletor de área |
+| `Ctrl+PrtSc` | Captura o monitor sob o cursor |
+| `Shift+PrtSc` | Captura a janela em primeiro plano |
+| `Ctrl+Shift+PrtSc` | Repete o último recorte, na mesma posição |
+| `Ctrl+Shift+V` | Cola a última captura como caminho de texto |
+| `Ctrl+Alt+V` | Cola a última captura como imagem |
+| `Ctrl+Alt+P` | Conta-gotas de cor |
+| `Ctrl+Alt+T` | Recorta e copia o texto reconhecido |
+
+Escreva na forma `Ctrl+Shift+PrtSc`. As grafias usuais são aceitas (`PrintScreen`,
+`Print`, `Esc`/`Escape`, `PgUp`, setas em português), sem diferenciar maiúsculas.
+Combinação que o Windows reserva — `Win+L`, `Win+Shift+S`, `Ctrl+Alt+Del`, `Win+Tab` — é
+recusada com o motivo escrito, em vez de aceita e silenciosamente inútil.
+
+### Quando outro programa está com a tecla
+
+O `PrtSc` é a tecla mais disputada do Windows: Lightshot, ShareX, Greenshot, Snagit,
+PicPick e até o OneDrive a registram, e quem chega primeiro fica com ela.
+
+O Print Dev **nomeia o culpado** no log em vez de dizer apenas que falhou, e continua
+tentando a cada 30 segundos — então fechar o concorrente na mão já basta, sem reiniciar
+nada. O comportamento é escolhido em `avancado.aoDetectarConcorrente`:
+
+| Valor | O que faz |
+|---|---|
+| `perguntar` (padrão) | Registra o conflito nomeando o programa e segue tentando reaver |
+| `assumirAutomaticamente` | Encerra o concorrente e assume a tecla |
+| `somenteAvisar` | Só registra; não tenta encerrar nada |
+
+O padrão não é `assumirAutomaticamente` porque encerrar processo alheio é destrutivo
+demais para acontecer sem o usuário ter pedido.
+
 ## Configurações
 
 Ficam em `%APPDATA%\PrintDev\settings.json`, com as chaves em português — o arquivo é feito para

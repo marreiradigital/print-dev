@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Bootstrap;
 using PrintDev.Core.Configuration;
+using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
@@ -83,9 +84,39 @@ public partial class App : Application
 
         _services.GetRequiredService<TrayIconHost>().Show();
 
+        StartHotkeys(settings);
+
         _instanceGuard.WhenActivationRequested(OnActivationRequested);
 
         _log.Information("Print Dev pronto");
+    }
+
+    /// <summary>
+    /// Registra os atalhos globais e liga o vigia que os reavê quando outro programa
+    /// toma a tecla.
+    /// </summary>
+    private void StartHotkeys(ISettingsService settings)
+    {
+        var hotkeys = _services!.GetRequiredService<HotkeyManager>();
+        hotkeys.Triggered += (_, action) => Dispatcher.BeginInvoke(() => OnHotkey(action));
+        hotkeys.Apply(settings.Current.Hotkeys);
+
+        var guardian = _services.GetRequiredService<HotkeyGuardian>();
+        guardian.Start();
+
+        // Atalho trocado no arquivo de configuracoes vale na hora, sem reiniciar.
+        settings.Changed += (_, current) => Dispatcher.BeginInvoke(() =>
+        {
+            hotkeys.Apply(current.Hotkeys);
+            guardian.Start();
+        });
+    }
+
+    private void OnHotkey(HotkeyAction action)
+    {
+        // TODO(fase 3b): ligar na captura de tela. Ate la, o registro no log ja prova
+        // que a tecla chegou ao programa, que e o que este commit entrega.
+        _log.Information("Atalho acionado: {Acao}", action);
     }
 
     /// <summary>
