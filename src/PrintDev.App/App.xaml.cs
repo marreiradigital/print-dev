@@ -135,6 +135,13 @@ public partial class App : Application
         });
 
         _log.Information("Print Dev pronto");
+
+        // A inicialização tocou dezenas de megabytes que nunca mais serão lidos: ler o
+        // XAML, compilar os métodos na primeira execução, carregar as configurações. Um
+        // programa que fica horas parado na bandeja não tem por que segurar isso.
+        Dispatcher.BeginInvoke(
+            System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+            new Action(() => WorkingSet.Trim()));
     }
 
     /// <summary>

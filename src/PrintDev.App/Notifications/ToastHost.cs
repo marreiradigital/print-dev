@@ -91,6 +91,18 @@ public sealed class ToastHost
         {
             _visible.Remove((ToastWindow)sender!);
             Restack(near);
+
+            // Último aviso fora da tela significa que o trabalho terminou e o programa
+            // volta a dormir na bandeja. Uma captura de tela cheia deixa dezenas de
+            // megabytes de bitmap para trás, e não há motivo para segurá-los até a
+            // próxima vez — que pode ser daqui a horas.
+            //
+            // Aqui, e não num temporizador: uma rajada de capturas seguidas colapsa num
+            // corte só, quando a última some.
+            if (_visible.Count == 0)
+            {
+                WorkingSet.Trim();
+            }
         };
 
         _visible.Add(toast);

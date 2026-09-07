@@ -53,6 +53,20 @@ internal static partial class NativeMethods
     [DllImport("user32.dll")]
     internal static extern IntPtr MonitorFromWindow(IntPtr window, uint flags);
 
+    /// <summary>
+    /// Devolve ao sistema as páginas de memória que o processo não está usando.
+    /// <para>
+    /// Com <c>-1</c> nos dois tamanhos, o Windows entende "corte para o mínimo": as
+    /// páginas voltam quando forem tocadas de novo.
+    /// </para>
+    /// </summary>
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool SetProcessWorkingSetSize(IntPtr process, IntPtr minimum, IntPtr maximum);
+
+    [DllImport("kernel32.dll")]
+    internal static extern IntPtr GetCurrentProcess();
+
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetCursorPos(out POINT point);
