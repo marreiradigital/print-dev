@@ -1,8 +1,5 @@
 name: Publicar o site
 
-# Roda em tres situacoes, e a do meio e a que importa: quando uma release e
-# publicada, o retrato das versoes precisa ser regravado, senao o site so
-# aprenderia sobre a versao nova no proximo push.
 on:
   push:
     branches: [main]
@@ -25,7 +22,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Uma release roda no ref da TAG, e o ambiente github-pages so aceita deploy do
+  # branch padrao - a execucao morre em "not allowed to deploy due to environment
+  # protection rules". Em vez de afrouxar a protecao, a release apenas PEDE uma
+  # execucao em main, que publica normalmente. O site tambem sai sempre do codigo
+  # de main, e nao da arvore congelada da tag.
+  pedir-publicacao:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run site.yml --repo "$GITHUB_REPOSITORY" --ref main
+
   publicar:
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
