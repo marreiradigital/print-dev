@@ -1,4 +1,6 @@
-﻿namespace PrintDev.Core.Runtime;
+﻿using PrintDev.Core.Interop;
+
+namespace PrintDev.Core.Runtime;
 
 /// <summary>
 /// Garante uma instância só do Print Dev por sessão do Windows e dá à segunda
@@ -85,6 +87,16 @@ public sealed class SingleInstanceGuard : IDisposable
     public void SignalPrimary()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+
+        // Cede o direito de primeiro plano ANTES de avisar a primaria.
+        //
+        // O Windows so deixa trazer janela para a frente quem acabou de receber entrada
+        // do usuario - e quem recebeu o duplo clique no atalho foi ESTE processo, que
+        // vai morrer em seguida. Sem esta linha a primaria abre o painel atras das
+        // outras janelas, piscando na barra de tarefas, e o duplo clique parece nao ter
+        // funcionado.
+        NativeMethods.AllowSetForegroundWindow(NativeMethods.ASFW_ANY);
+
         _activationSignal.Set();
     }
 

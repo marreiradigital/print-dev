@@ -388,8 +388,8 @@ troca de sinal e as cores semânticas escurecem para terem contraste sobre branc
 
 ## Painel de configurações
 
-Abre pelo menu da bandeja, por `PrintDev.exe --configuracoes`, ou simplesmente abrindo o
-programa de novo. Oito seções: Geral, Captura, Salvamento, Área de transferência,
+Abre com um **clique no ícone da bandeja**, pelo menu do botão direito, por
+`PrintDev.exe --configuracoes`, ou simplesmente abrindo o programa de novo. Oito seções: Geral, Captura, Salvamento, Área de transferência,
 Atalhos, Histórico e limpeza, Avançado e Sobre.
 
 **Não há botão OK.** A mudança vale na hora e a gravação em disco é adiada meio segundo —
@@ -427,7 +427,7 @@ próxima execução. Sem isso o usuário só descobriria no logon seguinte.
 powershell -ExecutionPolicy Bypass -File scripts\gerar-instalador.ps1
 ```
 
-Gera `publish\installer\PrintDev-Setup-0.1.0.exe` — instalador clássico, com tela de
+Gera `publish\installer\PrintDev-Setup-0.1.1.exe` — instalador clássico, com tela de
 boas-vindas, escolha de pasta e entrada em *Adicionar ou remover programas*.
 
 | Decisão | Por quê |

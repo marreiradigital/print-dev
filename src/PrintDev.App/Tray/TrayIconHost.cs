@@ -67,10 +67,19 @@ public sealed class TrayIconHost : IDisposable
             // Renderiza o desenho vetorial no tamanho que o Windows pedir, por DPI,
             // em vez de depender de um .ico com resolucoes fixas.
             IconFrameworkElementSource = new TrayGlyph(),
-            ToolTipText = "Print Dev",
+            ToolTipText = "Print Dev — clique para abrir",
             ContextMenu = BuildMenu(),
             MenuActivation = PopupActivationMode.RightClick,
         };
+
+        // Clique com o botao esquerdo abre o painel. Sem isto o icone so responde ao
+        // botao direito, e um clique comum nao faz nada - o que passa impressao de
+        // programa quebrado, porque icone de bandeja abre no clique em todo lugar.
+        //
+        // O evento e o de SOLTAR o botao, e nao o comando de clique da biblioteca: o
+        // comando so dispara depois de esgotada a janela de espera do duplo clique, e
+        // meio segundo entre o clique e a janela aparecer parece programa travado.
+        _icon.TrayLeftMouseUp += (_, _) => _settingsWindow.Show();
 
         _log.Information("Ícone da bandeja criado");
     }

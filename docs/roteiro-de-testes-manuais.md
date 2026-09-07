@@ -116,7 +116,12 @@ pelo próprio Windows.
 ## 6. Ciclo de vida
 
 - [ ] Ícone aparece na bandeja *(o Windows 11 esconde ícones novos no estouro)*.
+- [ ] **Clique simples no ícone da bandeja: abre o painel** — e ele vem para a frente,
+      não atrás da janela que estava em uso.
 - [ ] Abrir o programa de novo: abre as configurações em vez de uma segunda instância.
+- [ ] Duplo clique no atalho da Área de Trabalho **com o programa já aberto**: o painel
+      vem para a frente. *(Se só piscar na barra de tarefas, o Windows recusou o primeiro
+      plano — é o caso que a cessão de direito na instância secundária resolve.)*
 - [ ] Ligar "Iniciar com o Windows", reiniciar, e conferir que ele sobe.
 - [ ] Ligar o modo elevado: pede elevação **uma vez** e depois sobe sem prompt de UAC.
 - [ ] Reiniciar o Explorador (`taskkill /f /im explorer.exe` e abrir de novo): o ícone da

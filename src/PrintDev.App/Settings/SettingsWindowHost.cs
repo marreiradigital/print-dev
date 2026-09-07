@@ -1,7 +1,9 @@
 ﻿using System.Windows;
+using System.Windows.Interop;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Maintenance;
+using PrintDev.Core.Screens;
 using Serilog;
 
 namespace PrintDev.Settings;
@@ -48,13 +50,34 @@ public sealed class SettingsWindowHost
             }
 
             _window.Activate();
+            BringToFront(_window);
             return;
         }
 
         _window = new SettingsWindow(_model, _paths, _hotkeys, _cleanup);
         _window.Closed += (_, _) => _window = null;
         _window.Show();
+        BringToFront(_window);
 
         _log.Debug("Painel de configurações aberto");
+    }
+
+    /// <summary>
+    /// Insiste no primeiro plano depois de mostrar a janela.
+    /// <para>
+    /// O <c>Activate</c> do WPF costuma bastar, mas quando a chamada vem de um clique no
+    /// ícone da bandeja quem está em primeiro plano é a barra de tarefas, e a janela pode
+    /// nascer atrás dela piscando na barra. O Windows aceita a promoção porque o processo
+    /// acabou de receber o clique.
+    /// </para>
+    /// </summary>
+    private static void BringToFront(Window window)
+    {
+        IntPtr handle = new WindowInteropHelper(window).Handle;
+
+        if (handle != IntPtr.Zero)
+        {
+            WindowPlacement.BringToFront(handle);
+        }
     }
 }

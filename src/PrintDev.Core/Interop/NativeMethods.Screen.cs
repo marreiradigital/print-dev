@@ -171,6 +171,13 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool SetForegroundWindow(IntPtr window);
 
+    /// <summary>Cede o direito de primeiro plano a qualquer processo.</summary>
+    internal const int ASFW_ANY = -1;
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool AllowSetForegroundWindow(int processId);
+
     /// <summary>Preferencia de canto arredondado (Windows 11).</summary>
     internal const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
 
