@@ -9,6 +9,8 @@ using PrintDev.Notifications;
 using PrintDev.Overlay;
 using PrintDev.Settings;
 using PrintDev.Core.Infrastructure;
+using PrintDev.Core.Maintenance;
+using PrintDev.Core.Ocr;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
 using PrintDev.Theme;
@@ -49,6 +51,8 @@ public static class ServiceRegistration
         services.AddSingleton<CaptureHistory>();
         services.AddSingleton<ToastHost>();
         services.AddSingleton<OverlayCoordinator>();
+        services.AddSingleton<WindowsOcrService>();
+        services.AddSingleton<CleanupService>();
         services.AddSingleton<CapturePipeline>();
         services.AddSingleton<CaptureCoordinator>();
         services.AddSingleton<TrayIconHost>();

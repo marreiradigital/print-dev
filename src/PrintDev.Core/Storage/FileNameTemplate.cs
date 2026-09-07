@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace PrintDev.Core.Storage;
 
@@ -166,4 +167,64 @@ public static class FileNameTemplate
 
         return result;
     }
+
+    /// <summary>
+    /// Monta uma expressão que reconhece os arquivos gerados por um modelo.
+    /// <para>
+    /// É a trava de segurança da limpeza automática. Sem ela, apontar a pasta de capturas
+    /// para uma pasta que já tem coisa do usuário e ligar a limpeza apagaria arquivos que
+    /// o Print Dev nunca criou.
+    /// </para>
+    /// <para>
+    /// Reconhece também o sufixo de desempate (<c>_2</c>, <c>_3</c>) e o carimbo de
+    /// milissegundos, porque são nomes que o próprio programa produz.
+    /// </para>
+    /// </summary>
+    public static Regex BuildPattern(string? template)
+    {
+        string effective = string.IsNullOrWhiteSpace(template) ? Fallback : template;
+        var pattern = new StringBuilder("^");
+        int index = 0;
+
+        while (index < effective.Length)
+        {
+            int open = effective.IndexOf('{', index);
+            if (open < 0)
+            {
+                pattern.Append(Regex.Escape(Sanitize(effective[index..])));
+                break;
+            }
+
+            int close = effective.IndexOf('}', open + 1);
+            if (close < 0)
+            {
+                pattern.Append(Regex.Escape(Sanitize(effective[index..])));
+                break;
+            }
+
+            pattern.Append(Regex.Escape(Sanitize(effective[index..open])));
+            pattern.Append(PatternFor(effective[(open + 1)..close]));
+            index = close + 1;
+        }
+
+        // Sufixo de desempate e extensao.
+        pattern.Append(@"(_\d{1,3})?\.(png|jpg|jpeg)$");
+
+        return new Regex(pattern.ToString(), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    }
+
+    private static string PatternFor(string token) => token.ToLowerInvariant() switch
+    {
+        "ano" => @"\d{4}",
+        "mes" or "dia" or "hora" or "min" or "seg" => @"\d{2}",
+        "ms" => @"\d{3}",
+        "contador" or "largura" or "altura" => @"\d+",
+
+        // Texto livre: o titulo da janela pode ter praticamente qualquer coisa depois de
+        // saneado. Nao casa com barra, para a expressao nunca atravessar pasta.
+        "app" or "titulo" or "monitor" or "modo" => @"[^\\/]*",
+
+        // Marcador desconhecido virou texto literal na geracao; aqui tambem.
+        _ => Regex.Escape("{" + token + "}"),
+    };
 }

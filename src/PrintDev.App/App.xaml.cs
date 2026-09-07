@@ -6,6 +6,7 @@ using PrintDev.Notifications;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
+using PrintDev.Core.Maintenance;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
 using PrintDev.Settings;
@@ -118,6 +119,20 @@ public partial class App : Application
         }
 
         _instanceGuard.WhenActivationRequested(OnActivationRequested);
+
+        // A limpeza roda uma vez por inicializacao, em segundo plano: varrer a pasta na
+        // thread de interface deixaria o programa mudo por segundos numa pasta grande.
+        Task.Run(() =>
+        {
+            try
+            {
+                _services.GetRequiredService<CleanupService>().Run();
+            }
+            catch (Exception exception)
+            {
+                _log.Error(exception, "Falha na limpeza automática");
+            }
+        });
 
         _log.Information("Print Dev pronto");
     }

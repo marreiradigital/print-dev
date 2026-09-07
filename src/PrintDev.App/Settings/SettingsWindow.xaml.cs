@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -6,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
+using PrintDev.Core.Maintenance;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Screens;
 
@@ -22,13 +24,16 @@ public partial class SettingsWindow : Window
     private readonly SettingsViewModel _model;
     private readonly IAppPaths _paths;
     private readonly HotkeyManager _hotkeys;
+    private readonly CleanupService _cleanup;
     private UIElement[] _pages = [];
 
-    internal SettingsWindow(SettingsViewModel model, IAppPaths paths, HotkeyManager hotkeys)
+    internal SettingsWindow(
+        SettingsViewModel model, IAppPaths paths, HotkeyManager hotkeys, CleanupService cleanup)
     {
         _model = model;
         _paths = paths;
         _hotkeys = hotkeys;
+        _cleanup = cleanup;
 
         InitializeComponent();
         DataContext = model;
@@ -49,6 +54,7 @@ public partial class SettingsWindow : Window
         OpenLogsButton.Click += (_, _) => ShellOpen.Folder(_paths.LogsDirectory);
         OpenSettingsFileButton.Click += (_, _) => ShellOpen.File(_paths.SettingsFile);
         RestoreDefaultsButton.Click += (_, _) => _model.RestoreDefaults();
+        SimulateCleanupButton.Click += (_, _) => SimulateCleanup();
 
         Loaded += (_, _) => RefreshHotkeyWarning();
     }
@@ -169,6 +175,31 @@ public partial class SettingsWindow : Window
             failures.Select(f => f.Error ?? $"O atalho {f.Text} não foi aceito."));
 
         HotkeyWarning.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    /// Lista o que a limpeza removeria, sem remover nada.
+    /// </summary>
+    private void SimulateCleanup()
+    {
+        IReadOnlyList<CleanupCandidate> candidates = _cleanup.Preview();
+        CleanupPreview.Visibility = Visibility.Visible;
+
+        if (candidates.Count == 0)
+        {
+            CleanupPreviewText.Foreground = (System.Windows.Media.Brush)FindResource("Brush.Text.Secondary");
+            CleanupPreviewText.Text = "Nada seria removido com as regras atuais.";
+            return;
+        }
+
+        double megabytes = candidates.Sum(c => c.SizeBytes) / 1024.0 / 1024.0;
+
+        CleanupPreviewText.Foreground = (System.Windows.Media.Brush)FindResource("Brush.Warning");
+        CleanupPreviewText.Text = string.Join(
+            Environment.NewLine,
+            new[] { $"{candidates.Count} arquivo(s), {megabytes:0.0} MB:" }
+                .Concat(candidates.Take(12).Select(c => $"  {Path.GetFileName(c.Path)}  ({c.Reason})"))
+                .Concat(candidates.Count > 12 ? [$"  e mais {candidates.Count - 12}…"] : []));
     }
 
     /// <summary>

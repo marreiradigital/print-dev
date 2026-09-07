@@ -26,7 +26,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 8 | Painel de configurações | ✅ |
 | 9 | Anotação com borrar/pixelar | ✅ |
 | 10 | Fixar na tela, conta-gotas, repetir região | ✅ |
-| 11 | OCR e limpeza automática | ⬜ |
+| 11 | OCR e limpeza automática | ✅ |
 | 12 | Ícone, publicação, roteiro de testes | ⬜ |
 
 ## Requisitos
@@ -185,6 +185,42 @@ escolhido em `cor.formatoPadrao`: `#ec008c`, `rgb(236, 0, 140)`, `hsl(324, 100%,
 **Repetir a última região** (`Ctrl+Shift+PrtSc`) captura de novo o mesmo retângulo. Serve
 para acompanhar algo que muda dentro da mesma área — um erro no terminal, uma compilação,
 um contador. Sem isso, cada repetição obriga a mirar de novo e nunca sai igual.
+
+## Reconhecer texto (OCR)
+
+`Ctrl+Alt+T` recorta uma área e copia o **texto** que estiver nela. Usa o motor que já vem
+no Windows: sem dependência externa, **sem rede** — para uma ferramenta que captura tela,
+onde passa senha, código e dado de cliente, mandar a imagem para um serviço na nuvem seria
+a decisão errada por mais conveniente que fosse.
+
+O caso de uso é copiar a mensagem de erro que está numa imagem — print de log, captura de
+terminal de outra máquina, foto de tela mandada por alguém — para colar num prompt ou numa
+busca. Redigitar um rastreamento de pilha à mão é exatamente o trabalho que este atalho
+apaga.
+
+Cada linha reconhecida vira uma linha no texto: juntar tudo num parágrafo destruiria a
+estrutura de um log ou de um trecho de código, que é o que mais se captura. Se nada for
+reconhecido, **a imagem é entregue mesmo assim** — perder o recorte porque o motor não
+achou texto seria o pior desfecho.
+
+Precisa do pacote de idioma com reconhecimento óptico instalado. Sem ele, o programa diz
+exatamente onde ativá-lo em vez de falhar em silêncio.
+
+## Limpeza automática
+
+Nasce **desligada**. É a única parte do programa que apaga arquivo do usuário, e por isso
+é a mais desconfiada:
+
+- só olha dentro da pasta configurada;
+- só reconhece arquivo cujo **nome casa com o modelo** do Print Dev — apontar a pasta de
+  capturas para uma pasta que já tem coisa sua não põe os seus arquivos em risco;
+- **nunca atravessa link simbólico**, o que faria a varredura sair da pasta sem ninguém
+  perceber;
+- manda para a **Lixeira**;
+- e tem o botão **Simular limpeza**, que lista o que seria removido sem tocar em nada.
+
+A expressão que reconhece os nossos arquivos tem teste dedicado, com uma lista de nomes
+que **não** podem casar. Um falso positivo ali significa apagar arquivo que você criou.
 
 ## Como o Ctrl+V acerta sozinho
 

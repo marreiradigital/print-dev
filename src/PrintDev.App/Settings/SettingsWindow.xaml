@@ -547,6 +547,19 @@
                                             <ToggleButton Style="{StaticResource Toggle.Switch}"
                                                           IsChecked="{Binding CleanupOnlyOurFiles}" />
                                         </ui:SettingRow>
+                                        <Border Style="{StaticResource Row.Divider}" />
+                                        <ui:SettingRow Label="Ver o que seria apagado"
+                                                       Description="Lista os arquivos sem tocar em nenhum. Ligar uma limpeza automática sem poder conferir antes é confiar às cegas numa operação irreversível.">
+                                            <Button x:Name="SimulateCleanupButton"
+                                                    Style="{StaticResource Button.Secondary}"
+                                                    Content="Simular limpeza" />
+                                        </ui:SettingRow>
+                                        <Border x:Name="CleanupPreview" Style="{StaticResource Preview.Box}"
+                                                Margin="20,0,20,16" Visibility="Collapsed">
+                                            <TextBlock x:Name="CleanupPreviewText"
+                                                       Style="{StaticResource Type.Mono}"
+                                                       TextWrapping="Wrap" />
+                                        </Border>
                                     </ui:Stack>
                                 </Border>
                             </ui:Stack>

@@ -7,6 +7,7 @@ using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
+using PrintDev.Core.Ocr;
 using PrintDev.Core.Picker;
 using PrintDev.Pin;
 using PrintDev.Core.Runtime;
@@ -31,6 +32,7 @@ public sealed class CaptureCoordinator
     private readonly OverlayCoordinator _overlay;
     private readonly ClipboardWriter _clipboard;
     private readonly CaptureHistory _history;
+    private readonly WindowsOcrService _ocr;
     private readonly ToastHost _toasts;
     private readonly HotkeyMessageWindow _messageWindow;
     private readonly ISettingsService _settings;
@@ -44,6 +46,7 @@ public sealed class CaptureCoordinator
         OverlayCoordinator overlay,
         ClipboardWriter clipboard,
         CaptureHistory history,
+        WindowsOcrService ocr,
         ToastHost toasts,
         HotkeyMessageWindow messageWindow,
         ISettingsService settings,
@@ -53,6 +56,7 @@ public sealed class CaptureCoordinator
         _overlay = overlay;
         _clipboard = clipboard;
         _history = history;
+        _ocr = ocr;
         _toasts = toasts;
         _messageWindow = messageWindow;
         _settings = settings;
@@ -94,6 +98,7 @@ public sealed class CaptureCoordinator
             HotkeyAction.ActiveWindow => CaptureActiveWindow(active),
             HotkeyAction.RepeatLastRegion => RepeatLastRegion(active),
             HotkeyAction.ColorPicker => StartColorPicker(),
+            HotkeyAction.Ocr => StartOcr(),
             _ => NotYet(action),
         };
     }
@@ -199,6 +204,54 @@ public sealed class CaptureCoordinator
         catch (Exception exception)
         {
             _log.Error(exception, "Falha no conta-gotas");
+        }
+    }
+
+    /// <summary>
+    /// Recorta uma área e copia o texto reconhecido nela.
+    /// <para>
+    /// O caso de uso é copiar a mensagem de erro que está numa imagem — print de log,
+    /// captura de terminal de outra máquina, foto de tela mandada por alguém — para
+    /// colar num prompt ou numa busca. Redigitar um rastreamento de pilha à mão é
+    /// exatamente o trabalho que este atalho apaga.
+    /// </para>
+    /// </summary>
+    private CaptureResult? StartOcr()
+    {
+        _ = RecognizeTextAsync();
+        return null;
+    }
+
+    private async Task RecognizeTextAsync()
+    {
+        try
+        {
+            OverlayResult? chosen = await _overlay.ShowAsync(_settings.Current).ConfigureAwait(true);
+
+            if (chosen is null)
+            {
+                return;
+            }
+
+            CapturedImage cropped = chosen.Frozen.Crop(chosen.Region);
+            OcrResult result = await _ocr.RecognizeAsync(cropped).ConfigureAwait(true);
+
+            if (!result.HasText)
+            {
+                // Sem texto reconhecido, a captura NAO e descartada: o usuario ainda quer
+                // a imagem que acabou de recortar. Perder o trabalho dele porque o
+                // reconhecimento nao achou nada seria o pior desfecho possivel.
+                _log.Information("Nenhum texto reconhecido; entregando a imagem. {Erro}", result.Error);
+                Deliver(cropped, "ocr", ActiveWindowInfo.Unknown);
+                return;
+            }
+
+            _clipboard.Write(_messageWindow.Handle, new ClipboardPayload(Image: null, Text: result.Text));
+            _log.Information("Texto copiado da captura ({Caracteres} caracteres)", result.Text.Length);
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha ao reconhecer texto");
         }
     }
 

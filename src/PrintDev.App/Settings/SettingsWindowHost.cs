@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
+using PrintDev.Core.Maintenance;
 using Serilog;
 
 namespace PrintDev.Settings;
@@ -17,15 +18,22 @@ public sealed class SettingsWindowHost
     private readonly SettingsViewModel _model;
     private readonly IAppPaths _paths;
     private readonly HotkeyManager _hotkeys;
+    private readonly CleanupService _cleanup;
     private readonly ILogger _log;
 
     private SettingsWindow? _window;
 
-    public SettingsWindowHost(SettingsViewModel model, IAppPaths paths, HotkeyManager hotkeys, ILogger log)
+    public SettingsWindowHost(
+        SettingsViewModel model,
+        IAppPaths paths,
+        HotkeyManager hotkeys,
+        CleanupService cleanup,
+        ILogger log)
     {
         _model = model;
         _paths = paths;
         _hotkeys = hotkeys;
+        _cleanup = cleanup;
         _log = log.ForContext<SettingsWindowHost>();
     }
 
@@ -43,7 +51,7 @@ public sealed class SettingsWindowHost
             return;
         }
 
-        _window = new SettingsWindow(_model, _paths, _hotkeys);
+        _window = new SettingsWindow(_model, _paths, _hotkeys, _cleanup);
         _window.Closed += (_, _) => _window = null;
         _window.Show();
 
