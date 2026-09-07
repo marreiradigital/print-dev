@@ -579,7 +579,7 @@
 
 <script type="module">
 import {
-  buscarVersoes, publicadas, instalador,
+  buscarVersoes, publicadas, instalador, renderizarNotas,
   tamanhoLegivel, dataLegivel, numero, URL_RELEASES,
 } from "./assets/versoes.js";
 
@@ -626,7 +626,9 @@ function cartaoDeVersao(versao, atual) {
   item.append(bloco, acoes);
 
   if (atual && versao.body?.trim()) {
-    item.append(elemento("div", "notas", versao.body.trim()));
+    const notas = elemento("div", "notas");
+    renderizarNotas(versao.body.trim(), notas);
+    item.append(notas);
   }
   return item;
 }

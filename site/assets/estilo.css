@@ -480,14 +480,35 @@ kbd {
 
 .notas {
   width: 100%;
-  margin-top: var(--gap-4);
-  padding-top: var(--gap-4);
+  margin-top: var(--gap-5);
+  padding-top: var(--gap-5);
   border-top: 1px solid var(--borda);
   color: var(--texto-medio);
-  font-size: 0.92rem;
-  white-space: pre-wrap;
+  font-size: 0.94rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
   overflow-wrap: anywhere;
 }
+.notas h3 { font-size: 1rem; color: var(--texto); margin-top: var(--gap-2); }
+.notas h4 { font-size: 0.92rem; color: var(--texto); margin: 0; }
+.notas b { color: var(--texto); }
+.notas code {
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--raio-p);
+  background: var(--fundo-recuado);
+  font-size: 0.86em;
+}
+.notas ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+.notas .rolagem-lateral { background: var(--fundo-recuado); }
+.notas table { font-size: 0.9rem; }
+.notas th, .notas td { padding: var(--gap-3) var(--gap-4); }
 
 /* ---------- perguntas ---------- */
 
