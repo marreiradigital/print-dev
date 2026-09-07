@@ -17,7 +17,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 |---|---|---|
 | 0 | Fundação: solução, convenções, auditoria de dependência | ✅ |
 | 1 | Bandeja, ciclo de vida, log em arquivo, instância única | ✅ |
-| 2 | Configurações em `settings.json` (núcleo) | ⬜ |
+| 2 | Configurações em `settings.json` (núcleo) | ✅ |
 | 3 | Atalho global + captura + salvamento | ⬜ |
 | 4 | Área de transferência multiformato | ⬜ |
 | 5 | Design system (base) | ⬜ |
@@ -67,6 +67,39 @@ dotnet run --project src/PrintDev.App
 
 As três convenções do Windows são aceitas (`--nome`, `-n`, `/nome`), sem diferenciar maiúsculas.
 Argumento desconhecido nunca derruba o app — vai para o log e a execução segue.
+
+## Configurações
+
+Ficam em `%APPDATA%\PrintDev\settings.json`, com as chaves em português — o arquivo é feito para
+ser editado à mão. O programa **relê sozinho** quando o arquivo muda: salvar no editor já vale, sem
+reiniciar nada. O menu da bandeja tem um atalho para abri-lo.
+
+| Seção | Para quê |
+|---|---|
+| `geral` | Iniciar com o Windows, iniciar elevado, tema |
+| `captura` | Modo padrão do seletor, escurecimento, lupa, cursor, atraso, aviso |
+| `salvamento` | Pasta, subpasta por data, formato, qualidade JPEG, modelo de nome |
+| `areaDeTransferencia` | O que copiar e como o caminho é escrito ao ser colado como texto |
+| `atalhos` | Combinações de teclas globais |
+| `anotacao` | Cor, espessura e estilo de ocultação |
+| `historico` · `limpeza` | Capturas recentes e remoção automática das antigas |
+| `avancado` | Nível de log, política ao detectar outro capturador |
+
+Três padrões que são decisão consciente, não esquecimento:
+
+- **`incluirArquivo` e `incluirHtml` nascem desligados.** São os dois formatos de área de
+  transferência que causam efeito colateral em programa de terceiro — o `CF_HDROP` faz o Outlook
+  anexar em vez de embutir a imagem, e o HTML faz o Chromium preferir uma marcação que aponta para o
+  disco local e colar imagem quebrada.
+- **`limpeza.ativa` nasce desligada**, e quando ligada só remove arquivo cujo nome casa com o modelo
+  do Print Dev, mandando para a Lixeira. Apagar arquivo do usuário exige pedido explícito dele.
+- **`aoDetectarConcorrente` é `perguntar`.** Encerrar processo alheio é destrutivo demais para
+  acontecer em silêncio, mesmo sendo o que resolve o conflito de atalho.
+
+Arquivo inválido não impede o programa de subir: ele é renomeado para
+`settings.corrompido-<data>.json`, os padrões entram no lugar e o motivo vai para o log. Chave que
+este código não conhece é preservada na regravação, então uma versão mais nova não perde
+configuração ao ser aberta por uma mais antiga.
 
 ## Qualidade
 

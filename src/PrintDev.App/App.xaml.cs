@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Bootstrap;
+using PrintDev.Core.Configuration;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
@@ -72,6 +73,14 @@ public partial class App : Application
         }
 
         _services = ServiceRegistration.Build(Options, paths, _log);
+
+        // As configuracoes sobem antes da bandeja: o menu ja depende delas, e o nivel
+        // de log configurado precisa valer para o resto da inicializacao.
+        var settings = _services.GetRequiredService<ISettingsService>();
+        settings.Load();
+        LoggingSetup.ApplyLevel(settings.Current.Advanced.LogLevel, _log);
+        settings.Changed += (_, current) => LoggingSetup.ApplyLevel(current.Advanced.LogLevel, _log);
+
         _services.GetRequiredService<TrayIconHost>().Show();
 
         _instanceGuard.WhenActivationRequested(OnActivationRequested);

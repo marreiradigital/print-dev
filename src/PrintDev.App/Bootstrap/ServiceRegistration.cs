@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using PrintDev.Core.Configuration;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Startup;
 using PrintDev.Tray;
@@ -22,6 +23,7 @@ public static class ServiceRegistration
         services.AddSingleton(paths);
         services.AddSingleton(logger);
 
+        services.AddSingleton<ISettingsService, JsonSettingsService>();
         services.AddSingleton<TrayIconHost>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions

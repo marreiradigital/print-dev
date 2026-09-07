@@ -49,4 +49,23 @@ public static class LoggingSetup
                     "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
     }
+
+    /// <summary>
+    /// Aplica o nível vindo das configurações. Nome inválido não derruba nada: cai em
+    /// Information, que é o padrão, e registra o aviso.
+    /// </summary>
+    public static void ApplyLevel(string levelName, ILogger log)
+    {
+        if (!Enum.TryParse(levelName, ignoreCase: true, out LogEventLevel level))
+        {
+            log.Warning("Nível de log desconhecido em configurações: {Nivel}. Usando Information.", levelName);
+            level = LogEventLevel.Information;
+        }
+
+        if (LevelSwitch.MinimumLevel != level)
+        {
+            LevelSwitch.MinimumLevel = level;
+            log.Information("Nível de log agora é {Nivel}", level);
+        }
+    }
 }

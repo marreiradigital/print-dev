@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using Hardcodet.Wpf.TaskbarNotification;
+using PrintDev.Core.Configuration;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
 using Serilog;
@@ -17,12 +18,14 @@ namespace PrintDev.Tray;
 public sealed class TrayIconHost : IDisposable
 {
     private readonly IAppPaths _paths;
+    private readonly ISettingsService _settings;
     private readonly ILogger _log;
     private TaskbarIcon? _icon;
 
-    public TrayIconHost(IAppPaths paths, ILogger log)
+    public TrayIconHost(IAppPaths paths, ISettingsService settings, ILogger log)
     {
         _paths = paths;
+        _settings = settings;
         _log = log.ForContext<TrayIconHost>();
     }
 
@@ -53,11 +56,18 @@ public sealed class TrayIconHost : IDisposable
 
         menu.Items.Add(MenuItemFor(
             "Abrir pasta de capturas",
-            () => OpenFolder(_paths.DefaultCapturesDirectory)));
+            () => OpenFolder(CaptureFolderResolver.ResolveRoot(_settings.Current, _paths))));
 
         menu.Items.Add(MenuItemFor(
             "Abrir pasta de logs",
             () => OpenFolder(_paths.LogsDirectory)));
+
+        // Enquanto o painel de configuracoes nao existe, editar o JSON e o caminho
+        // oficial - e ele continua valendo depois, porque o programa relê o arquivo
+        // sozinho quando ele muda.
+        menu.Items.Add(MenuItemFor(
+            "Editar configurações (settings.json)",
+            () => OpenFile(_paths.SettingsFile)));
 
         menu.Items.Add(new Separator());
 
@@ -75,6 +85,14 @@ public sealed class TrayIconHost : IDisposable
         var item = new MenuItem { Header = header };
         item.Click += (_, _) => onClick();
         return item;
+    }
+
+    private void OpenFile(string path)
+    {
+        if (!ShellOpen.File(path))
+        {
+            _log.Warning("Não consegui abrir o arquivo {Arquivo}", path);
+        }
     }
 
     private void OpenFolder(string path)
