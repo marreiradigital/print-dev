@@ -16,7 +16,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | Fase | Entrega | Status |
 |---|---|---|
 | 0 | Fundação: solução, convenções, auditoria de dependência | ✅ |
-| 1 | Bandeja, ciclo de vida, log em arquivo, instância única | ⬜ |
+| 1 | Bandeja, ciclo de vida, log em arquivo, instância única | ✅ |
 | 2 | Configurações em `settings.json` (núcleo) | ⬜ |
 | 3 | Atalho global + captura + salvamento | ⬜ |
 | 4 | Área de transferência multiformato | ⬜ |
@@ -77,6 +77,17 @@ Argumento desconhecido nunca derruba o app — vai para o log e a execução seg
   toda em português acentuado; sem o BOM, um build ou editor pode ler o arquivo como ANSI e
   corromper o texto.
 - **`TreatWarningsAsErrors` em Release.**
+
+## Solução de problemas
+
+**O ícone não apareceu na bandeja.** Ele apareceu — o Windows 11 esconde todo ícone novo no menu de
+estouro (a setinha `^` ao lado do relógio). Para fixá-lo na barra, arraste-o de dentro do estouro
+para a área do relógio, ou vá em *Configurações do Windows → Personalização → Barra de tarefas →
+Outros ícones da bandeja do sistema* e ligue o Print Dev.
+
+**Abri o programa de novo e nada aconteceu.** É o comportamento correto: só existe uma instância por
+sessão. A segunda avisa a primeira e encerra — o registro fica no log
+(`%APPDATA%\PrintDev\logs\`).
 
 ## Alvos futuros
 
