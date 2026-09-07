@@ -1,4 +1,5 @@
-﻿using System.Windows.Interop;
+﻿using System.Runtime.InteropServices;
+using System.Windows.Interop;
 using PrintDev.Core.Interop;
 
 namespace PrintDev.Core.Hotkeys;
@@ -49,19 +50,37 @@ public sealed class HotkeyMessageWindow : IDisposable
     /// </summary>
     public event EventHandler<int>? HotkeyPressed;
 
+    /// <summary>
+    /// Disparado quando o Windows muda o conjunto de cores do sistema — é assim que se
+    /// descobre que o usuário trocou entre tema claro e escuro.
+    /// </summary>
+    public event EventHandler? SystemColorsChanged;
+
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg != NativeMethods.WM_HOTKEY)
+        switch (msg)
         {
-            return IntPtr.Zero;
+            case NativeMethods.WM_HOTKEY:
+                handled = true;
+
+                // Nada de trabalho pesado aqui dentro. Enquanto este metodo nao retorna,
+                // a fila de mensagens da interface fica parada - e capturar a tela leva
+                // dezenas de milissegundos. Quem escuta o evento agenda o trabalho.
+                HotkeyPressed?.Invoke(this, wParam.ToInt32());
+                break;
+
+            case NativeMethods.WM_SETTINGCHANGE:
+                // A mensagem serve para dezenas de coisas; so a de conjunto de cores
+                // interessa. O nome vem em lParam como texto.
+                if (lParam != IntPtr.Zero
+                    && Marshal.PtrToStringUni(lParam) == NativeMethods.ImmersiveColorSet)
+                {
+                    SystemColorsChanged?.Invoke(this, EventArgs.Empty);
+                }
+
+                break;
         }
 
-        handled = true;
-
-        // Nada de trabalho pesado aqui dentro. Enquanto este metodo nao retorna, a fila
-        // de mensagens da thread de interface fica parada - e capturar a tela leva
-        // dezenas de milissegundos. Quem escuta o evento agenda o trabalho.
-        HotkeyPressed?.Invoke(this, wParam.ToInt32());
         return IntPtr.Zero;
     }
 

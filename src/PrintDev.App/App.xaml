@@ -3,13 +3,26 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">
     <!--
-        ShutdownMode=OnExplicitShutdown e obrigatorio: o Print Dev vive na bandeja
-        e nao tem MainWindow. Com o padrao (OnLastWindowClose) o processo morreria
-        assim que o painel de configuracoes fosse fechado.
-
-        Application.Resources recebe os dicionarios de tema na fase do design system.
-        O indice 0 sera reservado para os tokens de cor, que o ThemeService troca
-        em tempo de execucao.
+        ShutdownMode=OnExplicitShutdown e obrigatorio: o Print Dev vive na bandeja e nao
+        tem MainWindow. Com o padrao (OnLastWindowClose) o processo morreria assim que o
+        painel de configuracoes fosse fechado.
     -->
-    <Application.Resources />
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!--
+                    ===== POSICAO 0: RESERVADA AOS TOKENS DE COR =====
+                    O ThemeService SUBSTITUI o dicionario nesta posicao para trocar o
+                    tema em tempo de execucao. Todo DynamicResource reresolve sozinho, e
+                    nenhuma janela precisa ser recriada.
+
+                    NAO insira nada antes desta linha.
+                -->
+                <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Tokens.Dark.xaml" />
+
+                <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Primitives.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/PrintDev;component/Theme/Typography.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 </Application>

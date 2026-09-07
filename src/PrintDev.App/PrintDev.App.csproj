@@ -28,4 +28,14 @@
     <ProjectReference Include="..\PrintDev.Core\PrintDev.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      Build Action = Resource, NUNCA EmbeddedResource: fonte embutida como
+      EmbeddedResource compila, roda e o WPF cai silenciosamente na fonte de reserva.
+      Licencas OFL 1.1 acompanham os arquivos e pedem atribuicao.
+    -->
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <None Include="Assets\Fonts\*.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

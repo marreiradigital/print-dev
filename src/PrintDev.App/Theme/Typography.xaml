@@ -1,0 +1,114 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Tipografia.
+
+        Archivo (OFL 1.1) para texto e JetBrains Mono (OFL 1.1) para numero e caminho.
+        Nem Inter, que virou o padrao de todo mundo, nem Segoe UI, que e a fonte do
+        proprio Windows - o requisito e nao parecer nativo.
+
+        A SINTAXE ABAIXO TEM CINCO ARMADILHAS, TODAS SILENCIOSAS (o texto simplesmente
+        aparece com a fonte de reserva, sem erro nenhum):
+
+        1. Build Action tem que ser Resource, nunca EmbeddedResource. O segundo compila,
+           roda e cai na reserva.
+        2. "./Assets/Fonts/#Archivo" quebra quando escrito DENTRO de um dicionario em
+           subpasta: o "./" e relativo a URI do XAML que declara, e este arquivo mora em
+           /Theme/. A forma abaixo, com o nome do assembly, funciona de qualquer lugar.
+        3. "pack://application:,,,/..." e INVALIDO na URI absoluta de uma FontFamily.
+        4. O que vem depois do "#" e o nome da FAMILIA, com espaco - "JetBrains Mono",
+           nao "JetBrainsMono".
+        5. O WPF NAO suporta fonte variavel. Sao arquivos estaticos, um por peso.
+
+        Conferido nesta maquina: o WPF enxerga as duas familias com os pesos Normal,
+        Medium, SemiBold e Bold no Archivo, e Normal e Medium no JetBrains Mono.
+    -->
+
+    <FontFamily x:Key="Font.Sans">/PrintDev;component/Assets/Fonts/#Archivo</FontFamily>
+    <FontFamily x:Key="Font.Mono">/PrintDev;component/Assets/Fonts/#JetBrains Mono</FontFamily>
+
+    <!--
+        Base de todo texto.
+
+        LineStackingStrategy=BlockLineHeight e obrigatorio: sem ele o LineHeight que
+        definimos abaixo e simplesmente ignorado pelo WPF.
+
+        TextFormattingMode=Display encaixa as metricas na grade de pixels. E o que salva
+        a legibilidade em 13 e 14 pixels, tamanho em que fontes do Google Fonts costumam
+        borrar no rasterizador do WPF.
+    -->
+    <Style x:Key="Type.Base" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+        <Setter Property="LineStackingStrategy" Value="BlockLineHeight" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="LineHeight" Value="20" />
+    </Style>
+
+    <Style x:Key="Type.Display" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="LineHeight" Value="34" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Type.Title" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="LineHeight" Value="26" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Type.Subtitle" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="LineHeight" Value="22" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style x:Key="Type.Body" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}" />
+
+    <Style x:Key="Type.BodyMedium" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <Style x:Key="Type.Small" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="LineHeight" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    </Style>
+
+    <!--
+        Rotulo de grupo. Em CAIXA DE FRASE, nunca em caixa alta: o WPF nao tem
+        letter-spacing, e caixa alta sem espacamento fica apertada - ainda pior em
+        portugues acentuado, onde CONFIGURACOES junta os acentos com a linha de cima.
+    -->
+    <Style x:Key="Type.Caption" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="LineHeight" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Tertiary}" />
+    </Style>
+
+    <!--
+        TODO numero que muda em tempo real vai em mono: coordenada, dimensao, HEX,
+        atalho, caminho, porcentagem.
+
+        E a solucao definitiva para numeral tabular. O Typography.NumeralAlignment do
+        WPF depende de a fonte expor a funcionalidade e e fragil; mono e tabular por
+        construcao, e nao existe caso de borda. Sem isso, a largura do badge de dimensao
+        muda a cada pixel arrastado e a caixa fica tremendo na tela.
+    -->
+    <Style x:Key="Type.Mono" TargetType="TextBlock" BasedOn="{StaticResource Type.Base}">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.Mono}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="LineHeight" Value="18" />
+    </Style>
+
+    <Style x:Key="Type.MonoSmall" TargetType="TextBlock" BasedOn="{StaticResource Type.Mono}">
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="LineHeight" Value="16" />
+        <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+</ResourceDictionary>

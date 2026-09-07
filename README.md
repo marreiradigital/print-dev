@@ -20,7 +20,7 @@ Em construção. O que já existe está marcado; o resto é alvo declarado, não
 | 2 | Configurações em `settings.json` (núcleo) | ✅ |
 | 3 | Atalho global + captura + salvamento | ✅ |
 | 4 | Área de transferência multiformato | ✅ |
-| 5 | Design system (base) | ⬜ |
+| 5 | Design system (base) | ✅ |
 | 6 | Overlay de seleção multimonitor | ⬜ |
 | 7 | Barra pós-captura, aviso, histórico | ⬜ |
 | 8 | Painel de configurações | ⬜ |
@@ -179,6 +179,42 @@ Arquivo inválido não impede o programa de subir: ele é renomeado para
 `settings.corrompido-<data>.json`, os padrões entram no lugar e o motivo vai para o log. Chave que
 este código não conhece é preservada na regravação, então uma versão mais nova não perde
 configuração ao ser aberta por uma mais antiga.
+
+## Design
+
+Nada de visual nativo do Windows. A direção é **Marca de Corte** — a linguagem de prova
+de gráfica, que não é referência decorativa: um screenshot é literalmente um corte com
+registro. O elemento-assinatura são os colchetes de canto, que aparecem só onde
+significam *"isto é uma área recortável"*: as alças do seletor, o anel de foco, o ícone
+do app.
+
+O acento é **`#EC008C`, o magenta de registro**, e a escolha é técnica:
+
+| Cor | vs. branco | vs. preto |
+|---|---|---|
+| **`#EC008C` magenta** | **4,25:1** | **4,94:1** |
+| âmbar `#FFB020` | 1,9:1 ❌ | 11,6:1 |
+| verde-limão `#C8F751` | 1,9:1 ❌ | 15,8:1 |
+
+É a única família de matiz equilibrada contra os dois extremos **e** a cor mais rara no
+conteúdo que um dev captura — onde quase tudo é azul, cinza, branco e preto. O retângulo
+de seleção precisa aparecer por cima de qualquer coisa.
+
+**Tipografia:** [Archivo](https://github.com/Omnibus-Type/Archivo) e
+[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), ambas OFL 1.1, embutidas no
+executável. Todo número que muda em tempo real — coordenada, dimensão, HEX — vai em mono:
+é tabular por construção, então o badge de dimensão não fica tremendo a cada pixel
+arrastado.
+
+**Espaçamento:** nada pode ficar colado. Os valores vivem em tokens semânticos
+(`Gap.LabelToControl`, `Gap.FieldToField`…), e o espaço é responsabilidade do contêiner —
+existe um `Stack` próprio com propriedade de espaçamento, porque o `StackPanel` do WPF
+não tem uma. Ele também **pula filhos recolhidos**, que é o que evita o buraco fantasma
+onde um ajuste condicional está escondido.
+
+Tema escuro e claro completos, trocáveis em tempo de execução e capazes de acompanhar o
+Windows. O tema claro não é o escuro clareado: a hierarquia se inverte, a camada de estado
+troca de sinal e as cores semânticas escurecem para terem contraste sobre branco.
 
 ## Qualidade
 

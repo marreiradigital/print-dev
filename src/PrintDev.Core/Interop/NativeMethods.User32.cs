@@ -13,6 +13,15 @@ internal static partial class NativeMethods
     /// <summary>O atalho já pertence a outro programa.</summary>
     internal const int ERROR_HOTKEY_ALREADY_REGISTERED = 1409;
 
+    /// <summary>Alguma configuração do sistema mudou.</summary>
+    internal const int WM_SETTINGCHANGE = 0x001A;
+
+    /// <summary>
+    /// Valor que acompanha <see cref="WM_SETTINGCHANGE"/> quando o que mudou foi o
+    /// conjunto de cores — inclusive a troca entre tema claro e escuro.
+    /// </summary>
+    internal const string ImmersiveColorSet = "ImmersiveColorSet";
+
     /// <summary>
     /// Registra um atalho global.
     /// </summary>

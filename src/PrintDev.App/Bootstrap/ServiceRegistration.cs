@@ -6,6 +6,7 @@ using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Startup;
+using PrintDev.Theme;
 using PrintDev.Tray;
 using Serilog;
 
@@ -35,6 +36,7 @@ public static class ServiceRegistration
         services.AddSingleton<HotkeyManager>();
         services.AddSingleton<HotkeyGuardian>();
 
+        services.AddSingleton<ThemeService>();
         services.AddSingleton<ClipboardWriter>();
         services.AddSingleton<CapturePipeline>();
         services.AddSingleton<CaptureCoordinator>();

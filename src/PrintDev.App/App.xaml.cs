@@ -7,6 +7,7 @@ using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
+using PrintDev.Theme;
 using PrintDev.Tray;
 using Serilog;
 
@@ -83,6 +84,7 @@ public partial class App : Application
         LoggingSetup.ApplyLevel(settings.Current.Advanced.LogLevel, _log);
         settings.Changed += (_, current) => LoggingSetup.ApplyLevel(current.Advanced.LogLevel, _log);
 
+        StartTheme(settings);
         _services.GetRequiredService<TrayIconHost>().Show();
 
         StartHotkeys(settings);
@@ -90,6 +92,30 @@ public partial class App : Application
         _instanceGuard.WhenActivationRequested(OnActivationRequested);
 
         _log.Information("Print Dev pronto");
+    }
+
+    /// <summary>
+    /// Aplica o tema e passa a acompanhar o do Windows.
+    /// </summary>
+    private void StartTheme(ISettingsService settings)
+    {
+        var theme = _services!.GetRequiredService<ThemeService>();
+        theme.Apply(settings.Current.General.Theme);
+
+        // O WPF nao avisa quando nao acha uma fonte embutida: cai na de reserva em
+        // silencio. A conferencia deixa isso no log em vez de virar um "esta estranho"
+        // sem explicacao semanas depois.
+        theme.VerifyFonts();
+
+        // A janela de mensagens que ja existe para os atalhos tambem recebe o aviso de
+        // mudanca de cor do sistema. O programa pode nao ter janela nenhuma visivel
+        // quando o usuario troca o tema do Windows.
+        var messageWindow = _services.GetRequiredService<HotkeyMessageWindow>();
+        messageWindow.SystemColorsChanged += (_, _) =>
+            Dispatcher.BeginInvoke(theme.OnSystemColorsChanged);
+
+        settings.Changed += (_, current) =>
+            Dispatcher.BeginInvoke(() => theme.Apply(current.General.Theme));
     }
 
     /// <summary>
