@@ -1,4 +1,4 @@
-; ============================================================================
+﻿; ============================================================================
 ;  Print Dev - script do instalador (Inno Setup 6)
 ;
 ;  Gere com:  powershell -ExecutionPolicy Bypass -File scripts\gerar-instalador.ps1
@@ -103,12 +103,41 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; \
 Filename: "{app}\{#Executavel}"; Parameters: "--silencioso"; \
     Description: "{cm:ExecutarApos}"; Flags: nowait postinstall skipifsilent
 
+; Religa o programa depois de uma atualizacao automatica. A entrada acima nao
+; serve para isso: ela tem skipifsilent, e a atualizacao roda em /VERYSILENT.
+; Sem esta linha, atualizar faria o Print Dev sumir da bandeja ate o proximo
+; logon - o que, num programa que so serve estando de prontidao, e o mesmo que
+; desinstalar.
+Filename: "{app}\{#Executavel}"; Parameters: "--silencioso"; \
+    Flags: nowait; Check: EhAtualizacaoAutomatica
+
 [UninstallRun]
 ; Fecha o programa antes de remover os arquivos. Sem isto, desinstalar com ele
 ; aberto deixa o executavel para tras e o icone fantasma na bandeja.
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM {#Executavel} /F"; Flags: runhidden; RunOnceId: "FecharPrintDev"
 
 [Code]
+{
+  O proprio Print Dev passa /ATUALIZACAO ao se atualizar sozinho. E o que separa
+  "o usuario mandou instalar" de "o programa esta se trocando por uma versao nova
+  e precisa voltar a subir sozinho no fim".
+}
+function EhAtualizacaoAutomatica(): Boolean;
+var
+  Indice: Integer;
+begin
+  Result := False;
+
+  for Indice := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(Indice), '/ATUALIZACAO') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
 {
   Na desinstalacao, pergunta o que fazer com os dados do usuario.
 

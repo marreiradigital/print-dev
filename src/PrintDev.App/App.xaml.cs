@@ -9,6 +9,7 @@ using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Maintenance;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
+using PrintDev.Core.Updates;
 using PrintDev.Settings;
 using PrintDev.Theme;
 using PrintDev.Tray;
@@ -134,6 +135,8 @@ public partial class App : Application
             }
         });
 
+        StartUpdates(_services);
+
         _log.Information("Print Dev pronto");
 
         // A inicialização tocou dezenas de megabytes que nunca mais serão lidos: ler o
@@ -224,8 +227,53 @@ public partial class App : Application
         });
     }
 
+    /// <summary>
+    /// Liga a verificação de atualização.
+    /// <para>
+    /// O serviço decide sozinho quando perguntar; o que o aplicativo fornece é a única
+    /// coisa que só ele sabe: se dá para interromper agora.
+    /// </para>
+    /// </summary>
+    private void StartUpdates(ServiceProvider services)
+    {
+        var updates = services.GetRequiredService<UpdateService>();
+
+        // Qualquer janela visível significa trabalho em curso — o seletor sobre a
+        // tela, o editor de anotação com desenho não salvo, um pin fixado, o painel
+        // aberto. Reiniciar por cima de qualquer um deles destrói algo que a pessoa
+        // não mandou destruir.
+        updates.PodeInterromper = () => Dispatcher.Invoke(
+            () => !Windows.OfType<Window>().Any(janela => janela.IsVisible));
+
+        updates.Changed += (_, resultado) => Dispatcher.BeginInvoke(
+            () => _services?.GetService<TrayIconHost>()?.ShowUpdateStatus(resultado));
+
+        updates.Start();
+    }
+
+    /// <summary>
+    /// Dispara a instalação pendente no encerramento, se for o caso.
+    /// </summary>
+    private void InstallPendingUpdate()
+    {
+        try
+        {
+            _services?.GetService<UpdateService>()?.InstalarAoSairSeHouver();
+        }
+        catch (Exception exception)
+        {
+            // Encerrar nunca pode falhar por causa de atualização.
+            _log.Error(exception, "Falha ao iniciar a instalação da atualização");
+        }
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
+        // Antes de qualquer descarte: se ha atualizacao baixada e a politica e
+        // instalar ao sair, este e o unico instante em que da para faze-lo sem
+        // interromper ninguem -- o usuario ja decidiu fechar o programa.
+        InstallPendingUpdate();
+
         // A ordem inversa da inicializacao: o container primeiro (para o icone sair da
         // bandeja), a instancia unica depois, e o log por ultimo, para registrar tudo.
         _services?.Dispose();

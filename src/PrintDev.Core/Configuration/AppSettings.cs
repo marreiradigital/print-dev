@@ -51,6 +51,9 @@ public sealed record AppSettings
     [JsonPropertyName("cor")]
     public ColorSettings Color { get; init; } = new();
 
+    [JsonPropertyName("atualizacao")]
+    public UpdateSettings Updates { get; init; } = new();
+
     [JsonPropertyName("avancado")]
     public AdvancedSettings Advanced { get; init; } = new();
 
@@ -325,4 +328,37 @@ public sealed record AdvancedSettings
     /// </summary>
     [JsonPropertyName("vigiarAtalho")]
     public bool GuardHotkey { get; init; } = true;
+}
+
+/// <summary>
+/// Atualização automática.
+/// <para>
+/// O padrão instala <b>ao sair</b>: é a única política que mantém o programa em dia
+/// sem nunca interromper o que a pessoa está fazendo. Um capturador de tela vive em
+/// segundo plano justamente para estar pronto no instante em que a tecla é apertada;
+/// reiniciar sozinho no meio do dia contraria a razão de ele existir.
+/// </para>
+/// </summary>
+public sealed record UpdateSettings
+{
+    [JsonPropertyName("acao")]
+    public UpdateAction Action { get; init; } = UpdateAction.InstalarAoSair;
+
+    /// <summary>
+    /// De quanto em quanto tempo perguntar ao GitHub. Doze horas cobre "saiu versão
+    /// nova hoje" sem transformar o programa em cliente de sondagem.
+    /// </summary>
+    [JsonPropertyName("intervaloDeHoras")]
+    public int IntervalHours { get; init; } = 12;
+
+    /// <summary>Também oferecer versões marcadas como pré-lançamento no GitHub.</summary>
+    [JsonPropertyName("incluirPreLancamentos")]
+    public bool IncludePrereleases { get; init; }
+
+    /// <summary>
+    /// Repositório consultado, no formato <c>dono/nome</c>. Configurável para quem
+    /// mantém um fork — o que a licença permite, desde que o crédito fique.
+    /// </summary>
+    [JsonPropertyName("repositorio")]
+    public string Repository { get; init; } = "marreiradigital/print-dev";
 }

@@ -150,3 +150,26 @@ public enum ColorFormat
     Hsl,
     Hex0X,
 }
+
+/// <summary>O que fazer quando existe uma versão mais nova publicada.</summary>
+public enum UpdateAction
+{
+    /// <summary>
+    /// Baixa em segundo plano, confere o digesto e instala no momento em que o
+    /// programa é fechado. Padrão: é a única opção que atualiza sem nunca
+    /// interromper o que a pessoa está fazendo.
+    /// </summary>
+    InstalarAoSair,
+
+    /// <summary>Só avisa que existe versão nova. Nada é baixado sem um clique.</summary>
+    SomenteAvisar,
+
+    /// <summary>
+    /// Baixa e reinicia o programa assim que der — respeitando os momentos em que
+    /// interromper seria destrutivo (captura em andamento, editor aberto, pin na tela).
+    /// </summary>
+    InstalarAutomaticamente,
+
+    /// <summary>Não procura atualização nenhuma.</summary>
+    Desligado,
+}

@@ -10,6 +10,7 @@ using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Paths;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
+using PrintDev.Core.Updates;
 using PrintDev.Settings;
 using Serilog;
 
@@ -30,8 +31,10 @@ public sealed class TrayIconHost : IDisposable
     private readonly ClipboardWriter _clipboard;
     private readonly HotkeyMessageWindow _messageWindow;
     private readonly SettingsWindowHost _settingsWindow;
+    private readonly UpdateService _updates;
     private readonly ILogger _log;
     private TaskbarIcon? _icon;
+    private MenuItem? _updateItem;
 
     /// <summary>Marca os itens do menu que sao recriados a cada abertura.</summary>
     private const string HistoryTag = "historico";
@@ -43,6 +46,7 @@ public sealed class TrayIconHost : IDisposable
         ClipboardWriter clipboard,
         HotkeyMessageWindow messageWindow,
         SettingsWindowHost settingsWindow,
+        UpdateService updates,
         ILogger log)
     {
         _paths = paths;
@@ -51,6 +55,7 @@ public sealed class TrayIconHost : IDisposable
         _clipboard = clipboard;
         _messageWindow = messageWindow;
         _settingsWindow = settingsWindow;
+        _updates = updates;
         _log = log.ForContext<TrayIconHost>();
     }
 
@@ -112,6 +117,13 @@ public sealed class TrayIconHost : IDisposable
 
         menu.Items.Add(new Separator());
 
+        _updateItem = new MenuItem();
+        _updateItem.Click += (_, _) => OnUpdateClicked();
+        RefreshUpdateItem();
+        menu.Items.Add(_updateItem);
+
+        menu.Items.Add(new Separator());
+
         menu.Items.Add(MenuItemFor("Sair", () =>
         {
             _log.Information("Encerrando pelo menu da bandeja");
@@ -126,6 +138,8 @@ public sealed class TrayIconHost : IDisposable
     /// </summary>
     private void Rebuild(ContextMenu menu)
     {
+        RefreshUpdateItem();
+
         // Tira o submenu anterior, se houver, e o recria com o estado de agora.
         foreach (object item in menu.Items.OfType<object>().Where(i => i is MenuItem { Tag: HistoryTag }).ToList())
         {
@@ -205,6 +219,73 @@ public sealed class TrayIconHost : IDisposable
                 IncludeFileDrop: clipboard.IncludeFileDrop && item.Path is not null));
 
         _log.Information("Recopiado do histórico: {Arquivo}", item.DisplayName);
+    }
+
+    /// <summary>
+    /// Reflete o estado da atualização no ícone.
+    /// <para>
+    /// Só a dica do ícone e o menu — nunca um balão, nunca uma janela. Avisar de
+    /// versão nova não justifica roubar o foco de quem está digitando.
+    /// </para>
+    /// </summary>
+    public void ShowUpdateStatus(UpdateCheckResult resultado)
+    {
+        ArgumentNullException.ThrowIfNull(resultado);
+
+        RefreshUpdateItem();
+
+        if (_icon is null)
+        {
+            return;
+        }
+
+        _icon.ToolTipText = resultado.Status switch
+        {
+            UpdateStatus.Baixado => $"Print Dev — atualização pronta ({resultado.Update?.Version.ToString(3)})",
+            UpdateStatus.Disponivel => $"Print Dev — versão {resultado.Update?.Version.ToString(3)} disponível",
+            _ => "Print Dev — clique para abrir",
+        };
+    }
+
+    /// <summary>Põe no item do menu o rótulo que corresponde ao estado de agora.</summary>
+    private void RefreshUpdateItem()
+    {
+        if (_updateItem is null)
+        {
+            return;
+        }
+
+        UpdateCheckResult resultado = _updates.Last;
+
+        _updateItem.Header = resultado.Status switch
+        {
+            UpdateStatus.Baixado => $"Reiniciar e atualizar para a {resultado.Update?.Version.ToString(3)}",
+            UpdateStatus.Disponivel => $"Baixar a versão {resultado.Update?.Version.ToString(3)}",
+            _ => "Procurar atualizações",
+        };
+    }
+
+    /// <summary>
+    /// O clique faz a coisa mais adiantada possível: instala o que já está pronto,
+    /// senão procura. Um item de menu que só reabre outra tela não ajuda ninguém.
+    /// </summary>
+    private void OnUpdateClicked()
+    {
+        if (_updates.Last.Status == UpdateStatus.Baixado)
+        {
+            if (_updates.InstalarAgora())
+            {
+                Application.Current.Shutdown(0);
+            }
+
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            UpdateCheckResult resultado = await _updates.CheckAsync(forcado: true).ConfigureAwait(false);
+            _log.Information("Procura manual de atualização: {Mensagem}", resultado.Message);
+        });
     }
 
     private static MenuItem MenuItemFor(string header, Action onClick)

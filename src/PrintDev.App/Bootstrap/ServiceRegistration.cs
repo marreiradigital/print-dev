@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Net;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Capture;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Clipboard;
@@ -13,6 +16,7 @@ using PrintDev.Core.Maintenance;
 using PrintDev.Core.Ocr;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Startup;
+using PrintDev.Core.Updates;
 using PrintDev.Theme;
 using PrintDev.Tray;
 using Serilog;
@@ -58,6 +62,14 @@ public static class ServiceRegistration
         services.AddSingleton<CaptureCoordinator>();
         services.AddSingleton<TrayIconHost>();
 
+        // Um HttpClient para o programa inteiro. Criar um por uso esgota as portas
+        // efemeras do Windows; um estatico eterno nao percebe mudanca de DNS.
+        services.AddSingleton(_ => CriarClienteHttp());
+        services.AddSingleton<GitHubReleaseClient>();
+        services.AddSingleton<UpdateInstaller>();
+        services.AddSingleton<UpdateStateStore>();
+        services.AddSingleton<UpdateService>();
+
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
             // Falha cedo e alto: dependencia faltando vira erro na inicializacao,
@@ -65,5 +77,41 @@ public static class ServiceRegistration
             ValidateOnBuild = true,
             ValidateScopes = true,
         });
+    }
+
+    /// <summary>
+    /// O cliente HTTP do programa.
+    /// <para>
+    /// Sem tempo-limite proprio: ele atende tanto a consulta de metadados quanto o
+    /// download do instalador, e um teto que serve para uma mata a outra. Cada
+    /// chamador impoe o seu com um token de cancelamento.
+    /// </para>
+    /// </summary>
+    private static HttpClient CriarClienteHttp()
+    {
+        var transporte = new SocketsHttpHandler
+        {
+            // Sem isto a conexao guardada nunca reavalia o DNS, e o programa fica
+            // falando com um endereco que mudou ha horas.
+            PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+        };
+
+        var cliente = new HttpClient(transporte)
+        {
+            Timeout = Timeout.InfiniteTimeSpan,
+        };
+
+        // A API do GitHub recusa requisicao sem User-Agent, com 403 e sem explicar.
+        cliente.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue("PrintDev", ReleaseTag.Current.ToString(3)));
+        cliente.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue("(+https://printdev.marreira.dev)"));
+
+        cliente.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        cliente.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+
+        return cliente;
     }
 }
