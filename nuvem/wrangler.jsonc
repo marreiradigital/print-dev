@@ -1,0 +1,43 @@
+{
+  // Serviço de envio temporário do Print Dev.
+  //
+  //   pnpm dlx wrangler@latest deploy          publica o Worker
+  //
+  // A chave do aplicativo vive em ~/.secrets/printdev-chave-nuvem.txt e nunca
+  // entra no git. O que está aqui é o SHA-256 dela: o Worker compara digestos, e
+  // um digesto de valor aleatório de 256 bits não revela a origem. Para trocar a
+  // chave, gere outra, ponha o novo hash aqui e recompile o executável.
+  "name": "printdev-nuvem",
+  "main": "worker.js",
+  "compatibility_date": "2026-09-08",
+  "account_id": "e5e5636f7074950c7c3d5f5d918f2251",
+
+  "vars": {
+    "HASH_DA_CHAVE": "0431848698b609a9577937e8507bc43be02deaba05ba05c9dba3530c1af6e56b"
+  },
+
+  "kv_namespaces": [
+    {
+      "binding": "IMAGENS",
+      "id": "7ff85d3448c04fc6be85cb2a55ca56d8"
+    }
+  ],
+
+  // O limite por endereço não está aqui: é uma regra de limite do WAF na zona
+  // marreira.dev (5 requisições por 10s por IP em /i/novo, bloqueio de 10s).
+  // Ela roda na borda, antes do Worker, então também protege a cota de
+  // requisições. O binding "ratelimit" dos Workers foi testado e não disparou.
+
+  // A rota fica sob /i/ de propósito. O site estático do projeto mora no mesmo
+  // hostname, e um padrão mais largo como /i* engoliria /index.html.
+  "routes": [
+    {
+      "pattern": "printdev.marreira.dev/i/*",
+      "zone_name": "marreira.dev"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}
