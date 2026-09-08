@@ -1,3 +1,4 @@
+﻿using System.IO;
 using PrintDev.Core.Configuration;
 using Serilog;
 
@@ -76,6 +77,11 @@ public sealed class UpdateService : IDisposable
         }
 
         AvisarSeATentativaAnteriorFalhou();
+
+        // O que ja se sabe vale desde o primeiro segundo. Esperar a primeira consulta
+        // deixaria a bandeja e o painel dizendo "ainda nao verificado" por um minuto --
+        // e, pior, esqueceria um instalador ja baixado que so faltava instalar.
+        Publicar(DoEstado(_store.Read()));
 
         _laco = Task.Run(() => LacoAsync(_parada.Token));
     }
@@ -205,8 +211,11 @@ public sealed class UpdateService : IDisposable
         if (!forcado && estado.LastCheck is { } ultima && DateTimeOffset.Now - ultima < IntervaloConfigurado())
         {
             // Já se perguntou há pouco. Reaproveita o que se sabe em vez de gastar
-            // uma requisição para ouvir a mesma resposta.
-            return Last;
+            // uma requisição para ouvir a mesma resposta -- mas o que se sabe precisa
+            // aparecer: devolver Last aqui deixaria o painel dizendo "ainda não
+            // verificado" pelas doze horas seguintes a cada reinício, com a resposta
+            // guardada em disco o tempo todo.
+            return Last.Status == UpdateStatus.NaoVerificado ? Publicar(DoEstado(estado)) : Last;
         }
 
         ReleaseQuery consulta = await _github
@@ -340,6 +349,49 @@ public sealed class UpdateService : IDisposable
             ReleaseTag.Current.ToString(3));
     }
 
+    /// <summary>
+    /// Reconstrói o que se sabe a partir do disco, sem tocar na rede.
+    /// <para>
+    /// É o que devolve o instalador já baixado depois de um reinício. Sem isto, uma
+    /// atualização baixada ontem ficaria em disco para sempre: a política "instalar
+    /// ao sair" não acharia nada em memória e nunca dispararia.
+    /// </para>
+    /// </summary>
+    private UpdateCheckResult DoEstado(UpdateState estado)
+    {
+        if (!ReleaseTag.TryParse(estado.FoundTag, out Version? encontrada)
+            || !ReleaseTag.Vale(encontrada, ReleaseTag.Current))
+        {
+            return UpdateCheckResult.Atualizado(ReleaseTag.Current);
+        }
+
+        if (string.Equals(estado.IgnoredTag, estado.FoundTag, StringComparison.OrdinalIgnoreCase))
+        {
+            return UpdateCheckResult.Atualizado(ReleaseTag.Current);
+        }
+
+        // O instalador só conta se ainda estiver em disco: a pasta é temporária, e o
+        // Windows a limpa sozinho quando quer.
+        bool prontoEmDisco = estado.ReadyInstaller is not null
+                             && string.Equals(estado.ReadyInstallerTag, estado.FoundTag, StringComparison.OrdinalIgnoreCase)
+                             && File.Exists(estado.ReadyInstaller);
+
+        if (prontoEmDisco)
+        {
+            InstaladorPronto = estado.ReadyInstaller;
+
+            return new UpdateCheckResult(
+                UpdateStatus.Baixado,
+                null,
+                $"A versão {encontrada.ToString(3)} está baixada e será instalada quando você sair.");
+        }
+
+        return new UpdateCheckResult(
+            UpdateStatus.Disponivel,
+            null,
+            $"A versão {encontrada.ToString(3)} está disponível.");
+    }
+
     private TimeSpan IntervaloConfigurado()
     {
         // Um valor absurdo no arquivo de configuração não pode virar consulta em laço
@@ -350,6 +402,14 @@ public sealed class UpdateService : IDisposable
 
     private UpdateCheckResult Publicar(UpdateCheckResult resultado)
     {
+        // Em nível de informação, e não de depuração: isto acontece duas vezes por dia,
+        // então não é ruído — e sem ele o subsistema fica mudo. "Não me avisou da versão
+        // nova" viraria uma investigação sem uma única linha por onde começar.
+        _log.Information(
+            "Verificação de atualização: {Situacao} — {Mensagem}",
+            resultado.Status,
+            resultado.Message);
+
         Last = resultado;
         Changed?.Invoke(this, resultado);
         return resultado;
