@@ -4,6 +4,11 @@
 # Scripts de shell precisam de LF mesmo no Windows
 *.sh text eol=lf
 
+# O Worker da nuvem fica em LF nos dois lados. O que sobe para a Cloudflare e
+# conferido por SHA-256 contra o arquivo do disco; com CRLF na working tree, o
+# mesmo commit produziria hashes diferentes conforme o sistema operacional.
+nuvem/** text eol=lf
+
 # Binarios: nunca normalizar
 *.ico binary
 *.png binary
