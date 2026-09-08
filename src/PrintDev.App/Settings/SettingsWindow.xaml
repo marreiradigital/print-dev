@@ -153,6 +153,8 @@
                         <ListBoxItem Content="Área de transferência" />
                         <ListBoxItem Content="Atalhos" />
                         <ListBoxItem Content="Histórico e limpeza" />
+                        <ListBoxItem Content="Nuvem" />
+                        <ListBoxItem Content="Atualizações" />
                         <ListBoxItem Content="Avançado" />
                         <ListBoxItem Content="Sobre" />
                     </ListBox>
@@ -482,6 +484,32 @@
                             </ui:Stack>
                         </ui:Card>
 
+                        <ui:Card Title="Ferramentas">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Conta-gotas de cor">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyColorPicker, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Reconhecer texto na tela">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyOcr, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Desfazer a última captura"
+                                               Description="Manda o arquivo para a Lixeira, tira do histórico e limpa a área de transferência. Funciona mesmo com o aviso já fora da tela.">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeyUndoLastCapture, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Enviar a última captura para a nuvem"
+                                               Description="Publica e copia o link de 48 horas. O aviso some em segundos; sem este atalho, perdê-lo obrigaria a capturar tudo de novo.">
+                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
+                                             Text="{Binding HotkeySendToCloud, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
                         <Border x:Name="HotkeyWarning" Style="{StaticResource Preview.Box}" Visibility="Collapsed">
                             <TextBlock x:Name="HotkeyWarningText" Style="{StaticResource Type.Small}"
                                        Foreground="{DynamicResource Brush.Warning}" TextWrapping="Wrap" />
@@ -564,6 +592,113 @@
                                     </ui:Stack>
                                 </Border>
                             </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== NUVEM ========== -->
+                    <ui:Stack x:Name="PageCloud" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Nuvem" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="Um link temporário para colar num chat, quando o caminho do arquivo não serve." />
+                        </ui:Stack>
+
+                        <ui:Card>
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Mostrar o botão de enviar no aviso"
+                                               Description="O envio é sempre manual. Nada sai da sua máquina sem um clique seu.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding CloudEnabled}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Avisar antes de enviar"
+                                               Description="Explica, no próprio aviso, que a imagem vai sair da máquina. Desliga sozinho depois que você confirma a primeira vez.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding CloudWarnBeforeSending}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Copiar o link assim que enviar">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding CloudCopyLinkAfterSending}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Como funciona">
+                            <!--
+                                Texto corrido dentro de um cartao precisa do mesmo recuo
+                                horizontal que o titulo e as linhas de configuracao tem
+                                pelo gabarito. Sem isto ele encosta na borda e fica a
+                                esquerda do proprio titulo do cartao. Padding no Border,
+                                e nao Margin no texto: espaco e responsabilidade do
+                                container, e Margin em View e proibida no projeto.
+                            -->
+                            <Border Padding="{StaticResource Pad.Row}">
+                                <ui:Stack Spacing="{StaticResource Gap.LabelToControl}">
+                                <TextBlock Style="{StaticResource Type.Small}" TextWrapping="Wrap"
+                                           Text="A imagem fica no ar por 48 horas e some sozinha. O endereço tem 96 bits de aleatoriedade, então ninguém chega nele por tentativa — mas quem tiver o link vê a imagem. Trate o link como o segredo que ele é." />
+                                <TextBlock Style="{StaticResource Type.Small}" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource Brush.Text.Secondary}"
+                                           Text="{Binding CloudLinksSummary}" />
+                                </ui:Stack>
+                            </Border>
+                        </ui:Card>
+
+                        <ui:Card Title="Destino">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Serviço"
+                                               Description="O padrão é o serviço público mantido pelo autor. Aponte para um destino seu se preferir não depender dele.">
+                                    <TextBox Style="{StaticResource Input.Text}" MinWidth="320"
+                                             Text="{Binding CloudEndpoint, UpdateSourceTrigger=LostFocus}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+                    </ui:Stack>
+
+                    <!-- ========== ATUALIZAÇÕES ========== -->
+                    <ui:Stack x:Name="PageUpdates" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
+                        <ui:Stack Spacing="6">
+                            <TextBlock Style="{StaticResource Type.Title}" Text="Atualizações" />
+                            <TextBlock Style="{StaticResource Type.Small}"
+                                       Text="O Print Dev se mantém em dia sozinho, sem interromper o seu trabalho." />
+                        </ui:Stack>
+
+                        <ui:Card>
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Quando sair uma versão nova"
+                                               Description="Instalar ao sair é o padrão: a troca acontece no único momento em que ela não atrapalha nada.">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="280"
+                                              ItemsSource="{Binding UpdateBehaviors}"
+                                              SelectedItem="{Binding UpdateBehavior}" />
+                                </ui:SettingRow>
+                                <Border Style="{StaticResource Row.Divider}" />
+                                <ui:SettingRow Label="Incluir pré-lançamentos"
+                                               Description="Versões marcadas como prévia no GitHub. Chegam antes e quebram mais.">
+                                    <ToggleButton Style="{StaticResource Toggle.Switch}"
+                                                  IsChecked="{Binding IncludePrereleases}" />
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Verificação">
+                            <ui:Stack Spacing="0">
+                                <ui:SettingRow Label="Situação">
+                                    <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.ButtonToButton}">
+                                        <TextBlock Style="{StaticResource Type.Small}" VerticalAlignment="Center"
+                                                   TextWrapping="Wrap" MaxWidth="300"
+                                                   Text="{Binding UpdateStatus}" />
+                                        <Button x:Name="CheckUpdatesButton" Style="{StaticResource Button.Ghost}"
+                                                Content="Procurar agora" />
+                                    </ui:Stack>
+                                </ui:SettingRow>
+                            </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Como o download é conferido">
+                            <Border Padding="{StaticResource Pad.Row}">
+                                <TextBlock Style="{StaticResource Type.Small}" TextWrapping="Wrap"
+                                           Text="O instalador só é executado depois de bater com o digesto SHA-256 que o GitHub publica para o arquivo. Se o lançamento não trouxer digesto, a instalação automática é recusada e o programa manda baixar pela página. O instalador ainda não é assinado digitalmente, então o SmartScreen continua avisando na primeira execução." />
+                            </Border>
                         </ui:Card>
                     </ui:Stack>
 

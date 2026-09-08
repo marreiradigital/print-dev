@@ -1,4 +1,5 @@
 ﻿using PrintDev.Core.Clipboard;
+using PrintDev.Core.Cloud;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
@@ -22,14 +23,22 @@ public sealed class ToastHost
     /// </summary>
     private const int MaxVisible = 3;
 
+    /// <summary>
+    /// Quanto o aviso fica na tela depois de responder algo que precisa ser lido.
+    /// Mais longo que a vida normal do aviso: um link e um motivo de erro levam mais
+    /// tempo para ler do que "captura salva".
+    /// </summary>
+    private static readonly TimeSpan AvisoDeLeitura = TimeSpan.FromSeconds(8);
+
     private const int EdgeMargin = 24;
     private const int StackGap = 8;
-    private const int ToastWidth = 420;
 
     private readonly ISettingsService _settings;
     private readonly ClipboardWriter _clipboard;
     private readonly HotkeyMessageWindow _messageWindow;
     private readonly CaptureUndoService _undo;
+    private readonly CloudUploader _cloud;
+    private readonly CloudLinkStore _links;
     private readonly ILogger _log;
     private readonly List<ToastWindow> _visible = [];
 
@@ -51,12 +60,16 @@ public sealed class ToastHost
         ClipboardWriter clipboard,
         HotkeyMessageWindow messageWindow,
         CaptureUndoService undo,
+        CloudUploader cloud,
+        CloudLinkStore links,
         ILogger log)
     {
         _settings = settings;
         _clipboard = clipboard;
         _messageWindow = messageWindow;
         _undo = undo;
+        _cloud = cloud;
+        _links = links;
         _log = log.ForContext<ToastHost>();
     }
 
@@ -127,7 +140,7 @@ public sealed class ToastHost
         double scaleX = monitor?.ScaleX ?? 1;
         double scaleY = monitor?.ScaleY ?? 1;
 
-        int physicalWidth = (int)Math.Round(ToastWidth * scaleX);
+        int physicalWidth = (int)Math.Round(ToastWindow.WidthDip * scaleX);
         int physicalHeight = (int)Math.Round(height * scaleY);
         int margin = (int)Math.Round(EdgeMargin * scaleX);
         int gap = (int)Math.Round(StackGap * scaleY);
@@ -168,6 +181,14 @@ public sealed class ToastHost
             return;
         }
 
+        // Enviar tambem nao pode descartar o aviso: o envio demora, e a resposta -- o
+        // link, ou o motivo da falha -- precisa aparecer onde a pessoa clicou.
+        if (action == ToastAction.Cloud)
+        {
+            _ = EnviarParaNuvem(toast, item);
+            return;
+        }
+
         if (item.Path is null)
         {
             toast.Dismiss();
@@ -199,6 +220,117 @@ public sealed class ToastHost
                 break;
         }
     }
+
+    /// <summary>
+    /// Envia a captura indicada, vinda do atalho global.
+    /// <para>
+    /// Se o aviso dela ainda estiver na tela, reaproveita aquele — dois avisos da
+    /// mesma captura, um enviando e outro parado, seria confuso. Senão, abre um só
+    /// para ter onde mostrar o link ou o motivo da falha.
+    /// </para>
+    /// </summary>
+    public void SendToCloud(CaptureHistoryItem? item, PixelRect near)
+    {
+        if (item is null)
+        {
+            _log.Information("Atalho de envio acionado sem captura recente.");
+            return;
+        }
+
+        ToastWindow? naTela = _visible.LastOrDefault(t => ReferenceEquals(t.Item, item));
+
+        if (naTela is not null)
+        {
+            _ = EnviarParaNuvem(naTela, item);
+            return;
+        }
+
+        Show(item, near);
+
+        ToastWindow? recem = _visible.LastOrDefault(t => ReferenceEquals(t.Item, item));
+
+        if (recem is not null)
+        {
+            _ = EnviarParaNuvem(recem, item);
+        }
+    }
+
+    /// <summary>
+    /// Publica a captura e devolve um link temporário.
+    /// <para>
+    /// É a única ação do aviso que faz um arquivo do usuário sair da máquina, então
+    /// ela pergunta antes — uma vez — e nunca acontece sem clique.
+    /// </para>
+    /// </summary>
+    private async Task EnviarParaNuvem(ToastWindow toast, CaptureHistoryItem item)
+    {
+        if (item.Path is null)
+        {
+            toast.ShowCloudResult("Esta captura não chegou ao disco, então não há o que enviar.", false, AvisoDeLeitura);
+            return;
+        }
+
+        CloudSettings config = _settings.Current.Cloud;
+
+        // Já enviada e ainda no ar: recopia o link em vez de subir a mesma imagem de
+        // novo. Poupa a cota do serviço e evita dois links para a mesma captura.
+        CloudLink? jaEnviada = _links.ParaArquivo(item.Path);
+
+        if (jaEnviada is not null)
+        {
+            CopiarTexto(jaEnviada.Url);
+            toast.ShowCloudResult($"Link copiado de novo. {Restante(jaEnviada.ExpiresAt)}", true, AvisoDeLeitura);
+            return;
+        }
+
+        if (config.WarnBeforeSending && !toast.CloudConfirmationAsked)
+        {
+            toast.AskCloudConfirmation();
+            return;
+        }
+
+        toast.ShowSending();
+
+        UploadOutcome resultado = await _cloud.UploadAsync(item.Path);
+
+        if (!resultado.Success || resultado.Link is null)
+        {
+            _log.Warning("Envio para a nuvem falhou: {Motivo}", resultado.Message);
+            toast.ShowCloudResult(resultado.Message, false, AvisoDeLeitura);
+            return;
+        }
+
+        _links.Add(resultado.Link);
+
+        // A pergunta já foi feita e respondida. Repeti-la a cada envio transformaria
+        // um aviso útil em obstáculo -- que é como se ensina alguém a clicar sem ler.
+        if (config.WarnBeforeSending)
+        {
+            _settings.Update(atual => atual with { Cloud = atual.Cloud with { WarnBeforeSending = false } });
+        }
+
+        if (config.CopyLinkAfterSending)
+        {
+            CopiarTexto(resultado.Link.Url);
+        }
+
+        toast.ShowCloudResult($"Link copiado. {Restante(resultado.Link.ExpiresAt)}", true, AvisoDeLeitura);
+    }
+
+    /// <summary>Quanto falta para o link morrer, em frase curta.</summary>
+    private static string Restante(DateTimeOffset expira)
+    {
+        TimeSpan falta = expira - DateTimeOffset.Now;
+
+        return falta <= TimeSpan.Zero
+            ? "Já expirou."
+            : $"Expira em {(int)falta.TotalHours}h.";
+    }
+
+    private void CopiarTexto(string texto)
+        => _clipboard.Write(
+            _messageWindow.Handle,
+            new ClipboardPayload(Image: null, Text: texto, FilePath: null));
 
     private void CopyPath(string path)
     {

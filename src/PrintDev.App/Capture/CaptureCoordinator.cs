@@ -86,6 +86,11 @@ public sealed class CaptureCoordinator
             case HotkeyAction.UndoLastCapture:
                 UndoLast();
                 return null;
+
+            // Enviar também não captura: age sobre o que já existe.
+            case HotkeyAction.SendToCloud:
+                SendLastToCloud();
+                return null;
         }
 
         // A janela em primeiro plano precisa ser lida ANTES de qualquer coisa nossa
@@ -119,6 +124,23 @@ public sealed class CaptureCoordinator
     /// conserto pelo mouse, dentro dos poucos segundos em que o aviso fica visível.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Manda a captura mais recente para a nuvem.
+    /// <para>
+    /// O aviso da captura vive poucos segundos. Sem este atalho, quem o perdeu
+    /// precisaria recapturar a mesma tela só para poder enviar.
+    /// </para>
+    /// </summary>
+    private void SendLastToCloud()
+    {
+        // O aviso nasce onde a captura aconteceu; sem essa informação, no monitor
+        // onde o cursor está -- que é para onde a pessoa olha ao apertar o atalho.
+        (int x, int y) = VirtualDesktop.CursorPosition();
+        PixelRect perto = _last?.Image.Bounds ?? new PixelRect(x, y, 1, 1);
+
+        _toasts.SendToCloud(_history.Latest, perto);
+    }
+
     private void UndoLast()
     {
         UndoOutcome resultado = _undo.UndoLast();

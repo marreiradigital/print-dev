@@ -1,11 +1,13 @@
 ﻿using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using PrintDev.Core.Cloud;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Paths;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Storage;
+using PrintDev.Core.Updates;
 
 namespace PrintDev.Settings;
 
@@ -37,12 +39,28 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly ISettingsService _settings;
     private readonly IAppPaths _paths;
     private readonly AutoStartService _autoStart;
+    private readonly UpdateService _updates;
+    private readonly CloudUploader _cloud;
+    private readonly CloudLinkStore _links;
 
-    public SettingsViewModel(ISettingsService settings, IAppPaths paths, AutoStartService autoStart)
+    public SettingsViewModel(
+        ISettingsService settings,
+        IAppPaths paths,
+        AutoStartService autoStart,
+        UpdateService updates,
+        CloudUploader cloud,
+        CloudLinkStore links)
     {
         _settings = settings;
         _paths = paths;
         _autoStart = autoStart;
+        _updates = updates;
+        _cloud = cloud;
+        _links = links;
+
+        // O serviço verifica sozinho, em segundo plano. Quando ele descobre algo com o
+        // painel aberto, a tela precisa acompanhar sem ninguém clicar em nada.
+        _updates.Changed += (_, _) => Notify(nameof(UpdateStatus));
 
         // Editar o settings.json na mao com o painel aberto tem que refletir na tela.
         _settings.Changed += (_, _) => RefreshAll();
@@ -389,6 +407,30 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set => Write(s => s with { Hotkeys = s.Hotkeys with { PasteAsImage = value } });
     }
 
+    public string HotkeyColorPicker
+    {
+        get => Read(s => s.Hotkeys.ColorPicker);
+        set => Write(s => s with { Hotkeys = s.Hotkeys with { ColorPicker = value } });
+    }
+
+    public string HotkeyOcr
+    {
+        get => Read(s => s.Hotkeys.Ocr);
+        set => Write(s => s with { Hotkeys = s.Hotkeys with { Ocr = value } });
+    }
+
+    public string HotkeyUndoLastCapture
+    {
+        get => Read(s => s.Hotkeys.UndoLastCapture);
+        set => Write(s => s with { Hotkeys = s.Hotkeys with { UndoLastCapture = value } });
+    }
+
+    public string HotkeySendToCloud
+    {
+        get => Read(s => s.Hotkeys.SendToCloud);
+        set => Write(s => s with { Hotkeys = s.Hotkeys with { SendToCloud = value } });
+    }
+
     // ==================== Histórico e limpeza ====================
 
     public double HistoryCount
@@ -461,6 +503,96 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     {
         get => Read(s => s.Advanced.GuardHotkey);
         set => Write(s => s with { Advanced = s.Advanced with { GuardHotkey = value } });
+    }
+
+    // ==================== Nuvem ====================
+
+    /// <summary>
+    /// Se a compilação tem chave de envio. Sem ela o botão existe mas nunca
+    /// funcionaria — e mostrar controle que não faz nada é pior que escondê-lo.
+    /// </summary>
+    public bool CloudConfigured => _cloud.EstaConfigurado;
+
+    public bool CloudEnabled
+    {
+        get => Read(s => s.Cloud.Enabled);
+        set => Write(s => s with { Cloud = s.Cloud with { Enabled = value } });
+    }
+
+    public string CloudEndpoint
+    {
+        get => Read(s => s.Cloud.Endpoint);
+        set => Write(s => s with { Cloud = s.Cloud with { Endpoint = value } });
+    }
+
+    public bool CloudWarnBeforeSending
+    {
+        get => Read(s => s.Cloud.WarnBeforeSending);
+        set => Write(s => s with { Cloud = s.Cloud with { WarnBeforeSending = value } });
+    }
+
+    public bool CloudCopyLinkAfterSending
+    {
+        get => Read(s => s.Cloud.CopyLinkAfterSending);
+        set => Write(s => s with { Cloud = s.Cloud with { CopyLinkAfterSending = value } });
+    }
+
+    /// <summary>Quantos links ainda estão no ar, para a pessoa saber o que existe.</summary>
+    public string CloudLinksSummary
+    {
+        get
+        {
+            int quantos = _links.Items.Count;
+
+            return quantos switch
+            {
+                0 => "Nenhum link ativo no momento.",
+                1 => "1 link ativo. Ele expira sozinho em até 48 horas.",
+                _ => $"{quantos} links ativos. Eles expiram sozinhos em até 48 horas.",
+            };
+        }
+    }
+
+    // ==================== Atualizações ====================
+
+    public IReadOnlyList<Option<UpdateAction>> UpdateBehaviors { get; } =
+    [
+        new(UpdateAction.InstalarAoSair, "Baixar e instalar quando eu sair"),
+        new(UpdateAction.SomenteAvisar, "Só avisar que existe versão nova"),
+        new(UpdateAction.InstalarAutomaticamente, "Instalar assim que der"),
+        new(UpdateAction.Desligado, "Não procurar atualizações"),
+    ];
+
+    public Option<UpdateAction> UpdateBehavior
+    {
+        get => Find(UpdateBehaviors, Read(s => s.Updates.Action));
+        set => Write(s => s with { Updates = s.Updates with { Action = value.Value } });
+    }
+
+    public int UpdateIntervalHours
+    {
+        get => Read(s => s.Updates.IntervalHours);
+        set => Write(s => s with { Updates = s.Updates with { IntervalHours = Math.Clamp(value, 1, 168) } });
+    }
+
+    public bool IncludePrereleases
+    {
+        get => Read(s => s.Updates.IncludePrereleases);
+        set => Write(s => s with { Updates = s.Updates with { IncludePrereleases = value } });
+    }
+
+    /// <summary>Frase do último resultado, já pronta para a tela.</summary>
+    public string UpdateStatus => _updates.Last.Message;
+
+    /// <summary>
+    /// Procura agora, ignorando o intervalo e o validador de cache: quem clicou quer
+    /// uma resposta, não a resposta guardada de doze horas atrás.
+    /// </summary>
+    public async Task CheckForUpdatesAsync()
+    {
+        Notify(nameof(UpdateStatus));
+        await _updates.CheckAsync(forcado: true).ConfigureAwait(true);
+        Notify(nameof(UpdateStatus));
     }
 
     // ==================== Sobre ====================

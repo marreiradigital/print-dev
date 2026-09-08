@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 # Print Dev
 
@@ -82,6 +82,7 @@ e execute. Leva menos de um minuto.
 | `Ctrl+Alt+P` | Conta-gotas de cor |
 | `Ctrl+Alt+T` | Recorta e copia o texto reconhecido |
 | `Ctrl+Alt+Z` | **Desfaz a última captura** — arquivo para a Lixeira, histórico e área de transferência limpos |
+| `Ctrl+Alt+U` | Envia a última captura para a nuvem e copia um link de 48 horas |
 
 Todos configuráveis, e mudar vale na hora. Escreva na forma `Ctrl+Shift+PrtSc` — as
 grafias usuais são aceitas (`PrintScreen`, `Print`, `Esc`/`Escape`, `PgUp`, setas em
@@ -256,6 +257,84 @@ achou texto seria o pior desfecho.
 
 Precisa do pacote de idioma com reconhecimento óptico instalado. Sem ele, o programa diz
 exatamente onde ativá-lo em vez de falhar em silêncio.
+
+## Enviar para a nuvem
+
+O caminho do arquivo só vale na sua máquina. Para colar uma captura num chat de suporte,
+num issue ou num prompt, é preciso uma URL — e uma URL de captura não deveria durar para
+sempre.
+
+O botão **Nuvem**, no aviso da captura, publica a imagem e copia um link que **morre
+sozinho em 48 horas**. Também dá pelo atalho `Ctrl+Alt+U`, que existe porque o aviso some
+em segundos: sem ele, perder a janela do aviso obrigaria a capturar tudo de novo.
+
+```
+https://printdev.marreira.dev/i/aB3xK9pQ7mR2vT5w
+```
+
+| | |
+|---|---|
+| Validade | 48 horas, e some sozinha |
+| Endereço | 96 bits de aleatoriedade — não se chega nele por tentativa |
+| Tamanho | até 10 MB, em PNG, JPEG ou WebP |
+| Envio | **sempre manual**, um clique de cada vez |
+
+### O que isso significa, sem eufemismo
+
+**Quem tiver o link vê a imagem.** É um segredo de capacidade, não uma senha: não há login,
+não há permissão. Trate o link como você trataria a própria captura.
+
+Nada sai da máquina sozinho — não existe configuração que ligue envio automático, e isso é
+deliberado. Uma captura de tela costuma ser exatamente o quadro onde o segredo estava. Na
+primeira vez, o programa explica isso no próprio aviso e espera você confirmar.
+
+Se enviou algo por engano, **Excluir agora** apaga antes da hora. O serviço guarda apenas o
+*digesto* do token de exclusão, então o token em claro existe só na sua máquina — ninguém
+mais consegue apagar as suas imagens, e ninguém consegue provar que uma imagem é sua.
+
+O serviço padrão é mantido pelo autor, sobre Cloudflare Workers KV, e roda no limite do
+plano gratuito: **1.000 envios por dia para todos os usuários somados**. Ao estourar, o
+envio falha com a frase explicando, em vez de um erro de rede. Quem preferir não depender
+disso aponta o programa para um destino próprio em **Configurações → Nuvem → Serviço**; o
+código do serviço está em [`nuvem/`](nuvem/), com o LEIAME explicando como publicá-lo.
+
+---
+
+## Atualização automática
+
+O Print Dev pergunta ao GitHub, a cada 12 horas, se saiu versão nova — e instala **no
+momento em que você fecha o programa**. É a única política que mantém tudo em dia sem
+contrariar a razão de o programa existir: um capturador de tela fica na bandeja
+justamente para estar pronto no instante em que a tecla é apertada, e sumir sozinho no
+meio do dia é o oposto disso.
+
+| Opção | O que faz |
+|---|---|
+| **Baixar e instalar quando eu sair** | Padrão. Baixa em segundo plano; a troca acontece no encerramento |
+| Só avisar | Notifica na bandeja; nada é baixado sem um clique |
+| Instalar assim que der | Reinicia sozinho — nunca durante uma captura, com o editor aberto ou com um pin na tela |
+| Não procurar | Desliga a verificação |
+
+Em **Configurações → Atualizações** há o botão **Procurar agora**, que ignora o intervalo.
+
+### Como o download é conferido
+
+A API do GitHub publica o **SHA-256** de cada arquivo de lançamento, e o instalador só é
+executado depois de bater com ele. O digesto chega por uma conexão TLS com `api.github.com`
+— canal diferente do arquivo. Se um lançamento não trouxer digesto, a instalação automática
+é **recusada** e o programa manda baixar pela página: executar um binário só porque ele veio
+de uma conexão que pareceu certa é exatamente a decisão que um atualizador não pode tomar
+sozinho.
+
+**O instalador ainda não é assinado digitalmente.** O SmartScreen continua avisando na
+primeira execução, e a verificação é só o digesto sobre TLS — o que não é o mesmo que
+assinatura, e este README não vai fingir que é.
+
+A consulta é anônima e usa requisição condicional: quando nada mudou, o GitHub responde
+`304`, que não consome a cota. Exigir um token para o programa poder *receber* uma
+atualização seria cobrar credencial por um favor.
+
+---
 
 ## Limpeza automática
 
@@ -457,6 +536,21 @@ dotnet run --project src/PrintDev.App
 > build falha na cópia — com o erro perdido no meio da saída, o que já custou duas
 > correções que "não entraram".
 
+#### A chave do envio para a nuvem
+
+O envio para a nuvem precisa de uma chave, que **não está neste repositório** — ele é
+público. Ela é injetada na compilação:
+
+```powershell
+dotnet publish src/PrintDev.App -c Release "-p:ChaveDaNuvem=$chave"
+```
+
+O [`scripts/gerar-instalador.ps1`](scripts/gerar-instalador.ps1) lê o arquivo protegido
+sozinho e passa o parâmetro. **Compilar sem a chave funciona**: sai um programa inteiro,
+apenas com o botão de enviar inerte — que é exatamente o que se quer numa compilação de
+desenvolvimento ou num fork. O serviço guarda somente o SHA-256 dela; o hash está em
+[`nuvem/wrangler.jsonc`](nuvem/wrangler.jsonc) e não revela nada.
+
 ### Estrutura
 
 | Projeto | Papel |
@@ -464,6 +558,8 @@ dotnet run --project src/PrintDev.App
 | [`src/PrintDev.Core`](src/PrintDev.Core) | Domínio, serviços, Win32/WinRT. Sem WPF. |
 | [`src/PrintDev.App`](src/PrintDev.App) | WPF: bandeja, overlay, painel de configurações, composition root. |
 | [`tests/PrintDev.Tests`](tests/PrintDev.Tests) | xUnit sobre a lógica pura do Core. |
+| [`nuvem/`](nuvem) | O Worker da Cloudflare que recebe as capturas enviadas. JavaScript, publicado à parte. |
+| [`site/`](site) | O site em printdev.marreira.dev, servido pelo GitHub Pages. |
 
 Documentação profunda em [`docs/`](docs): as
 [decisões de arquitetura](docs/decisoes-de-arquitetura.md) e o
@@ -578,8 +674,9 @@ Documentados para não virarem surpresa, mas **ainda não implementados**:
 - **Detecção automática de segredos** só existirá com confirmação humana. Uma ferramenta
   que promete borrar credencial sozinha e falha uma vez faz o usuário vazar a chave
   confiando nela.
-- **Envio para a nuvem** está fora por privacidade: justamente a captura que costuma ter
-  segredo.
+- **Assinatura digital do instalador** ainda não existe. Sem certificado Authenticode, o
+  SmartScreen avisa na primeira execução e a atualização automática se apoia só no digesto
+  publicado pelo GitHub.
 
 ---
 

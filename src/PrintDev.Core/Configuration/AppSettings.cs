@@ -54,6 +54,9 @@ public sealed record AppSettings
     [JsonPropertyName("atualizacao")]
     public UpdateSettings Updates { get; init; } = new();
 
+    [JsonPropertyName("nuvem")]
+    public CloudSettings Cloud { get; init; } = new();
+
     [JsonPropertyName("avancado")]
     public AdvancedSettings Advanced { get; init; } = new();
 
@@ -236,6 +239,10 @@ public sealed record HotkeySettings
     /// </summary>
     [JsonPropertyName("desfazerUltimaCaptura")]
     public string UndoLastCapture { get; init; } = "Ctrl+Alt+Z";
+
+    /// <summary>Envia a captura mais recente para a nuvem e copia o link.</summary>
+    [JsonPropertyName("enviarParaNuvem")]
+    public string SendToCloud { get; init; } = "Ctrl+Alt+U";
 }
 
 /// <summary>Ferramentas de anotação.</summary>
@@ -361,4 +368,45 @@ public sealed record UpdateSettings
     /// </summary>
     [JsonPropertyName("repositorio")]
     public string Repository { get; init; } = "marreiradigital/print-dev";
+}
+
+/// <summary>
+/// Envio temporário da captura para a nuvem, para colar o link num chat.
+/// <para>
+/// Nada é enviado sozinho, em nenhuma configuração: o envio é sempre um clique
+/// explícito. Uma captura costuma ser exatamente a tela onde estava o segredo, e
+/// um programa que a mandasse para fora por conta própria seria indefensável.
+/// </para>
+/// </summary>
+public sealed record CloudSettings
+{
+    /// <summary>Se o botão de enviar aparece. Desligar não apaga nada já enviado.</summary>
+    [JsonPropertyName("ativo")]
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>
+    /// Serviço de destino. O padrão é o serviço público mantido pelo autor; trocar
+    /// aqui aponta o programa para um destino próprio, com a mesma interface
+    /// (<c>POST /novo</c>, <c>GET /&lt;id&gt;</c>, <c>DELETE /&lt;id&gt;</c>).
+    /// </summary>
+    [JsonPropertyName("endereco")]
+    public string Endpoint { get; init; } = "https://printdev.marreira.dev/i";
+
+    /// <summary>
+    /// Chave do serviço. Vazio usa a que veio embutida na compilação — o caso de
+    /// quem só instalou o programa e não quer configurar nada.
+    /// </summary>
+    [JsonPropertyName("chave")]
+    public string? Key { get; init; }
+
+    /// <summary>
+    /// Explicar, antes do primeiro envio, que a imagem sai da máquina. Vira
+    /// <see langword="false"/> quando a pessoa marca "não perguntar de novo".
+    /// </summary>
+    [JsonPropertyName("avisarAntesDeEnviar")]
+    public bool WarnBeforeSending { get; init; } = true;
+
+    /// <summary>Pôr o link na área de transferência assim que o envio terminar.</summary>
+    [JsonPropertyName("copiarLinkAoEnviar")]
+    public bool CopyLinkAfterSending { get; init; } = true;
 }

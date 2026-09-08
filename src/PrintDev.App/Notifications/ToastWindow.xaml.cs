@@ -17,6 +17,16 @@ namespace PrintDev.Notifications;
 /// </summary>
 public partial class ToastWindow : Window
 {
+    /// <summary>
+    /// Largura do aviso, em unidades independentes de dispositivo.
+    /// <para>
+    /// Mora aqui e não no XAML porque o empilhamento precisa do mesmo número para
+    /// calcular a posição em pixels físicos. Dois lugares com o valor escrito à mão é
+    /// como um deles fica para trás na primeira vez que a largura muda.
+    /// </para>
+    /// </summary>
+    internal const double WidthDip = 470;
+
     private readonly DispatcherTimer _timer;
     private bool _dismissing;
 
@@ -24,6 +34,7 @@ public partial class ToastWindow : Window
     {
         InitializeComponent();
 
+        Width = WidthDip;
         Item = item;
 
         Thumbnail.Source = item.Thumbnail;
@@ -35,6 +46,9 @@ public partial class ToastWindow : Window
         AnnotateButton.IsEnabled = saved;
         PinButton.IsEnabled = saved;
         CopyPathButton.IsEnabled = saved;
+
+        // Enviar exige arquivo em disco: e o arquivo que sobe.
+        CloudButton.IsEnabled = saved;
 
         // Desfazer continua valendo sem arquivo: sobra tirar do histórico e devolver a
         // área de transferência. Desabilitar aqui deixaria a captura indesejada colada.
@@ -49,8 +63,9 @@ public partial class ToastWindow : Window
         PinButton.Click += (_, _) => Raise(ToastAction.Pin);
         CopyPathButton.Click += (_, _) => Raise(ToastAction.CopyPath);
         UndoButton.Click += (_, _) => Raise(ToastAction.Undo);
-        // Abrir sai pela miniatura, e nao por um botao proprio: cinco botoes nao cabem
-        // na largura do aviso, e o clique na imagem e o gesto que a pessoa ja tenta.
+        CloudButton.Click += (_, _) => Raise(ToastAction.Cloud);
+        // Abrir sai pela miniatura, e nao por um botao proprio: o aviso ja carrega os
+        // botoes que cabem, e o clique na imagem e o gesto que a pessoa ja tenta.
         ThumbnailFrame.MouseLeftButtonUp += (_, _) => Raise(ToastAction.Open);
 
         _timer = new DispatcherTimer { Interval = lifetime };
@@ -59,6 +74,9 @@ public partial class ToastWindow : Window
 
     /// <summary>A captura que este aviso representa.</summary>
     internal CaptureHistoryItem Item { get; }
+
+    /// <summary>Se o aviso do primeiro envio já foi mostrado neste aviso.</summary>
+    internal bool CloudConfirmationAsked { get; private set; }
 
     /// <summary>Disparado quando o usuário escolhe uma ação ou o aviso some.</summary>
     internal event EventHandler<ToastAction>? ActionChosen;
@@ -161,6 +179,63 @@ public partial class ToastWindow : Window
         PinButton.IsEnabled = false;
         CopyPathButton.IsEnabled = false;
         UndoButton.IsEnabled = false;
+        CloudButton.IsEnabled = false;
+    }
+
+    /// <summary>
+    /// Segura o aviso na tela enquanto o envio acontece.
+    /// <para>
+    /// Sem isto o aviso sumiria no meio do envio e o link chegaria sem ninguém para
+    /// ver — a pessoa clicou e ficou sem resposta.
+    /// </para>
+    /// </summary>
+    internal void ShowSending()
+    {
+        _timer.Stop();
+
+        Headline.Text = "Enviando para a nuvem…";
+        CloudButton.IsEnabled = false;
+        UndoButton.IsEnabled = false;
+    }
+
+    /// <summary>
+    /// Pergunta a confirmação do primeiro envio dentro do próprio aviso.
+    /// <para>
+    /// Uma caixa de diálogo aqui roubaria o foco de quem está digitando — que é
+    /// exatamente o que este aviso existe para não fazer.
+    /// </para>
+    /// </summary>
+    internal void AskCloudConfirmation()
+    {
+        _timer.Stop();
+        CloudConfirmationAsked = true;
+
+        Headline.Text = "A imagem vai sair da sua máquina.";
+        FileName.Text = "Link público de 48 horas, para quem tiver o endereço.";
+        CloudButton.Content = "Confirmar envio";
+    }
+
+    /// <summary>Mostra o desfecho do envio e reinicia a contagem, com folga para ler.</summary>
+    internal void ShowCloudResult(string message, bool success, TimeSpan lifetime)
+    {
+        Headline.Text = message;
+
+        if (!success)
+        {
+            Headline.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Danger");
+        }
+
+        CloudButton.Content = "Nuvem";
+        CloudButton.IsEnabled = !success;
+        UndoButton.IsEnabled = true;
+
+        if (_dismissing)
+        {
+            return;
+        }
+
+        _timer.Interval = lifetime;
+        _timer.Start();
     }
 
     /// <summary>
@@ -190,4 +265,7 @@ internal enum ToastAction
 
     /// <summary>Mandar o arquivo para a Lixeira e limpar a área de transferência.</summary>
     Undo,
+
+    /// <summary>Publicar no serviço temporário e copiar o link.</summary>
+    Cloud,
 }

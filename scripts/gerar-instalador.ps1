@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     Publica o Print Dev e compila o instalador .exe.
@@ -47,11 +47,25 @@ if (-not $PularPublicacao) {
     Get-Process PrintDev -ErrorAction SilentlyContinue | Stop-Process -Force
     Start-Sleep -Milliseconds 500
 
+    # A chave do servico de nuvem entra AQUI, lida do arquivo protegido na hora.
+    # Ela nunca aparece no repositorio nem no historico do shell. Sem ela o programa
+    # compila igual, so com o envio para a nuvem desativado.
+    $arquivoDaChave = Join-Path $env:USERPROFILE '.secrets\printdev-chave-nuvem.txt'
+    $chaveDaNuvem = ''
+
+    if (Test-Path $arquivoDaChave) {
+        $chaveDaNuvem = (Get-Content $arquivoDaChave -Raw).Trim()
+        Write-Output 'Chave da nuvem: encontrada, sera embutida no executavel.'
+    } else {
+        Write-Warning "Chave da nuvem nao encontrada em $arquivoDaChave - o envio para a nuvem ficara desativado nesta compilacao."
+    }
+
     Write-Output ''
     Write-Output 'Publicando (Release, arquivo unico)...'
 
     & dotnet publish src/PrintDev.App -c Release -r win-x64 --self-contained false `
-        -p:PublishSingleFile=true -p:PublishReadyToRun=true -o publish/win-x64 --nologo
+        -p:PublishSingleFile=true -p:PublishReadyToRun=true "-p:ChaveDaNuvem=$chaveDaNuvem" `
+        -o publish/win-x64 --nologo
 
     if ($LASTEXITCODE -ne 0) { throw "A publicacao falhou." }
 }

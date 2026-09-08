@@ -150,6 +150,7 @@ public sealed class HotkeyManager : IDisposable
         yield return (HotkeyAction.ColorPicker, settings.ColorPicker);
         yield return (HotkeyAction.Ocr, settings.Ocr);
         yield return (HotkeyAction.UndoLastCapture, settings.UndoLastCapture);
+        yield return (HotkeyAction.SendToCloud, settings.SendToCloud);
     }
 
     private void OnHotkeyPressed(object? sender, int id)

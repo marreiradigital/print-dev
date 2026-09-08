@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Capture;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Clipboard;
+using PrintDev.Core.Cloud;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
@@ -69,6 +70,9 @@ public static class ServiceRegistration
         services.AddSingleton<UpdateInstaller>();
         services.AddSingleton<UpdateStateStore>();
         services.AddSingleton<UpdateService>();
+
+        services.AddSingleton<CloudLinkStore>();
+        services.AddSingleton<CloudUploader>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {

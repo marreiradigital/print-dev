@@ -9,7 +9,6 @@
         Topmost="True"
         AllowsTransparency="False"
         SizeToContent="Height"
-        Width="420"
         Background="{DynamicResource Brush.Surface.Elevated}"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
@@ -78,6 +77,9 @@
                         Content="Fixar" />
                 <Button x:Name="CopyPathButton" Style="{StaticResource Button.Ghost}"
                         Content="Copiar caminho" />
+                <Button x:Name="CloudButton" Style="{StaticResource Button.Ghost}"
+                        Content="Nuvem"
+                        ToolTip="Enviar para a nuvem e copiar um link que expira em 48 horas" />
                 <Button x:Name="UndoButton" Style="{StaticResource Button.Danger}"
                         Content="Desfazer" />
             </ui:Stack>

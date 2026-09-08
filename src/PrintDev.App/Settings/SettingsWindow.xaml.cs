@@ -39,7 +39,7 @@ public partial class SettingsWindow : Window
         _pages =
         [
             PageGeneral, PageCapture, PageSave, PageClipboard,
-            PageHotkeys, PageHistory, PageAdvanced, PageAbout,
+            PageHotkeys, PageHistory, PageCloud, PageUpdates, PageAdvanced, PageAbout,
         ];
 
         Rail.SelectionChanged += (_, _) => ShowPage(Rail.SelectedIndex);
@@ -52,6 +52,22 @@ public partial class SettingsWindow : Window
         OpenLogsButton.Click += (_, _) => ShellOpen.Folder(_paths.LogsDirectory);
         OpenSettingsFileButton.Click += (_, _) => ShellOpen.File(_paths.SettingsFile);
         RestoreDefaultsButton.Click += (_, _) => _model.RestoreDefaults();
+
+        // Procurar e uma ida a rede: o botao desliga enquanto isso, senao cliques
+        // repetidos empilham consultas que o servico ja recusaria por cota.
+        CheckUpdatesButton.Click += async (_, _) =>
+        {
+            CheckUpdatesButton.IsEnabled = false;
+
+            try
+            {
+                await _model.CheckForUpdatesAsync();
+            }
+            finally
+            {
+                CheckUpdatesButton.IsEnabled = true;
+            }
+        };
         SimulateCleanupButton.Click += (_, _) => SimulateCleanup();
 
         Loaded += (_, _) => RefreshHotkeyWarning();

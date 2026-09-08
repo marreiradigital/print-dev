@@ -1,4 +1,4 @@
-<Project>
+﻿<Project>
 
   <!--
     Configuracao comum aos tres projetos (Core, App, Tests).
@@ -43,6 +43,21 @@
     <NeutralLanguage>pt-BR</NeutralLanguage>
     <Copyright>Copyright (c) 2026 Paulo Marreira</Copyright>
   </PropertyGroup>
+
+  <!--
+    Chave do servico de nuvem, injetada NA COMPILACAO e nunca versionada.
+
+    O repositorio e publico: uma constante no codigo entregaria a chave a quem
+    clonar. Ela mora em ~/.secrets/printdev-chave-nuvem.txt e chega aqui por
+    -p:ChaveDaNuvem=..., que o scripts/gerar-instalador.ps1 passa.
+
+    Compilacao sem a chave produz um programa que funciona inteiro, so com o botao
+    de enviar para a nuvem desativado - que e exatamente o que se quer numa
+    compilacao de desenvolvimento ou num fork.
+  -->
+  <ItemGroup Condition="'$(ChaveDaNuvem)' != ''">
+    <AssemblyMetadata Include="ChaveDaNuvem" Value="$(ChaveDaNuvem)" />
+  </ItemGroup>
 
   <!--
     Auditoria de dependencia no proprio restore: pacote vulneravel

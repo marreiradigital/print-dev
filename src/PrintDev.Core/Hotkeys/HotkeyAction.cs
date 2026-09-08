@@ -42,4 +42,13 @@ public enum HotkeyAction
     /// </para>
     /// </summary>
     UndoLastCapture,
+
+    /// <summary>
+    /// Publica a captura mais recente na nuvem e copia o link.
+    /// <para>
+    /// Existe porque o aviso some em segundos: sem um atalho, perder a janela do
+    /// aviso obrigaria a capturar tudo de novo so para poder enviar.
+    /// </para>
+    /// </summary>
+    SendToCloud,
 }
