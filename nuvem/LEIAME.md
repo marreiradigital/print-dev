@@ -1,4 +1,4 @@
-# Envio temporário para a nuvem
+﻿# Envio temporário para a nuvem
 
 O serviço que recebe uma captura do Print Dev e devolve uma URL que **morre sozinha em 48 horas**.
 
@@ -60,6 +60,10 @@ adversário determinado.
 
 A regra do WAF fica na borda, **antes** do Worker, então protege também a cota de requisições.
 O plano gratuito só permite janela de 10 segundos — foi por isso que ficou 5/10s e não 30/min.
+
+> O plano gratuito dá **uma única** regra de limite por zona, e esta consome a de
+> `marreira.dev`. Se um dia outro site dessa zona precisar de limite próprio, será preciso
+> ampliar a expressão desta regra em vez de criar outra.
 
 > O binding `ratelimit` dos Workers foi tentado primeiro e **não disparou em teste nenhum** (30
 > requisições seguidas passaram). Foi removido em vez de mantido "por garantia": defesa que não se
