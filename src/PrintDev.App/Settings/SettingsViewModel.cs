@@ -537,11 +537,22 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         set => Write(s => s with { Cloud = s.Cloud with { CopyLinkAfterSending = value } });
     }
 
-    /// <summary>Quantos links ainda estão no ar, para a pessoa saber o que existe.</summary>
+    /// <summary>
+    /// O estado do envio em uma frase: ou quantos links estão no ar, ou o motivo de
+    /// o botão não funcionar nesta compilação.
+    /// </summary>
     public string CloudLinksSummary
     {
         get
         {
+            // Sem chave, contar links seria dizer "nenhum" e deixar a pessoa achar que
+            // é só clicar. O motivo verdadeiro é outro, e precisa aparecer.
+            if (!CloudConfigured)
+            {
+                return "Esta compilação não tem chave de envio embutida, então o botão não vai funcionar. "
+                       + "Aponte o programa para um destino seu no campo abaixo.";
+            }
+
             int quantos = _links.Items.Count;
 
             return quantos switch
