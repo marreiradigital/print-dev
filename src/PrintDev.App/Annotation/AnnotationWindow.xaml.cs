@@ -71,6 +71,7 @@ public partial class AnnotationWindow : Window
         Bind(ToolText, AnnotationTool.Text);
         Bind(ToolStep, AnnotationTool.Step);
         Bind(ToolRedact, AnnotationTool.Redact);
+        Bind(ToolCrop, AnnotationTool.Crop);
 
         void Bind(RadioButton button, AnnotationTool tool)
         {
@@ -84,7 +85,8 @@ public partial class AnnotationWindow : Window
                 // nao servem para as outras. Mostrar as duas o tempo todo poluiria a
                 // barra com controles que nao fazem nada.
                 bool redacting = tool == AnnotationTool.Redact;
-                ColorOptions.Visibility = redacting ? Visibility.Collapsed : Visibility.Visible;
+                bool cropping = tool == AnnotationTool.Crop;
+                ColorOptions.Visibility = redacting || cropping ? Visibility.Collapsed : Visibility.Visible;
                 RedactOptions.Visibility = redacting ? Visibility.Visible : Visibility.Collapsed;
             };
         }
@@ -189,6 +191,7 @@ public partial class AnnotationWindow : Window
             case Key.D6: ToolText.IsChecked = true; break;
             case Key.D7: ToolStep.IsChecked = true; break;
             case Key.D8: ToolRedact.IsChecked = true; break;
+            case Key.D9: ToolCrop.IsChecked = true; break;
 
             default:
                 return;

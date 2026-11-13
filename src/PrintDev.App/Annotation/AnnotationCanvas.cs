@@ -19,6 +19,7 @@ public enum AnnotationTool
     Text,
     Step,
     Redact,
+    Crop,
 }
 
 /// <summary>
@@ -131,18 +132,22 @@ public sealed class AnnotationCanvas : FrameworkElement
             AnnotationRenderer.Draw(context, item, _typeface, 1.0);
         }
 
-        if (_dragging)
-        {
-            AnnotationItem? preview = BuildItem(_dragStart, _dragCurrent, committing: false);
+        AnnotationItem? preview = _dragging ? BuildItem(_dragStart, _dragCurrent, committing: false) : null;
 
-            if (preview is RedactAnnotation previewRedaction)
-            {
-                DrawRedactionPreview(context, previewRedaction);
-            }
-            else if (preview is not null)
-            {
-                AnnotationRenderer.Draw(context, preview, _typeface, 1.0);
-            }
+        if (preview is RedactAnnotation previewRedaction)
+        {
+            DrawRedactionPreview(context, previewRedaction);
+        }
+        else if (preview is not null and not CropAnnotation)
+        {
+            AnnotationRenderer.Draw(context, preview, _typeface, 1.0);
+        }
+
+        // O recorte vai por cima de tudo: o que fica de fora aparece escurecido, marcas
+        // inclusive, porque e assim que vai sair. Enquanto se arrasta um novo, ele manda.
+        if ((preview as CropAnnotation ?? _items.OfType<CropAnnotation>().LastOrDefault()) is { } crop)
+        {
+            DrawCropPreview(context, crop.Bounds);
         }
 
         context.Pop();
@@ -169,6 +174,36 @@ public sealed class AnnotationCanvas : FrameworkElement
         edge.Freeze();
 
         context.DrawRectangle(fill, edge, redaction.Bounds);
+    }
+
+    /// <summary>
+    /// Escurece o que fica de fora do recorte e contorna a área que fica.
+    /// </summary>
+    private void DrawCropPreview(DrawingContext context, Rect keep)
+    {
+        var full = new Rect(0, 0, _source.Width, _source.Height);
+        keep.Intersect(full);
+
+        if (keep.IsEmpty)
+        {
+            return;
+        }
+
+        var outside = new GeometryGroup { FillRule = FillRule.EvenOdd };
+        outside.Children.Add(new RectangleGeometry(full));
+        outside.Children.Add(new RectangleGeometry(keep));
+        outside.Freeze();
+
+        var veil = new SolidColorBrush(Color.FromArgb(0xB3, 0x0A, 0x0A, 0x0C));
+        veil.Freeze();
+
+        // A espessura acompanha a escala da tela: a moldura sai com um pixel de tela
+        // qualquer que seja o zoom em que a imagem esta sendo mostrada.
+        var edge = new Pen(new SolidColorBrush(Color.FromRgb(0xEC, 0x00, 0x8C)), 1.5 / Math.Max(Scale, 0.01));
+        edge.Freeze();
+
+        context.DrawGeometry(veil, null, outside);
+        context.DrawRectangle(null, edge, keep);
     }
 
     /// <inheritdoc/>
@@ -320,6 +355,9 @@ public sealed class AnnotationCanvas : FrameworkElement
 
             AnnotationTool.Redact when !tooSmall =>
                 new RedactAnnotation(bounds, RedactionStyle, RedactionStrength),
+
+            AnnotationTool.Crop when !tooSmall =>
+                new CropAnnotation(bounds),
 
             AnnotationTool.Pen when _freehand is { Count: > 1 } =>
                 new PenAnnotation([.. _freehand]) { Color = Color, Thickness = Thickness },

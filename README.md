@@ -203,6 +203,7 @@ tela cheia em memória passaria de cem megabytes.
 | Seta · Retângulo · Elipse · Caneta | `1` `2` `3` `4` |
 | Marca-texto · Texto · Numeração de passos | `5` `6` `7` |
 | **Esconder** | `8` |
+| Recortar — arraste a área que fica; o resto escurece e sai na exportação | `9` |
 | Desfazer · Refazer | `Ctrl+Z` · `Ctrl+Y` |
 | Copiar e fechar — grava como captura nova e copia | `Ctrl+Enter` · `Esc` cancela |
 | Salvar — só grava, sem mexer na área de transferência | `Ctrl+S` |

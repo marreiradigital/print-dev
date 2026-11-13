@@ -58,3 +58,13 @@ public sealed record StepAnnotation(Point Center, int Number, double Radius) : A
 /// </para>
 /// </summary>
 public sealed record RedactAnnotation(Rect Bounds, RedactionStyle Style, int Strength) : AnnotationItem;
+
+/// <summary>
+/// A área da imagem que fica — o resto é cortado na exportação.
+/// <para>
+/// É um item como as outras marcas, e não um corte imediato: assim entra na pilha de
+/// desfazer, e recortar de novo só troca a área. Vale o último da lista; no editor o que
+/// fica de fora aparece escurecido, e só sai de verdade quando a imagem é gerada.
+/// </para>
+/// </summary>
+public sealed record CropAnnotation(Rect Bounds) : AnnotationItem;

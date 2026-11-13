@@ -198,9 +198,9 @@ public static class AnnotationRenderer
             Redaction.Apply(working, ToPixelRect(redaction.Bounds, source.Bounds), redaction.Style, redaction.Strength);
         }
 
-        if (items.All(i => i is RedactAnnotation))
+        if (items.All(i => i is RedactAnnotation or CropAnnotation))
         {
-            return working;
+            return CropTo(working, items);
         }
 
         var visual = new DrawingVisual();
@@ -232,7 +232,22 @@ public static class AnnotationRenderer
             flattened[index] = 255;
         }
 
-        return new CapturedImage(flattened, source.Bounds);
+        return CropTo(new CapturedImage(flattened, source.Bounds), items);
+    }
+
+    /// <summary>
+    /// Aplica o último recorte da lista, se houver. As marcas já foram desenhadas na
+    /// imagem inteira, então o que estiver fora da área sai junto com ela.
+    /// </summary>
+    private static CapturedImage CropTo(CapturedImage image, IReadOnlyList<AnnotationItem> items)
+    {
+        if (items.OfType<CropAnnotation>().LastOrDefault() is not { } crop)
+        {
+            return image;
+        }
+
+        PixelRect region = ToPixelRect(crop.Bounds, image.Bounds).Intersect(image.Bounds);
+        return region.IsEmpty ? image : image.Crop(region);
     }
 
     /// <summary>Converte um retângulo do editor para a região da imagem.</summary>

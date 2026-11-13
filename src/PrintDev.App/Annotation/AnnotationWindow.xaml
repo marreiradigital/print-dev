@@ -209,6 +209,14 @@
                     <Border Width="1" Margin="6,4,6,4"
                             Background="{DynamicResource Brush.Border.Subtle}" />
 
+                    <!-- Recortar muda o tamanho da imagem: vem depois das marcas. -->
+                    <RadioButton x:Name="ToolCrop" Style="{StaticResource ToolButton}"
+                                 ToolTip="Recortar — arraste a área que fica (9)"
+                                 Tag="M 5,1.5 L 5,13 L 16.5,13 M 1.5,5 L 13,5 L 13,16.5" />
+
+                    <Border Width="1" Margin="6,4,6,4"
+                            Background="{DynamicResource Brush.Border.Subtle}" />
+
                     <Button x:Name="UndoButton" Style="{StaticResource Button.Ghost}"
                             Content="Desfazer" ToolTip="Ctrl+Z" />
                     <Button x:Name="RedoButton" Style="{StaticResource Button.Ghost}"
