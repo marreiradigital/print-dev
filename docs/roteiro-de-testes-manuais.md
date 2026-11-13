@@ -48,6 +48,13 @@ registra cada decisão: `Caminho entregue a <processo>` ou `Caminho não entregu
 | Histórico do `Win+V` | **A miniatura**, nunca o caminho |
 | Colar num terminal e, em seguida, no WhatsApp Web | Caminho no terminal, **imagem** no WhatsApp |
 
+### Arrastar a miniatura do aviso
+
+- [ ] Para uma pasta do Explorador: o arquivo é copiado para lá.
+- [ ] Para o campo de anexo de um issue do GitHub e para o WhatsApp Web: a imagem sobe.
+- [ ] O aviso não some no meio do arrasto, mesmo demorando mais que o tempo dele.
+- [ ] Clique simples, sem arrastar, continua abrindo a imagem.
+
 ### Casos de fronteira
 
 - [ ] Explorador, dentro de uma pasta, com `incluirArquivo` **ligado**: cola o arquivo.

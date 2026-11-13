@@ -39,7 +39,7 @@
         <ui:Stack Spacing="{StaticResource Gap.LabelToControl}">
 
             <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.IconToText}">
-                <!-- Miniatura: clicar nela abre a imagem. -->
+                <!-- Miniatura: clicar abre a imagem; arrastar solta o arquivo em outro programa. -->
                 <Border x:Name="ThumbnailFrame"
                         Width="72" Height="52"
                         CornerRadius="{DynamicResource Radius.XS}"
@@ -48,7 +48,7 @@
                         Background="{DynamicResource Brush.Surface.Sunken}"
                         ClipToBounds="True"
                         Cursor="Hand"
-                        ToolTip="Abrir a imagem">
+                        ToolTip="Clique para abrir · arraste para soltar o arquivo em outro programa">
                     <Image x:Name="Thumbnail" Stretch="UniformToFill" />
                 </Border>
 

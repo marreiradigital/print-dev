@@ -29,6 +29,8 @@ public partial class ToastWindow : Window
 
     private readonly DispatcherTimer _timer;
     private bool _dismissing;
+    private Point? _pressedAt;
+    private bool _dragging;
 
     internal ToastWindow(CaptureHistoryItem item, TimeSpan lifetime)
     {
@@ -65,8 +67,11 @@ public partial class ToastWindow : Window
         UndoButton.Click += (_, _) => Raise(ToastAction.Undo);
         CloudButton.Click += (_, _) => Raise(ToastAction.Cloud);
         // Abrir sai pela miniatura, e nao por um botao proprio: o aviso ja carrega os
-        // botoes que cabem, e o clique na imagem e o gesto que a pessoa ja tenta.
-        ThumbnailFrame.MouseLeftButtonUp += (_, _) => Raise(ToastAction.Open);
+        // botoes que cabem, e o clique na imagem e o gesto que a pessoa ja tenta. O
+        // mesmo lugar aceita arrastar, que solta o arquivo onde a pessoa largar.
+        ThumbnailFrame.MouseLeftButtonDown += OnThumbnailPressed;
+        ThumbnailFrame.MouseMove += OnThumbnailMoved;
+        ThumbnailFrame.MouseLeftButtonUp += OnThumbnailReleased;
 
         _timer = new DispatcherTimer { Interval = lifetime };
         _timer.Tick += (_, _) => Dismiss();
@@ -83,6 +88,77 @@ public partial class ToastWindow : Window
 
     /// <summary>Altura ocupada, para o empilhamento.</summary>
     internal double MeasuredHeight => ActualHeight > 0 ? ActualHeight : 132;
+
+    private void OnThumbnailPressed(object sender, MouseButtonEventArgs e)
+    {
+        _pressedAt = e.GetPosition(ThumbnailFrame);
+        ThumbnailFrame.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void OnThumbnailReleased(object sender, MouseButtonEventArgs e)
+    {
+        bool wasClick = _pressedAt is not null && !_dragging;
+        _pressedAt = null;
+        ThumbnailFrame.ReleaseMouseCapture();
+        e.Handled = true;
+
+        if (wasClick)
+        {
+            Raise(ToastAction.Open);
+        }
+    }
+
+    /// <summary>
+    /// Arrastar a miniatura solta a captura como arquivo onde a pessoa largar: o campo de
+    /// upload de um issue, um chat no navegador, uma pasta do Explorador.
+    /// <para>
+    /// O tempo do aviso para durante o arrasto. O arrasto roda um laço de mensagens
+    /// próprio, e o temporizador continuaria batendo dentro dele: o aviso fecharia a
+    /// janela de onde o arquivo está saindo, no meio do caminho.
+    /// </para>
+    /// </summary>
+    private void OnThumbnailMoved(object sender, MouseEventArgs e)
+    {
+        if (_pressedAt is not { } start || _dragging || e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        Point now = e.GetPosition(ThumbnailFrame);
+        if (Math.Abs(now.X - start.X) < SystemParameters.MinimumHorizontalDragDistance
+            && Math.Abs(now.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance)
+        {
+            return;
+        }
+
+        if (Item.Path is not { } path || !System.IO.File.Exists(path))
+        {
+            return;
+        }
+
+        _dragging = true;
+        _timer.Stop();
+        ThumbnailFrame.ReleaseMouseCapture();
+
+        try
+        {
+            var data = new DataObject();
+            data.SetFileDropList([path]);
+            DragDropEffects effect = DragDrop.DoDragDrop(ThumbnailFrame, data, DragDropEffects.Copy);
+            Serilog.Log.Debug("Miniatura arrastada: {Efeito}", effect);
+        }
+        finally
+        {
+            _dragging = false;
+            _pressedAt = null;
+
+            if (!_dismissing && !IsMouseOver)
+            {
+                _timer.Start();
+            }
+        }
+    }
 
     /// <summary>Mostra o aviso ancorado neste retângulo, em pixels físicos.</summary>
     internal void ShowAt(PixelRect anchor)

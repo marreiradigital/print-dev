@@ -155,6 +155,8 @@ miniatura, o nome do arquivo, as dimensões e as ações:
 | **Copiar caminho** | Troca a área de transferência por só o caminho, em texto |
 | **Anotar** | Abre o editor de anotação |
 | **Desfazer** | Manda o arquivo para a **Lixeira** e tira do histórico |
+| Clicar na miniatura | Abre a imagem |
+| **Arrastar a miniatura** | Solta o arquivo onde você largar: upload de um issue, chat no navegador, pasta do Explorer |
 
 Passar o mouse por cima segura o aviso: quem foi ler o nome do arquivo não pode vê-lo
 fugir no meio da leitura. Botão direito dispensa na hora.
