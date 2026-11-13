@@ -612,7 +612,7 @@ nesses tamanhos ficam só os quatro colchetes, mais grossos.
 - **Auditoria de dependência no próprio `restore`**: `NuGetAudit` com `AuditMode=all` e
   `AuditLevel=low` no [`Directory.Build.props`](Directory.Build.props). Pacote vulnerável —
   inclusive transitivo — quebra o build. Estado atual: **0 vulnerabilidades**.
-- **210 testes** na lógica pura: formatação de caminho, matemática de seleção com os
+- **308 testes** na lógica pura: formatação de caminho, matemática de seleção com os
   *bounds* reais de uma topologia de dois monitores desalinhados, modelo de nome,
   ida-e-volta das configurações, e os testes de seleção da limpeza — os mais críticos,
   porque um falso positivo ali apaga arquivo do usuário.
@@ -626,13 +626,16 @@ nesses tamanhos ficam só os quatro colchetes, mais grossos.
 | | |
 |---|---|
 | Arranque até ficar pronto | ~550 ms |
-| Memória ocioso | **~20 MB** |
-| Memória durante uma captura de tela cheia | ~150 MB |
+| Memória física parado na bandeja | **~10–25 MB** |
+| Pico com o seletor aberto e a lupa em movimento (dois monitores) | ~170 MB |
+| Memória reservada depois de dezenas de capturas | **~140 MB, estável** — não cresce com o uso |
 | Executável em disco | 27,9 MB · instalador de 6,6 MB |
 
-O programa devolve a memória de inicialização ao sistema quando termina de subir, e de
-novo quando o último aviso sai da tela — que é ele dizendo que voltou a dormir na
-bandeja. As páginas voltam sozinhas se forem tocadas.
+O programa devolve a memória ao sistema sempre que um trabalho termina — o seletor fecha,
+o último aviso sai da tela, o editor, o pin ou o painel fecham: recolhe o que sobrou,
+espera os bitmaps nativos serem liberados e só então devolve as páginas. Elas voltam
+sozinhas se forem tocadas. O porquê de cada escolha, e como medir, está nas
+[decisões de arquitetura](docs/decisoes-de-arquitetura.md#9-memória-um-programa-que-passa-o-dia-na-bandeja).
 
 Dos 27,9 MB em disco, **23,7 são de um arquivo só**: `Microsoft.Windows.SDK.NET.dll`, a
 projeção do WinRT. Ela entra por causa de um único arquivo de código —
