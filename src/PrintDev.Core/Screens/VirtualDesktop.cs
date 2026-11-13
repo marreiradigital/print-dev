@@ -66,6 +66,22 @@ public static class VirtualDesktop
         => NativeMethods.GetCursorPos(out POINT point) ? (point.X, point.Y) : (0, 0);
 
     /// <summary>
+    /// Onde o cursor estava no instante do clique que está sendo tratado, em pixels
+    /// físicos.
+    /// <para>
+    /// Para apertar e soltar o botão, é esta a posição que vale, e não a atual. Logo
+    /// depois do <c>PrtSc</c> a interface ainda está desenhando o seletor, e o clique
+    /// chega a ela atrasado: o cursor já andou. Medido — o arrasto começou 7 px longe
+    /// de onde o botão foi apertado, o bastante para errar a alça da seleção.
+    /// </para>
+    /// </summary>
+    public static (int X, int Y) MessagePosition() => Unpack(NativeMethods.GetMessagePos());
+
+    /// <summary>Desempacota a posição de <c>GetMessagePos</c>, que vem com sinal em 16 bits.</summary>
+    internal static (int X, int Y) Unpack(uint packed)
+        => (unchecked((short)(packed & 0xFFFF)), unchecked((short)(packed >> 16)));
+
+    /// <summary>
     /// Retângulo que envolve todos os monitores, lido direto do Windows.
     /// </summary>
     public static PixelRect BoundingBox()

@@ -71,6 +71,13 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetCursorPos(out POINT point);
 
+    /// <summary>
+    /// Onde o cursor estava quando a mensagem que está sendo tratada foi gerada. Em
+    /// <c>DWORD</c>: x na palavra baixa e y na alta, cada um com sinal.
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern uint GetMessagePos();
+
     [DllImport("user32.dll")]
     internal static extern IntPtr GetForegroundWindow();
 

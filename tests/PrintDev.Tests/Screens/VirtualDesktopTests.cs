@@ -152,4 +152,15 @@ public class VirtualDesktopTests
         Assert.Equal(2220, x);
         Assert.Equal(321, y);
     }
+
+    [Theory]
+    [InlineData(0x02260010u, 16, 550)]
+    [InlineData(0x0000F8F8u, -1800, 0)]
+    [InlineData(0xFF6A0780u, 1920, -150)]
+    public void Posicao_do_clique_desempacota_com_sinal(uint packed, int x, int y)
+    {
+        // Monitor a esquerda ou acima do principal tem coordenada negativa. Ler as duas
+        // metades sem sinal jogaria o clique a 65 mil pixels de distancia.
+        Assert.Equal((x, y), VirtualDesktop.Unpack(packed));
+    }
 }

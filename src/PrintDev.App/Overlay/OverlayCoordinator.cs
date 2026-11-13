@@ -181,9 +181,12 @@ public sealed class OverlayCoordinator
     }
 
     /// <summary>O ponteiro se moveu. A posição vem sempre do Windows, nunca do evento.</summary>
-    internal void PointerMoved()
+    internal void PointerMoved() => PointerAt(VirtualDesktop.CursorPosition());
+
+    /// <summary>Atualiza a seleção e o destaque para o cursor neste ponto.</summary>
+    private void PointerAt((int X, int Y) position)
     {
-        (int x, int y) = VirtualDesktop.CursorPosition();
+        (int x, int y) = position;
         State.Cursor = (x, y);
 
         if (State.IsDragging)
@@ -202,7 +205,8 @@ public sealed class OverlayCoordinator
     /// <summary>Começou o arrasto.</summary>
     internal void DragStarted()
     {
-        _anchor = VirtualDesktop.CursorPosition();
+        // Onde o botao foi apertado, e nao onde o cursor esta agora: veja MessagePosition.
+        _anchor = VirtualDesktop.MessagePosition();
         State.Cursor = _anchor;
         State.IsDragging = true;
         State.ShowHints = false;
@@ -220,8 +224,11 @@ public sealed class OverlayCoordinator
             return;
         }
 
+        // A selecao termina onde o botao foi solto. A ultima posicao antes de soltar pode
+        // nao ter chegado como movimento, e o cursor ja pode ter andado depois dela.
+        (int x, int y) = VirtualDesktop.MessagePosition();
+        PointerAt((x, y));
         State.IsDragging = false;
-        (int x, int y) = VirtualDesktop.CursorPosition();
 
         const int clickThreshold = 5;
         bool wasClick = Math.Abs(x - _anchor.X) < clickThreshold && Math.Abs(y - _anchor.Y) < clickThreshold;
