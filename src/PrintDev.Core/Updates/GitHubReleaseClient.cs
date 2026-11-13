@@ -76,9 +76,14 @@ public sealed class GitHubReleaseClient
         {
             using var pedido = new HttpRequestMessage(HttpMethod.Get, caminho);
 
-            if (!string.IsNullOrWhiteSpace(etag))
+            // O validador e gravado como o GitHub o mandou, e o GitHub manda o fraco:
+            // W/"...". O construtor do EntityTagHeaderValue so aceita a parte entre aspas, e
+            // recebia o texto inteiro - toda verificacao automatica depois da primeira
+            // estourava, e o programa nunca mais achava versao nova sozinho. O Parse le
+            // os dois formatos; validador ilegivel so deixa de ir, sem derrubar a consulta.
+            if (!string.IsNullOrWhiteSpace(etag) && EntityTagHeaderValue.TryParse(etag, out EntityTagHeaderValue? validador))
             {
-                pedido.Headers.IfNoneMatch.Add(new EntityTagHeaderValue(etag, isWeak: etag.StartsWith("W/", StringComparison.Ordinal)));
+                pedido.Headers.IfNoneMatch.Add(validador);
             }
 
             using HttpResponseMessage resposta = await _http

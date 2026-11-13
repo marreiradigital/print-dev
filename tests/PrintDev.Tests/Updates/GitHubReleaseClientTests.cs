@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http;
 using PrintDev.Core.Updates;
 
@@ -129,6 +129,57 @@ public class GitHubReleaseClientTests
         // E o validador precisa realmente ter ido no pedido, senão o 304 nunca vem.
         Assert.NotNull(enviado);
         Assert.Contains(enviado!.Headers.IfNoneMatch, e => e.Tag == "\"abc123\"");
+    }
+
+    /// <summary>
+    /// O GitHub devolve o validador FRACO (<c>W/"..."</c>), e é ele que fica gravado. O
+    /// teste acima só cobria o forte — e por isso nada pegou que toda verificação
+    /// automática depois da primeira estourava ao montar o pedido.
+    /// </summary>
+    [Fact]
+    public async Task Validador_fraco_gravado_vai_no_pedido_sem_estourar()
+    {
+        HttpRequestMessage? enviado = null;
+        GitHubReleaseClient cliente = Cliente(
+            HttpStatusCode.NotModified, string.Empty, inspecionar: p => enviado = p);
+
+        ReleaseQuery consulta = await cliente.FindLatestAsync(Repositorio, false, "W/\"6c5e36c6\"");
+
+        Assert.True(consulta.NotModified);
+        Assert.Null(consulta.Error);
+        Assert.NotNull(enviado);
+        Assert.Contains(enviado!.Headers.IfNoneMatch, e => e.Tag == "\"6c5e36c6\"" && e.IsWeak);
+    }
+
+    [Fact]
+    public async Task Validador_devolvido_pelo_github_serve_na_consulta_seguinte()
+    {
+        GitHubReleaseClient primeira = Cliente(HttpStatusCode.OK, Lancamento(), etag: "W/\"abc\"");
+        ReleaseQuery resposta = await primeira.FindLatestAsync(Repositorio, false, null);
+
+        Assert.Equal("W/\"abc\"", resposta.ETag);
+
+        HttpRequestMessage? enviado = null;
+        GitHubReleaseClient segunda = Cliente(
+            HttpStatusCode.NotModified, string.Empty, inspecionar: p => enviado = p);
+
+        ReleaseQuery repetida = await segunda.FindLatestAsync(Repositorio, false, resposta.ETag);
+
+        Assert.True(repetida.NotModified);
+        Assert.Contains(enviado!.Headers.IfNoneMatch, e => e.Tag == "\"abc\"" && e.IsWeak);
+    }
+
+    [Fact]
+    public async Task Validador_ilegivel_e_ignorado_em_vez_de_derrubar_a_consulta()
+    {
+        HttpRequestMessage? enviado = null;
+        GitHubReleaseClient cliente = Cliente(HttpStatusCode.OK, Lancamento(), inspecionar: p => enviado = p);
+
+        ReleaseQuery consulta = await cliente.FindLatestAsync(Repositorio, false, "sem-aspas");
+
+        Assert.Null(consulta.Error);
+        Assert.NotNull(consulta.Release);
+        Assert.Empty(enviado!.Headers.IfNoneMatch);
     }
 
     [Fact]
