@@ -2,6 +2,7 @@
 using System.Windows.Media.Imaging;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Configuration;
+using PrintDev.Core.Runtime;
 using PrintDev.Core.Screens;
 using Serilog;
 
@@ -428,5 +429,9 @@ public sealed class OverlayCoordinator
         // Guardar outra aqui segurava a tela inteira congelada ate a proxima captura,
         // que pode ser daqui a horas.
         _frozen = null;
+
+        // Cancelar nao mostra aviso nenhum, entao e aqui que a tela congelada volta ao
+        // sistema. Quando houve captura, o aviso que vem em seguida adia este pedido.
+        WorkingSet.ReleaseSoon();
     }
 }

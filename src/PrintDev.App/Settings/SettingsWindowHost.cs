@@ -3,6 +3,7 @@ using System.Windows.Interop;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Maintenance;
+using PrintDev.Core.Runtime;
 using PrintDev.Core.Screens;
 using Serilog;
 
@@ -55,7 +56,14 @@ public sealed class SettingsWindowHost
         }
 
         _window = new SettingsWindow(_model, _paths, _hotkeys, _cleanup);
-        _window.Closed += (_, _) => _window = null;
+        _window.Closed += (_, _) =>
+        {
+            _window = null;
+
+            // O painel e a maior arvore visual do programa, e quem fecha nao volta tao
+            // cedo: nao ha por que mante-la ocupando memoria ate a proxima abertura.
+            WorkingSet.ReleaseSoon();
+        };
         _window.Show();
         BringToFront(_window);
 

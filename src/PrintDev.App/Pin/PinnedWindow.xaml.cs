@@ -3,6 +3,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using PrintDev.Core.Capture;
+using PrintDev.Core.Runtime;
 using PrintDev.Core.Screens;
 
 namespace PrintDev.Pin;
@@ -16,13 +17,17 @@ public partial class PinnedWindow : Window
     private const double MaxScale = 4.0;
     private const double MinOpacity = 0.25;
 
-    private readonly CapturedImage _image;
+    private readonly int _imageWidth;
+    private readonly int _imageHeight;
     private readonly DispatcherTimer _hintTimer;
     private double _scale = 1;
 
     internal PinnedWindow(CapturedImage image)
     {
-        _image = image;
+        // So as dimensoes ficam: os bytes crus ja viraram o bitmap da tela, e guarda-los
+        // tambem dobraria o custo de cada pin enquanto ele estiver aberto.
+        _imageWidth = image.Width;
+        _imageHeight = image.Height;
 
         InitializeComponent();
 
@@ -109,7 +114,15 @@ public partial class PinnedWindow : Window
 
     private void ApplyScale()
     {
-        Picture.Width = Math.Max(32, _image.Width * _scale);
-        Picture.Height = Math.Max(32, _image.Height * _scale);
+        Picture.Width = Math.Max(32, _imageWidth * _scale);
+        Picture.Height = Math.Max(32, _imageHeight * _scale);
+    }
+
+    /// <inheritdoc/>
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        Picture.Source = null;
+        WorkingSet.ReleaseSoon();
     }
 }

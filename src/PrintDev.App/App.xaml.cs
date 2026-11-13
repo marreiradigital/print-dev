@@ -144,7 +144,7 @@ public partial class App : Application
         // programa que fica horas parado na bandeja não tem por que segurar isso.
         Dispatcher.BeginInvoke(
             System.Windows.Threading.DispatcherPriority.ApplicationIdle,
-            new Action(() => WorkingSet.Trim()));
+            new Action(WorkingSet.ReleaseSoon));
     }
 
     /// <summary>

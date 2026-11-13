@@ -114,7 +114,7 @@ public sealed class ToastHost
             // corte só, quando a última some.
             if (_visible.Count == 0)
             {
-                WorkingSet.Trim();
+                WorkingSet.ReleaseSoon();
             }
         };
 
