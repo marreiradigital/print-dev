@@ -202,7 +202,10 @@ public sealed class TrayIconHost : IDisposable
         // porque vinte capturas de tela cheia em memoria passariam de cem megabytes.
         // Recopiar tem que devolver a imagem inteira, senao o recurso nao serve para o
         // que existe - colar de novo o que ja foi capturado.
-        CapturedImage? image = item.Path is null ? null : CapturedImage.FromFile(item.Path);
+        // Os bytes do arquivo vao direto como o PNG publicado: a imagem acabou de ser
+        // lida dele, e codifica-la de novo daria exatamente os mesmos bytes, mais devagar.
+        ReadOnlyMemory<byte> png = default;
+        CapturedImage? image = item.Path is null ? null : CapturedImage.FromFile(item.Path, out png);
 
         if (image is null && text is null)
         {
@@ -216,9 +219,11 @@ public sealed class TrayIconHost : IDisposable
                 Image: image,
                 Text: text,
                 FilePath: item.Path,
-                IncludeFileDrop: clipboard.IncludeFileDrop && item.Path is not null));
+                IncludeFileDrop: clipboard.IncludeFileDrop && item.Path is not null,
+                Png: png));
 
         _log.Information("Recopiado do histórico: {Arquivo}", item.DisplayName);
+        WorkingSet.ReleaseSoon();
     }
 
     /// <summary>

@@ -39,8 +39,19 @@ public sealed class CaptureCoordinator
     private readonly CaptureUndoService _undo;
     private readonly ILogger _log;
 
-    private CaptureResult? _last;
+    private LastCapture? _last;
     private PixelRect _lastRegion;
+
+    /// <summary>
+    /// O que se guarda da captura mais recente, para os atalhos de colagem forçada e de
+    /// envio.
+    /// <para>
+    /// Os pixels só ficam quando o arquivo NÃO chegou ao disco. Com o arquivo salvo, a
+    /// imagem volta dele no instante em que a pessoa pede — guardá-la aqui seria segurar
+    /// uma tela cheia em memória por horas por causa de um atalho que talvez nunca venha.
+    /// </para>
+    /// </summary>
+    private sealed record LastCapture(string? Path, CapturedImage? Unsaved, PixelRect Bounds);
 
     public CaptureCoordinator(
         CapturePipeline pipeline,
@@ -66,9 +77,6 @@ public sealed class CaptureCoordinator
         _log = log.ForContext<CaptureCoordinator>();
     }
 
-    /// <summary>Última captura desta sessão, para os atalhos de colagem forçada.</summary>
-    public CaptureResult? Last => _last;
-
     /// <summary>Executa a ação pedida por um atalho.</summary>
     public CaptureResult? Execute(HotkeyAction action)
     {
@@ -76,11 +84,11 @@ public sealed class CaptureCoordinator
         {
             case HotkeyAction.PasteAsPath:
                 RepublishAndPaste(ClipboardContent.Caminho);
-                return _last;
+                return null;
 
             case HotkeyAction.PasteAsImage:
                 RepublishAndPaste(ClipboardContent.Imagem);
-                return _last;
+                return null;
 
             // Desfazer não captura nada, então sai antes de congelar a tela.
             case HotkeyAction.UndoLastCapture:
@@ -136,7 +144,7 @@ public sealed class CaptureCoordinator
         // O aviso nasce onde a captura aconteceu; sem essa informação, no monitor
         // onde o cursor está -- que é para onde a pessoa olha ao apertar o atalho.
         (int x, int y) = VirtualDesktop.CursorPosition();
-        PixelRect perto = _last?.Image.Bounds ?? new PixelRect(x, y, 1, 1);
+        PixelRect perto = _last?.Bounds ?? new PixelRect(x, y, 1, 1);
 
         _toasts.SendToCloud(_history.Latest, perto);
     }
@@ -388,11 +396,11 @@ public sealed class CaptureCoordinator
     private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active)
     {
         CaptureResult result = _pipeline.Save(image, mode, active);
-        _last = result;
+        _last = new LastCapture(result.SavedPath, result.Saved ? null : image, image.Bounds);
 
         if (_settings.Current.Clipboard.CopyAutomatically)
         {
-            Publish(result, _settings.Current.Clipboard.Content);
+            Publish(result.Image, result.SavedPath, result.Png, _settings.Current.Clipboard.Content);
         }
 
         _history.Add(image, result.SavedPath);
@@ -436,6 +444,11 @@ public sealed class CaptureCoordinator
         {
             _log.Error(exception, "Falha no editor de anotação");
         }
+        finally
+        {
+            // O editor segura a imagem inteira, o bitmap dela e a lista de marcas.
+            WorkingSet.ReleaseSoon();
+        }
     }
 
     /// <summary>Abre o editor com uma captura que já está em disco.</summary>
@@ -455,7 +468,11 @@ public sealed class CaptureCoordinator
     /// <summary>
     /// Publica a captura na área de transferência no formato pedido.
     /// </summary>
-    private bool Publish(CaptureResult result, ClipboardContent content)
+    /// <param name="image">Os pixels. Nulo publica só o que não é imagem.</param>
+    /// <param name="savedPath">Onde o arquivo está, se chegou ao disco.</param>
+    /// <param name="png">O PNG já codificado, quando houver; senão é codificado aqui.</param>
+    /// <param name="content">O que publicar.</param>
+    private bool Publish(CapturedImage? image, string? savedPath, ReadOnlyMemory<byte> png, ClipboardContent content)
     {
         ClipboardSettings settings = _settings.Current.Clipboard;
 
@@ -464,16 +481,16 @@ public sealed class CaptureCoordinator
 
         // Sem arquivo em disco nao ha caminho para colar - mas a imagem ainda vai.
         // Perder o arquivo e ruim; perder a captura seria pior.
-        string? text = wantsText && result.SavedPath is not null
-            ? PathTextFormatter.Format(result.SavedPath, settings)
+        string? text = wantsText && savedPath is not null
+            ? PathTextFormatter.Format(savedPath, settings)
             : null;
 
         var payload = new ClipboardPayload(
-            Image: wantsImage ? result.Image : null,
+            Image: wantsImage ? image : null,
             Text: text,
-            FilePath: result.SavedPath,
-            IncludeFileDrop: settings.IncludeFileDrop && result.SavedPath is not null,
-            Png: wantsImage ? result.Png : default);
+            FilePath: savedPath,
+            IncludeFileDrop: settings.IncludeFileDrop && savedPath is not null,
+            Png: wantsImage ? png : default);
 
         bool published = _clipboard.Write(_messageWindow.Handle, payload);
 
@@ -504,7 +521,28 @@ public sealed class CaptureCoordinator
             return;
         }
 
-        if (!Publish(last, content))
+        CapturedImage? image = last.Unsaved;
+        ReadOnlyMemory<byte> png = default;
+
+        // A imagem so e lida do disco quando o pedido e de imagem: colar o caminho nao
+        // precisa de um pixel sequer.
+        if (image is null && content == ClipboardContent.Imagem && last.Path is not null)
+        {
+            image = CapturedImage.FromFile(last.Path, out png);
+
+            if (image is null)
+            {
+                _log.Warning("Não consegui reler {Arquivo} para colar como imagem", last.Path);
+                return;
+            }
+        }
+
+        bool published = Publish(image, last.Path, png, content);
+
+        // A imagem relida e o lixo da publicacao nao tem por que esperar o proximo uso.
+        WorkingSet.ReleaseSoon();
+
+        if (!published)
         {
             return;
         }

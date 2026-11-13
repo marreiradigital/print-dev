@@ -2,6 +2,7 @@
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PrintDev.Core.Screens;
+using PrintDev.Core.Storage;
 
 namespace PrintDev.Core.Capture;
 
@@ -289,8 +290,22 @@ public sealed class CapturedImage
     /// </para>
     /// </summary>
     /// <returns><see langword="null"/> quando o arquivo sumiu ou não deu para ler.</returns>
-    public static CapturedImage? FromFile(string path)
+    public static CapturedImage? FromFile(string path) => FromFile(path, out _);
+
+    /// <summary>
+    /// Recarrega uma captura e devolve também os bytes do arquivo quando eles já são um
+    /// PNG — que é exatamente o que a área de transferência publica primeiro.
+    /// <para>
+    /// Recopiar do histórico ou forçar a colagem como imagem reaproveita assim o próprio
+    /// arquivo, em vez de codificar de novo a mesma imagem que acabou de ser lida dele.
+    /// </para>
+    /// </summary>
+    /// <param name="path">O arquivo.</param>
+    /// <param name="png">Os bytes do arquivo, se for PNG; vazio nos outros casos.</param>
+    public static CapturedImage? FromFile(string path, out ReadOnlyMemory<byte> png)
     {
+        png = default;
+
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {
             return null;
@@ -298,33 +313,18 @@ public sealed class CapturedImage
 
         try
         {
-            // OnLoad libera o arquivo assim que a leitura termina; sem isso o arquivo
-            // ficaria preso enquanto a imagem existisse, e apaga-lo depois falharia.
-            var decoded = new BitmapImage();
-            decoded.BeginInit();
-            decoded.UriSource = new Uri(path);
-            decoded.CacheOption = BitmapCacheOption.OnLoad;
-            decoded.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
-            decoded.EndInit();
-            decoded.Freeze();
+            // Os bytes sao lidos de uma vez e o arquivo fica livre na hora: segura-lo
+            // aberto faria apagar ou desfazer a captura falhar.
+            byte[] encoded = File.ReadAllBytes(path);
 
-            var converted = new FormatConvertedBitmap(decoded, PixelFormats.Bgra32, null, 0);
-            converted.Freeze();
+            CapturedImage? image = Decode(encoded);
 
-            int width = converted.PixelWidth;
-            int height = converted.PixelHeight;
-            int stride = width * BytesPerPixel;
-            var pixels = new byte[stride * height];
-            converted.CopyPixels(pixels, stride, 0);
-
-            // O arquivo pode ter vindo de qualquer lugar e trazer alfa. As mesmas razoes
-            // da captura valem aqui: alfa zerado vira retangulo preto ao colar.
-            for (int index = 3; index < pixels.Length; index += BytesPerPixel)
+            if (image is not null && ImageWriter.IsPng(encoded))
             {
-                pixels[index] = 255;
+                png = encoded;
             }
 
-            return new CapturedImage(pixels, new PixelRect(0, 0, width, height));
+            return image;
         }
         catch (Exception)
         {
@@ -332,5 +332,48 @@ public sealed class CapturedImage
             // decide o que fazer com o nulo. Nada disso justifica derrubar o programa.
             return null;
         }
+    }
+
+    /// <summary>
+    /// Decodifica uma imagem já em memória para BGRA opaco.
+    /// <para>
+    /// Sem cache do decodificador: os pixels são decodificados direto para o array
+    /// final. Com o cache, o WPF guardava antes uma cópia nativa da imagem inteira, só
+    /// para ela ser copiada de novo em seguida.
+    /// </para>
+    /// </summary>
+    private static CapturedImage? Decode(byte[] encoded)
+    {
+        using var stream = new MemoryStream(encoded, writable: false);
+
+        BitmapDecoder decoder = BitmapDecoder.Create(
+            stream,
+            BitmapCreateOptions.PreservePixelFormat,
+            BitmapCacheOption.None);
+
+        if (decoder.Frames.Count == 0)
+        {
+            return null;
+        }
+
+        BitmapSource frame = decoder.Frames[0];
+        BitmapSource converted = frame.Format == PixelFormats.Bgra32
+            ? frame
+            : new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+
+        int width = converted.PixelWidth;
+        int height = converted.PixelHeight;
+        int stride = width * BytesPerPixel;
+        var pixels = new byte[stride * height];
+        converted.CopyPixels(pixels, stride, 0);
+
+        // O arquivo pode ter vindo de qualquer lugar e trazer alfa. As mesmas razoes
+        // da captura valem aqui: alfa zerado vira retangulo preto ao colar.
+        for (int index = 3; index < pixels.Length; index += BytesPerPixel)
+        {
+            pixels[index] = 255;
+        }
+
+        return new CapturedImage(pixels, new PixelRect(0, 0, width, height));
     }
 }
