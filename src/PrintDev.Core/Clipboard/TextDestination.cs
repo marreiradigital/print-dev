@@ -18,6 +18,11 @@ public static class TextDestination
     /// A lista que vem de fábrica: terminais, shells, IDEs e editores de código. Nome do
     /// processo, sem <c>.exe</c>, sem diferenciar maiúsculas.
     /// <para>
+    /// O nome é o do executável, que nem sempre é o do produto: o Antigravity roda como
+    /// <c>Antigravity IDE.exe</c>, com espaço, e o VS Code como <c>Code.exe</c>. Conferir
+    /// no Gerenciador de Tarefas antes de acrescentar.
+    /// </para>
+    /// <para>
     /// Editores de texto puro (Bloco de Notas, Notepad++) entram também: eles não
     /// aceitam imagem, e sem o caminho a colagem neles não entregaria nada.
     /// </para>
@@ -30,7 +35,7 @@ public static class TextDestination
         "kitty", "putty", "MobaXterm", "Termius", "FluentTerminal.App",
 
         // IDEs e editores de código.
-        "Code", "Code - Insiders", "VSCodium", "Cursor", "Windsurf", "Trae", "Kiro", "Antigravity",
+        "Code", "Code - Insiders", "VSCodium", "Cursor", "Windsurf", "Trae", "Kiro", "Antigravity", "Antigravity IDE",
         "Zed", "devenv", "rider64", "idea64", "pycharm64", "webstorm64", "phpstorm64", "goland64",
         "clion64", "rustrover64", "datagrip64", "rubymine64", "studio64", "fleet",
         "sublime_text", "notepad++", "Notepad", "nvim-qt", "neovide", "gvim", "emacs", "runemacs",

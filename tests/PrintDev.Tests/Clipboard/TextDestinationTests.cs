@@ -15,6 +15,7 @@ public class TextDestinationTests
     [InlineData("idea64")]
     [InlineData("code")]
     [InlineData("Code.exe")]
+    [InlineData("Antigravity IDE")]
     [InlineData("  WINDOWSTERMINAL.EXE ")]
     public void Terminal_e_ide_recebem_o_caminho(string process)
     {
