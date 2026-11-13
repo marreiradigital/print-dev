@@ -15,6 +15,20 @@
     <ApplicationIcon>Assets\PrintDev.ico</ApplicationIcon>
     <!-- Trimming e NativeAOT sao bloqueados pelo SDK para WPF (reflexao sobre BAML). -->
     <PublishReadyToRun>true</PublishReadyToRun>
+
+    <!--
+      Memoria de um programa que passa o dia parado na bandeja.
+
+      GC concorrente desligado: ele mantem uma thread de fundo e estruturas de marcacao
+      proprias para nao pausar a interface numa coleta grande - e o heap aqui fica em
+      poucos megabytes, onde a coleta bloqueante leva milissegundos.
+
+      PGO dinamico desligado: ele instrumenta os metodos quentes e guarda o perfil em
+      memoria para recompilar melhor depois. Compensa em servidor que roda o mesmo
+      caminho milhoes de vezes; aqui o caminho quente roda algumas vezes por dia.
+    -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <TieredPGO>false</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>
