@@ -7,7 +7,7 @@
 ; ============================================================================
 
 #define Nome        "Print Dev"
-#define Versao      "0.1.4"
+#define Versao      "0.1.5"
 #define Fabricante  "Marreira Digital"
 #define Executavel  "PrintDev.exe"
 #define Site        "https://marreiradigital.com.br"
