@@ -133,6 +133,14 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool DeleteObject(IntPtr gdiObject);
 
+    /// <summary>
+    /// Esvazia a fila de desenho do GDI desta thread. A documentação do
+    /// <c>CreateDIBSection</c> pede isto antes de ler os bits diretamente.
+    /// </summary>
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GdiFlush();
+
     [DllImport("gdi32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool DeleteDC(IntPtr hdc);

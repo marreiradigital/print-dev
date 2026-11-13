@@ -18,21 +18,16 @@ namespace PrintDev.Overlay;
 /// </summary>
 public partial class OverlayWindow : Window
 {
-    private readonly CapturedImage _frozen;
-    private readonly BitmapSource _frozenBitmap;
     private readonly OverlayCoordinator _coordinator;
     private SelectionLayer? _layer;
     private bool _closing;
 
     internal OverlayWindow(
         MonitorInfo monitor,
-        CapturedImage frozen,
-        BitmapSource frozenBitmap,
+        FrozenScreen frozen,
         OverlayCoordinator coordinator)
     {
         Monitor = monitor;
-        _frozen = frozen;
-        _frozenBitmap = frozenBitmap;
         _coordinator = coordinator;
 
         InitializeComponent();
@@ -40,14 +35,14 @@ public partial class OverlayWindow : Window
         // Cada janela mostra APENAS a fatia do seu monitor, e o recorte compartilha os
         // pixels do original - nao ha copia de imagem por monitor.
         FrozenView.Source = new CroppedBitmap(
-            frozenBitmap,
+            frozen.Bitmap,
             new Int32Rect(
                 monitor.Bounds.Left - frozen.Bounds.Left,
                 monitor.Bounds.Top - frozen.Bounds.Top,
                 monitor.Bounds.Width,
                 monitor.Bounds.Height));
 
-        _layer = new SelectionLayer(monitor, frozen, frozenBitmap, coordinator.State);
+        _layer = new SelectionLayer(monitor, frozen, coordinator.State);
         LayerHost.Content = _layer;
 
         SyncMode(coordinator.State.Mode);

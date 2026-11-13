@@ -1,5 +1,4 @@
 ﻿using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Runtime;
@@ -12,7 +11,7 @@ namespace PrintDev.Overlay;
 /// <param name="Region">Retângulo escolhido, em pixels físicos.</param>
 /// <param name="Frozen">A tela congelada no instante em que o seletor abriu.</param>
 /// <param name="Mode">Modo usado, para o nome do arquivo.</param>
-public sealed record OverlayResult(PixelRect Region, CapturedImage Frozen, CaptureMode Mode);
+public sealed record OverlayResult(PixelRect Region, FrozenScreen Frozen, CaptureMode Mode);
 
 /// <summary>
 /// Abre o seletor de área e devolve o recorte escolhido.
@@ -32,8 +31,7 @@ public sealed class OverlayCoordinator
     private TaskCompletionSource<Color?>? _colorCompletion;
     private readonly List<OverlayWindow> _windows = [];
     private IReadOnlyList<WindowTarget> _targets = [];
-    private CapturedImage? _frozen;
-    private BitmapSource? _frozenBitmap;
+    private FrozenScreen? _frozen;
     private (int X, int Y) _anchor;
     private bool _hintsShown;
 
@@ -69,8 +67,7 @@ public sealed class OverlayCoordinator
 
         // 1. Congelar a tela ANTES de qualquer janela nossa aparecer. Sem isso o seletor
         //    se captura, e o que o usuario recorta nao e o que ele estava vendo.
-        _frozen = GdiScreenCapture.CaptureAllMonitors(monitors);
-        _frozenBitmap = _frozen.ToBitmapSource();
+        _frozen = GdiScreenCapture.FreezeAllMonitors(monitors);
 
         // 2. Fotografar as janelas tambem antes: com o overlay na tela, perguntar quem
         //    esta sob o cursor devolveria sempre o proprio overlay.
@@ -84,7 +81,7 @@ public sealed class OverlayCoordinator
 
         foreach (MonitorInfo monitor in monitors)
         {
-            var window = new OverlayWindow(monitor, _frozen, _frozenBitmap, this);
+            var window = new OverlayWindow(monitor, _frozen, this);
             _windows.Add(window);
             window.Show();
         }
@@ -120,8 +117,7 @@ public sealed class OverlayCoordinator
             return Task.FromResult<Color?>(null);
         }
 
-        _frozen = GdiScreenCapture.CaptureAllMonitors(monitors);
-        _frozenBitmap = _frozen.ToBitmapSource();
+        _frozen = GdiScreenCapture.FreezeAllMonitors(monitors);
         _targets = [];
 
         ResetState(settings);
@@ -135,7 +131,7 @@ public sealed class OverlayCoordinator
 
         foreach (MonitorInfo monitor in monitors)
         {
-            var window = new OverlayWindow(monitor, _frozen, _frozenBitmap, this);
+            var window = new OverlayWindow(monitor, _frozen, this);
             _windows.Add(window);
             window.Show();
         }
@@ -163,19 +159,7 @@ public sealed class OverlayCoordinator
         State.PickingColor = false;
     }
 
-    private Color ReadColor(int x, int y)
-    {
-        if (_frozen is null || !_frozen.Bounds.Contains(x, y))
-        {
-            return Colors.Black;
-        }
-
-        int offset = ((y - _frozen.Bounds.Top) * _frozen.Stride)
-                     + ((x - _frozen.Bounds.Left) * CapturedImage.BytesPerPixel);
-
-        // Os bytes estao em BGRA.
-        return Color.FromRgb(_frozen.Pixels[offset + 2], _frozen.Pixels[offset + 1], _frozen.Pixels[offset]);
-    }
+    private Color ReadColor(int x, int y) => _frozen?.ReadPixel(x, y) ?? Colors.Black;
 
     private void ResetState(AppSettings settings)
     {
@@ -303,7 +287,7 @@ public sealed class OverlayCoordinator
         }
 
         CaptureMode mode = State.Mode;
-        CapturedImage frozen = _frozen;
+        FrozenScreen frozen = _frozen;
         Close();
         _completion?.TrySetResult(new OverlayResult(clipped, frozen, mode));
         _completion = null;
@@ -423,7 +407,6 @@ public sealed class OverlayCoordinator
 
         _windows.Clear();
         _targets = [];
-        _frozenBitmap = null;
 
         // Quem chamou ja recebeu a sua referencia no resultado e recorta a partir dela.
         // Guardar outra aqui segurava a tela inteira congelada ate a proxima captura,

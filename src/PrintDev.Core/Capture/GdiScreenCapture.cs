@@ -26,6 +26,45 @@ public static class GdiScreenCapture
     /// <exception cref="ArgumentException">Retângulo vazio.</exception>
     /// <exception cref="InvalidOperationException">O Windows recusou alguma etapa.</exception>
     public static CapturedImage CaptureRect(PixelRect region)
+        => WithScreenPixels(region, static (bits, region) =>
+        {
+            var pixels = new byte[region.Width * region.Height * CapturedImage.BytesPerPixel];
+            bits.CopyTo(pixels);
+            return new CapturedImage(pixels, region);
+        });
+
+    /// <summary>
+    /// Congela todos os monitores para o seletor, num bitmap nativo só.
+    /// <para>
+    /// A tela congelada do seletor é desenhada, recortada e lida pela lupa — e nada
+    /// disso precisa de uma cópia gerenciada dos pixels. Antes existiam duas: o array
+    /// e o bitmap feito a partir dele, cada uma do tamanho da área de trabalho inteira.
+    /// Agora os pixels saem da memória do GDI direto para o bitmap.
+    /// </para>
+    /// </summary>
+    public static FrozenScreen FreezeAllMonitors(IReadOnlyList<MonitorInfo> monitors)
+    {
+        ArgumentNullException.ThrowIfNull(monitors);
+
+        PixelRect box = BoxOf(monitors);
+        IReadOnlyList<PixelRect> dead = VirtualDesktop.DeadZones(monitors);
+
+        return WithScreenPixels(box, (bits, region) =>
+        {
+            foreach (PixelRect zone in dead)
+            {
+                PixelOps.Fill(bits, region, zone, 0, 0, 0);
+            }
+
+            return FrozenScreen.FromPixels(bits, region);
+        });
+    }
+
+    /// <summary>
+    /// Copia a tela para a memória do GDI, deixa alfa 255 e entrega os pixels a quem
+    /// vai consumi-los, ainda dentro da vida do bitmap.
+    /// </summary>
+    private static T WithScreenPixels<T>(PixelRect region, PixelConsumer<T> consume)
     {
         if (region.IsEmpty)
         {
@@ -81,12 +120,18 @@ public static class GdiScreenCapture
                 throw new InvalidOperationException("O Windows recusou a cópia da tela.");
             }
 
-            var pixels = new byte[region.Width * region.Height * CapturedImage.BytesPerPixel];
-            Marshal.Copy(bits, pixels, 0, pixels.Length);
+            // O GDI so termina de escrever no bitmap quando a fila dele e esvaziada;
+            // ler os bits antes disso pode pegar a copia pela metade.
+            NativeMethods.GdiFlush();
+
+            Span<byte> pixels;
+            unsafe
+            {
+                pixels = new Span<byte>((void*)bits, region.Width * region.Height * CapturedImage.BytesPerPixel);
+            }
 
             ForceOpaque(pixels);
-
-            return new CapturedImage(pixels, region);
+            return consume(pixels, region);
         }
         finally
         {
@@ -116,6 +161,15 @@ public static class GdiScreenCapture
         }
     }
 
+    /// <summary>Quem recebe os pixels ainda dentro da vida do bitmap do GDI.</summary>
+    private delegate T PixelConsumer<T>(Span<byte> pixels, PixelRect region);
+
+    private static PixelRect BoxOf(IReadOnlyList<MonitorInfo> monitors)
+    {
+        PixelRect box = VirtualDesktop.BoundingBoxOf(monitors);
+        return box.IsEmpty ? VirtualDesktop.BoundingBox() : box;
+    }
+
     /// <summary>
     /// Captura todos os monitores num único quadro, apagando os buracos do desktop
     /// virtual.
@@ -130,13 +184,7 @@ public static class GdiScreenCapture
     {
         ArgumentNullException.ThrowIfNull(monitors);
 
-        PixelRect box = VirtualDesktop.BoundingBoxOf(monitors);
-        if (box.IsEmpty)
-        {
-            box = VirtualDesktop.BoundingBox();
-        }
-
-        CapturedImage image = CaptureRect(box);
+        CapturedImage image = CaptureRect(BoxOf(monitors));
 
         foreach (PixelRect dead in VirtualDesktop.DeadZones(monitors))
         {
@@ -160,11 +208,5 @@ public static class GdiScreenCapture
     /// transferência ficam consistentes entre si.
     /// </para>
     /// </summary>
-    private static void ForceOpaque(byte[] pixels)
-    {
-        for (int index = 3; index < pixels.Length; index += CapturedImage.BytesPerPixel)
-        {
-            pixels[index] = 255;
-        }
-    }
+    private static void ForceOpaque(Span<byte> pixels) => PixelOps.ForceOpaque(pixels);
 }

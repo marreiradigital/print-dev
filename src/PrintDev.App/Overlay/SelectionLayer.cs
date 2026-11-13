@@ -45,10 +45,24 @@ public sealed class SelectionLayer : FrameworkElement
     /// <summary>Braço dos colchetes de canto — o elemento-assinatura do produto.</summary>
     private const double BracketArm = 12;
 
+    /// <summary>
+    /// Cor da lupa onde não há tela — o canto do monitor, o buraco entre dois monitores.
+    /// É o fundo do próprio quadro da lupa, para a área vazia ler como "nada aqui".
+    /// </summary>
+    private const uint LoupeOutside = 0xFF0A0A0C;
+
     private readonly MonitorInfo _monitor;
-    private readonly CapturedImage _frozen;
-    private readonly BitmapSource _frozenBitmap;
+    private readonly FrozenScreen _frozen;
     private readonly SelectionState _state;
+
+    /// <summary>
+    /// O bitmap da lupa, reaproveitado entre os quadros. Criar um recorte novo a cada
+    /// movimento do mouse fazia o WPF subir uma textura nova por quadro e deixar todas
+    /// para o coletor; este é atualizado no lugar.
+    /// </summary>
+    private WriteableBitmap? _loupe;
+    private byte[] _loupePixels = [];
+    private (int X, int Y, int Side) _loupeAt = (int.MinValue, int.MinValue, 0);
 
     private readonly Brush _veil;
     private readonly Brush _sandwichOuter;
@@ -61,17 +75,17 @@ public sealed class SelectionLayer : FrameworkElement
     private readonly Pen _innerPen;
     private readonly Pen _handlePen;
     private readonly Pen _crosshairPen;
+    private readonly Pen _gridPen;
+    private readonly Pen _bracketPen;
     private readonly Typeface _mono;
 
     public SelectionLayer(
         MonitorInfo monitor,
-        CapturedImage frozen,
-        BitmapSource frozenBitmap,
+        FrozenScreen frozen,
         SelectionState state)
     {
         _monitor = monitor;
         _frozen = frozen;
-        _frozenBitmap = frozenBitmap;
         _state = state;
 
         IsHitTestVisible = false;
@@ -95,6 +109,10 @@ public sealed class SelectionLayer : FrameworkElement
         _innerPen = FrozenPen(_sandwichInner, 1);
         _handlePen = FrozenPen(new SolidColorBrush(Color.FromArgb(0x99, 0x0A, 0x0A, 0x0C)), 1);
         _crosshairPen = FrozenPen(new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF)), 1);
+        _gridPen = FrozenPen(new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)), 1);
+
+        _bracketPen = new Pen(_sandwichInner, 3) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
+        _bracketPen.Freeze();
 
         _mono = new Typeface(
             (FontFamily)(Application.Current?.TryFindResource("Font.Mono") ?? new FontFamily("Consolas")),
@@ -269,11 +287,8 @@ public sealed class SelectionLayer : FrameworkElement
 
     private void DrawBracket(DrawingContext context, double x, double y, double armX, double armY)
     {
-        var pen = new Pen(_sandwichInner, 3) { StartLineCap = PenLineCap.Flat, EndLineCap = PenLineCap.Flat };
-        pen.Freeze();
-
-        context.DrawLine(pen, new Point(x, y), new Point(x + armX, y));
-        context.DrawLine(pen, new Point(x, y), new Point(x, y + armY));
+        context.DrawLine(_bracketPen, new Point(x, y), new Point(x + armX, y));
+        context.DrawLine(_bracketPen, new Point(x, y), new Point(x, y + armY));
     }
 
     private void DrawSquareHandle(DrawingContext context, double centerX, double centerY)
@@ -356,14 +371,12 @@ public sealed class SelectionLayer : FrameworkElement
             sourceSide++;
         }
 
-        int half = sourceSide / 2;
-        var source = new PixelRect(_state.Cursor.X - half, _state.Cursor.Y - half, sourceSide, sourceSide)
-            .Intersect(_frozen.Bounds);
-
-        if (source.IsEmpty)
+        if (!_frozen.Bounds.Contains(_state.Cursor.X, _state.Cursor.Y))
         {
             return;
         }
+
+        WriteableBitmap loupe = UpdateLoupe(_state.Cursor.X, _state.Cursor.Y, sourceSide);
 
         (double cx, double cy) = ToLocal(_state.Cursor.X, _state.Cursor.Y);
         double side = MagnifierSize;
@@ -392,27 +405,20 @@ public sealed class SelectionLayer : FrameworkElement
         var viewport = new Rect(x, y, side, side);
         context.PushClip(new RectangleGeometry(viewport, 8, 8));
 
-        var crop = new CroppedBitmap(
-            _frozenBitmap,
-            new Int32Rect(
-                source.Left - _frozen.Bounds.Left,
-                source.Top - _frozen.Bounds.Top,
-                source.Width,
-                source.Height));
-
-        context.DrawImage(crop, viewport);
+        // O quadrado tem SEMPRE o lado inteiro, mesmo na borda da tela: o que cai fora
+        // vem pintado de vazio. Antes, a borda recortava o quadrado e o pedaco que
+        // sobrava era esticado para encher a lupa - os pixels saiam deformados e a celula
+        // destacada deixava de ser o pixel sob o cursor justamente onde mais se mira.
+        context.DrawImage(loupe, viewport);
 
         double cell = side / sourceSide;
         if (zoom >= GridFromZoom)
         {
-            var grid = new Pen(new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)), 1);
-            grid.Freeze();
-
             for (int index = 1; index < sourceSide; index++)
             {
                 double offset = Math.Floor(index * cell) + 0.5;
-                context.DrawLine(grid, new Point(x + offset, y), new Point(x + offset, y + side));
-                context.DrawLine(grid, new Point(x, y + offset), new Point(x + side, y + offset));
+                context.DrawLine(_gridPen, new Point(x + offset, y), new Point(x + offset, y + side));
+                context.DrawLine(_gridPen, new Point(x, y + offset), new Point(x + side, y + offset));
             }
         }
 
@@ -426,7 +432,7 @@ public sealed class SelectionLayer : FrameworkElement
         context.DrawRectangle(null, _accentPen, center);
         context.Pop();
 
-        (byte r, byte g, byte b) = ReadPixel(_state.Cursor.X, _state.Cursor.Y);
+        (byte r, byte g, byte b) = LoupeCenter(sourceSide);
         FormattedText hexText = Format($"#{r:X2}{g:X2}{b:X2}", 12);
         FormattedText positionText = Format($"{_state.Cursor.X}, {_state.Cursor.Y}", 11);
 
@@ -439,18 +445,43 @@ public sealed class SelectionLayer : FrameworkElement
         context.DrawText(positionText, new Point(x + 10, y + side + 24));
     }
 
-    private (byte R, byte G, byte B) ReadPixel(int x, int y)
+    /// <summary>
+    /// Atualiza o bitmap da lupa para o quadrado em volta do cursor, no lugar.
+    /// <para>
+    /// Só copia quando o cursor ou a ampliação mudaram: o seletor também redesenha por
+    /// outros motivos, e nesses quadros a lupa continua exatamente a mesma.
+    /// </para>
+    /// </summary>
+    private WriteableBitmap UpdateLoupe(int cursorX, int cursorY, int side)
     {
-        if (!_frozen.Bounds.Contains(x, y))
+        if (_loupe is null || _loupe.PixelWidth != side)
         {
-            return (0, 0, 0);
+            _loupe = new WriteableBitmap(side, side, 96, 96, PixelFormats.Bgra32, null);
+            _loupePixels = new byte[side * side * CapturedImage.BytesPerPixel];
+            _loupeAt = (int.MinValue, int.MinValue, 0);
         }
 
-        int offset = ((y - _frozen.Bounds.Top) * _frozen.Stride)
-                     + ((x - _frozen.Bounds.Left) * CapturedImage.BytesPerPixel);
+        if (_loupeAt == (cursorX, cursorY, side))
+        {
+            return _loupe;
+        }
+
+        int half = side / 2;
+        _frozen.CopyInto(new PixelRect(cursorX - half, cursorY - half, side, side), _loupePixels, LoupeOutside);
+        _loupe.WritePixels(new Int32Rect(0, 0, side, side), _loupePixels, side * CapturedImage.BytesPerPixel, 0);
+        _loupeAt = (cursorX, cursorY, side);
+
+        return _loupe;
+    }
+
+    /// <summary>A cor do pixel sob o cursor: o centro exato do quadrado da lupa.</summary>
+    private (byte R, byte G, byte B) LoupeCenter(int side)
+    {
+        int half = side / 2;
+        int offset = ((half * side) + half) * CapturedImage.BytesPerPixel;
 
         // Os bytes estao em BGRA.
-        return (_frozen.Pixels[offset + 2], _frozen.Pixels[offset + 1], _frozen.Pixels[offset]);
+        return (_loupePixels[offset + 2], _loupePixels[offset + 1], _loupePixels[offset]);
     }
 
     private FormattedText Format(string text, double size) => new(

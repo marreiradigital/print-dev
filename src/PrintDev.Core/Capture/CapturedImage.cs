@@ -213,28 +213,7 @@ public sealed class CapturedImage
     /// virtual, onde o Windows devolve lixo por não haver monitor nenhum.
     /// </summary>
     public void Fill(PixelRect region, byte blue = 0, byte green = 0, byte red = 0)
-    {
-        PixelRect clipped = region.Intersect(Bounds);
-        if (clipped.IsEmpty)
-        {
-            return;
-        }
-
-        for (int row = 0; row < clipped.Height; row++)
-        {
-            int offset = ((clipped.Top - Bounds.Top + row) * Stride)
-                         + ((clipped.Left - Bounds.Left) * BytesPerPixel);
-
-            for (int column = 0; column < clipped.Width; column++)
-            {
-                Pixels[offset] = blue;
-                Pixels[offset + 1] = green;
-                Pixels[offset + 2] = red;
-                Pixels[offset + 3] = 255;
-                offset += BytesPerPixel;
-            }
-        }
-    }
+        => PixelOps.Fill(Pixels, Bounds, region, blue, green, red);
 
     /// <summary>
     /// Verdadeiro quando todos os pixels são pretos.
