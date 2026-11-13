@@ -102,7 +102,39 @@ public sealed class SelectionLayer : FrameworkElement
             FontWeights.Medium,
             FontStretches.Normal);
 
-        _state.VisualChanged += (_, _) => Dispatcher.BeginInvoke(InvalidateVisual);
+        _state.VisualChanged += OnVisualChanged;
+    }
+
+    /// <summary>
+    /// Solta o estado compartilhado. <b>Obrigatório ao fechar o seletor.</b>
+    /// <para>
+    /// O estado vive o programa inteiro, e a inscrição no evento dele é uma referência
+    /// forte desta camada. Sem soltá-la, cada abertura do seletor deixava as camadas de
+    /// todos os monitores presas para sempre — cada uma segurando a tela congelada
+    /// inteira, nos bytes e no bitmap nativo. Foram 870 MB depois de 26 capturas, e
+    /// cada movimento do mouse ainda redesenhava todas as camadas mortas.
+    /// </para>
+    /// </summary>
+    public void Detach() => _state.VisualChanged -= OnVisualChanged;
+
+    /// <summary>
+    /// Redesenha quando o estado muda.
+    /// <para>
+    /// Direto, e não por <c>BeginInvoke</c>: o estado só muda na thread de interface, e o
+    /// WPF já junta várias invalidações num quadro só. Enfileirar adiava o desenho para
+    /// depois do quadro em que o mouse se moveu.
+    /// </para>
+    /// </summary>
+    private void OnVisualChanged(object? sender, EventArgs e)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            InvalidateVisual();
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(InvalidateVisual);
+        }
     }
 
     /// <inheritdoc/>

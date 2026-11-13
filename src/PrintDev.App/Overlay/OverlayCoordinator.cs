@@ -424,7 +424,9 @@ public sealed class OverlayCoordinator
         _targets = [];
         _frozenBitmap = null;
 
-        // _frozen NAO e limpo aqui: ele acabou de ser entregue a quem chamou, que ainda
-        // precisa recortar a imagem a partir dele.
+        // Quem chamou ja recebeu a sua referencia no resultado e recorta a partir dela.
+        // Guardar outra aqui segurava a tela inteira congelada ate a proxima captura,
+        // que pode ser daqui a horas.
+        _frozen = null;
     }
 }

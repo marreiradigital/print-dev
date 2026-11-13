@@ -122,7 +122,9 @@ public partial class OverlayWindow : Window
         Mouse.Capture(null);
 
         // Soltar a camada antes de fechar: ela segura a imagem congelada inteira, que em
-        // dois monitores passa de dez megabytes.
+        // dois monitores passa de dez megabytes. Tirar da arvore visual NAO basta: a
+        // inscricao no estado compartilhado a manteria viva para sempre.
+        _layer?.Detach();
         LayerHost.Content = null;
         _layer = null;
         FrozenView.Source = null;
