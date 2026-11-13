@@ -35,6 +35,20 @@ public static class WindowPlacement
     }
 
     /// <summary>
+    /// Move a janela para o ponto indicado, em pixels físicos, sem mudar o tamanho e
+    /// sem roubar o foco.
+    /// </summary>
+    public static bool MoveTo(IntPtr window, int left, int top)
+        => window != IntPtr.Zero && NativeMethods.SetWindowPos(
+            window,
+            NativeMethods.HWND_TOPMOST,
+            left,
+            top,
+            0,
+            0,
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+
+    /// <summary>
     /// Traz a janela para o primeiro plano.
     /// <para>
     /// O Windows costuma recusar isso para evitar que programas roubem o foco, mas
