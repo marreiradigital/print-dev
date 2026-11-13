@@ -11,7 +11,31 @@ namespace PrintDev.Overlay;
 /// <param name="Region">Retângulo escolhido, em pixels físicos.</param>
 /// <param name="Frozen">A tela congelada no instante em que o seletor abriu.</param>
 /// <param name="Mode">Modo usado, para o nome do arquivo.</param>
-public sealed record OverlayResult(PixelRect Region, FrozenScreen Frozen, CaptureMode Mode);
+/// <param name="Action">O que fazer com o recorte. Só muda pela barra do modo de ajuste.</param>
+public sealed record OverlayResult(
+    PixelRect Region,
+    FrozenScreen Frozen,
+    CaptureMode Mode,
+    OverlayAction Action = OverlayAction.Capturar);
+
+/// <summary>O destino escolhido na barra de ações do modo de ajuste.</summary>
+public enum OverlayAction
+{
+    /// <summary>O caminho normal: grava, copia e avisa.</summary>
+    Capturar,
+
+    /// <summary>Abre o editor de anotação com o recorte.</summary>
+    Anotar,
+
+    /// <summary>Fixa o recorte na tela, sempre por cima, sem gravar.</summary>
+    Fixar,
+
+    /// <summary>Reconhece o texto do recorte e copia.</summary>
+    Texto,
+
+    /// <summary>Grava, copia e envia para a nuvem.</summary>
+    Nuvem,
+}
 
 /// <summary>
 /// Abre o seletor de área e devolve o recorte escolhido.
@@ -35,7 +59,26 @@ public sealed class OverlayCoordinator
     private (int X, int Y) _anchor;
     private bool _hintsShown;
 
-    public OverlayCoordinator(ILogger log) => _log = log.ForContext<OverlayCoordinator>();
+    /// <summary>A alça pega no começo do arrasto, no modo de ajuste.</summary>
+    private SelectionGrip _grip;
+
+    /// <summary>A seleção como estava quando o arrasto começou.</summary>
+    private PixelRect _gripStart;
+
+    public OverlayCoordinator(ILogger log)
+    {
+        _log = log.ForContext<OverlayCoordinator>();
+
+        // Os dois vivem o programa inteiro: esta inscricao nao prende janela nenhuma.
+        // E ela que reposiciona a barra de acoes a cada mudanca da selecao.
+        State.VisualChanged += (_, _) =>
+        {
+            foreach (OverlayWindow window in _windows)
+            {
+                window.SyncActionBar();
+            }
+        };
+    }
 
     /// <summary>Estado compartilhado por todas as janelas do seletor.</summary>
     internal SelectionState State { get; } = new();
@@ -47,7 +90,12 @@ public sealed class OverlayCoordinator
     /// Mostra o seletor e espera a escolha. Devolve <see langword="null"/> se o usuário
     /// cancelar.
     /// </summary>
-    public Task<OverlayResult?> ShowAsync(AppSettings settings)
+    /// <param name="settings">As configurações em vigor.</param>
+    /// <param name="allowActions">
+    /// Se a barra de ações do modo de ajuste aparece. Falso quando quem abriu já sabe o
+    /// destino, como o reconhecimento de texto.
+    /// </param>
+    public Task<OverlayResult?> ShowAsync(AppSettings settings, bool allowActions = true)
     {
         ArgumentNullException.ThrowIfNull(settings);
 
@@ -74,6 +122,7 @@ public sealed class OverlayCoordinator
         _targets = WindowEnumerator.Snapshot(_frozen.Bounds);
 
         ResetState(settings);
+        State.ActionsAllowed = allowActions;
 
         _completion = new TaskCompletionSource<OverlayResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -172,6 +221,9 @@ public sealed class OverlayCoordinator
         State.MagnifierZoom = settings.Capture.MagnifierZoom;
         State.Cursor = VirtualDesktop.CursorPosition();
         State.PickingColor = false;
+        State.Adjusting = false;
+        State.ActionsAllowed = false;
+        _grip = SelectionGrip.None;
 
         // As dicas aparecem uma vez por sessao: na segunda captura elas ja seriam ruido.
         State.ShowHints = !_hintsShown;
@@ -189,7 +241,13 @@ public sealed class OverlayCoordinator
         (int x, int y) = position;
         State.Cursor = (x, y);
 
-        if (State.IsDragging)
+        if (State.IsDragging && _grip != SelectionGrip.None)
+        {
+            // Modo de ajuste: a alca pega no comeco decide o que o arrasto muda.
+            State.Selection = SelectionGrips.Drag(
+                _gripStart, _grip, x - _anchor.X, y - _anchor.Y, _frozen?.Bounds ?? PixelRect.Empty);
+        }
+        else if (State.IsDragging)
         {
             State.Selection = PixelRect
                 .FromPoints(_anchor.X, _anchor.Y, x, y)
@@ -208,9 +266,15 @@ public sealed class OverlayCoordinator
         // Onde o botao foi apertado, e nao onde o cursor esta agora: veja MessagePosition.
         _anchor = VirtualDesktop.MessagePosition();
         State.Cursor = _anchor;
+        _gripStart = State.Selection;
+        _grip = State.Adjusting && State.HasSelection
+            ? SelectionGrips.HitTest(State.Selection, _anchor.X, _anchor.Y, GripTolerance(_anchor.X, _anchor.Y))
+            : SelectionGrip.None;
         State.IsDragging = true;
         State.ShowHints = false;
-        _log.Debug("Arrasto iniciado em {X},{Y}", _anchor.X, _anchor.Y);
+        _log.Debug(
+            "Arrasto iniciado em {X},{Y}; ajuste={Ajuste} alca={Alca} selecao={Selecao}",
+            _anchor.X, _anchor.Y, State.Adjusting, _grip, State.Selection);
     }
 
     /// <summary>
@@ -234,6 +298,37 @@ public sealed class OverlayCoordinator
         bool wasClick = Math.Abs(x - _anchor.X) < clickThreshold && Math.Abs(y - _anchor.Y) < clickThreshold;
         _log.Debug("Arrasto terminou em {X},{Y}; selecao {Selecao}", x, y, State.Selection);
 
+        if (_grip != SelectionGrip.None)
+        {
+            // Terminou de mover ou redimensionar: continua no modo de ajuste.
+            _grip = SelectionGrip.None;
+            return;
+        }
+
+        if (State.Adjusting)
+        {
+            // No modo de ajuste, arrastar fora faz outra selecao, e clicar fora nao
+            // desfaz a que existia. Nada e capturado sem confirmar.
+            if (wasClick)
+            {
+                State.Selection = _gripStart;
+                State.HasSelection = !_gripStart.IsEmpty;
+            }
+
+            return;
+        }
+
+        if (!wasClick && !State.Selection.IsEmpty
+            && (System.Windows.Input.Keyboard.Modifiers & System.Windows.Input.ModifierKeys.Shift) != 0)
+        {
+            // Shift ao soltar: a selecao fica na tela, com alcas, ate confirmar. Sem o
+            // Shift continua como sempre foi - soltar captura na hora.
+            State.Adjusting = true;
+            State.ShowHints = false;
+            _log.Debug("Modo de ajuste em {Selecao}", State.Selection);
+            return;
+        }
+
         if (wasClick)
         {
             State.HasSelection = false;
@@ -248,6 +343,7 @@ public sealed class OverlayCoordinator
     /// <summary>Troca o modo de seleção.</summary>
     internal void SetMode(CaptureMode mode)
     {
+        State.Adjusting = false;
         State.Mode = mode;
         State.HasSelection = false;
         State.Selection = PixelRect.Empty;
@@ -275,10 +371,88 @@ public sealed class OverlayCoordinator
     /// <summary>Confirma a seleção que estiver em vigor.</summary>
     internal void ConfirmCurrent() => Confirm(State.Effective);
 
+    /// <summary>Confirma a seleção com o destino escolhido na barra de ações.</summary>
+    internal void ConfirmWith(OverlayAction action) => Confirm(State.Effective, action);
+
+    /// <summary>
+    /// Duplo clique dentro da seleção, no modo de ajuste, confirma. Devolve se confirmou.
+    /// </summary>
+    internal bool ConfirmByDoubleClick()
+    {
+        (int x, int y) = VirtualDesktop.MessagePosition();
+
+        if (!State.Adjusting || !State.HasSelection || !State.Selection.Contains(x, y))
+        {
+            return false;
+        }
+
+        ConfirmCurrent();
+        return true;
+    }
+
+    /// <summary>
+    /// A alça sob o cursor, para a janela escolher o ponteiro. Durante um arrasto vale a
+    /// que foi pega no começo, mesmo que o cursor já tenha saído de cima dela.
+    /// </summary>
+    internal SelectionGrip GripUnderCursor()
+    {
+        if (State.IsDragging)
+        {
+            return _grip;
+        }
+
+        if (!State.Adjusting || !State.HasSelection)
+        {
+            return SelectionGrip.None;
+        }
+
+        (int x, int y) = State.Cursor;
+        return SelectionGrips.HitTest(State.Selection, x, y, GripTolerance(x, y));
+    }
+
+    /// <summary>
+    /// O monitor onde a barra de ações aparece: o do canto inferior direito da seleção,
+    /// que é onde a mão está ao terminar o arrasto. Se esse canto cair no buraco entre
+    /// dois monitores, vale outro canto, e por fim o monitor do cursor.
+    /// </summary>
+    internal IntPtr ActionBarMonitor()
+    {
+        PixelRect selection = State.Selection;
+        (int X, int Y)[] corners =
+        [
+            (selection.Right - 1, selection.Bottom - 1),
+            (selection.Left, selection.Bottom - 1),
+            (selection.Right - 1, selection.Top),
+            (selection.Left, selection.Top),
+            State.Cursor,
+        ];
+
+        foreach ((int x, int y) in corners)
+        {
+            MonitorInfo? monitor = _windows.Select(w => w.Monitor).FirstOrDefault(m => m.Bounds.Contains(x, y));
+            if (monitor is not null)
+            {
+                return monitor.Handle;
+            }
+        }
+
+        return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// Folga para pegar uma alça, em pixels físicos: seis unidades de tela no monitor do
+    /// ponto, para a alça ser igualmente fácil de pegar em qualquer escala.
+    /// </summary>
+    private int GripTolerance(int x, int y)
+    {
+        double scale = _windows.Select(w => w.Monitor).FirstOrDefault(m => m.Bounds.Contains(x, y))?.ScaleX ?? 1;
+        return (int)Math.Round(6 * scale);
+    }
+
     /// <summary>
     /// Fecha o seletor devolvendo o recorte. Um retângulo vazio conta como cancelamento.
     /// </summary>
-    internal void Confirm(PixelRect region)
+    internal void Confirm(PixelRect region, OverlayAction action = OverlayAction.Capturar)
     {
         if (_completion is null || _frozen is null)
         {
@@ -296,7 +470,7 @@ public sealed class OverlayCoordinator
         CaptureMode mode = State.Mode;
         FrozenScreen frozen = _frozen;
         Close();
-        _completion?.TrySetResult(new OverlayResult(clipped, frozen, mode));
+        _completion?.TrySetResult(new OverlayResult(clipped, frozen, mode, action));
         _completion = null;
     }
 
@@ -331,6 +505,7 @@ public sealed class OverlayCoordinator
     {
         if (State.HasSelection)
         {
+            State.Adjusting = false;
             State.HasSelection = false;
             State.Selection = PixelRect.Empty;
             UpdateHover();

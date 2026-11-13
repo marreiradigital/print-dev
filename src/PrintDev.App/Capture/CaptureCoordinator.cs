@@ -184,6 +184,31 @@ public sealed class CaptureCoordinator
             _lastRegion = chosen.Region;
             CapturedImage cropped = chosen.Frozen.Crop(chosen.Region);
 
+            switch (chosen.Action)
+            {
+                case OverlayAction.Anotar:
+                    Annotate(cropped, active);
+                    return;
+
+                case OverlayAction.Fixar:
+                    // Fixar e para olhar enquanto se trabalha: nao grava nem mexe na area
+                    // de transferencia. Quem quiser o arquivo usa Copiar.
+                    new PinnedWindow(cropped, cropped.Bounds).Show();
+                    _log.Debug("Recorte fixado na tela");
+                    return;
+
+                case OverlayAction.Texto:
+                    await CopyTextFromAsync(cropped).ConfigureAwait(true);
+                    return;
+
+                case OverlayAction.Nuvem:
+                    // Grava e copia como qualquer captura, e o aviso que acabou de nascer
+                    // e o que mostra o envio e o link.
+                    Deliver(cropped, ModeName(chosen.Mode), active);
+                    _toasts.SendToCloud(_history.Latest, cropped.Bounds);
+                    return;
+            }
+
             if (_settings.Current.Save.PostCaptureAction == PostCaptureAction.Anotar)
             {
                 // O editor JA grava e publica ao terminar; entregar antes salvaria duas
@@ -287,14 +312,30 @@ public sealed class CaptureCoordinator
     {
         try
         {
-            OverlayResult? chosen = await _overlay.ShowAsync(_settings.Current).ConfigureAwait(true);
+            // Sem barra de acoes: o destino ja foi escolhido pelo atalho de texto.
+            OverlayResult? chosen = await _overlay.ShowAsync(_settings.Current, allowActions: false).ConfigureAwait(true);
 
             if (chosen is null)
             {
                 return;
             }
 
-            CapturedImage cropped = chosen.Frozen.Crop(chosen.Region);
+            await CopyTextFromAsync(chosen.Frozen.Crop(chosen.Region)).ConfigureAwait(true);
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha ao reconhecer texto");
+        }
+    }
+
+    /// <summary>
+    /// Reconhece o texto de um recorte e copia. Serve ao atalho de texto e ao botão Texto
+    /// da barra do modo de ajuste.
+    /// </summary>
+    private async Task CopyTextFromAsync(CapturedImage cropped)
+    {
+        try
+        {
             OcrResult result = await _ocr.RecognizeAsync(cropped).ConfigureAwait(true);
 
             if (!result.HasText)

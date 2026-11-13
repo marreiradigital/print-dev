@@ -127,6 +127,43 @@
             </ui:Stack>
         </Border>
 
+        <!--
+            Barra de acoes do modo de ajuste. Fica num Canvas para ser posicionada junto da
+            selecao, em unidades da propria janela; aparece so no monitor que o
+            coordenador escolher.
+        -->
+        <Canvas x:Name="ActionLayer">
+            <Border x:Name="ActionBar"
+                    CornerRadius="{StaticResource Radius.LG}"
+                    Padding="{StaticResource Pad.Toolbar}"
+                    Background="{DynamicResource Brush.Surface.Elevated}"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource Brush.Border.Subtle}"
+                    Effect="{StaticResource Shadow.Floating}"
+                    Cursor="Arrow"
+                    Visibility="Collapsed">
+                <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.ToolbarItems}">
+                    <!-- As dimensoes moram aqui no modo de ajuste: o selo de sempre ficaria
+                         no mesmo lugar da barra. -->
+                    <TextBlock x:Name="ActionDimensions"
+                               Style="{StaticResource Type.Mono}"
+                               Foreground="{DynamicResource Brush.Text.Secondary}"
+                               VerticalAlignment="Center"
+                               Margin="10,0,6,0" />
+                    <Button x:Name="ActionCopy" Style="{StaticResource Button.Primary}" Height="32"
+                            Content="Copiar" ToolTip="Grava, copia e avisa (Enter)" />
+                    <Button x:Name="ActionAnnotate" Style="{StaticResource Button.Ghost}" Height="32"
+                            Content="Anotar" ToolTip="Abre o editor com o recorte (A)" />
+                    <Button x:Name="ActionPin" Style="{StaticResource Button.Ghost}" Height="32"
+                            Content="Fixar" ToolTip="Deixa o recorte na tela, sempre por cima, sem gravar (F)" />
+                    <Button x:Name="ActionText" Style="{StaticResource Button.Ghost}" Height="32"
+                            Content="Texto" ToolTip="Reconhece o texto do recorte e copia (T)" />
+                    <Button x:Name="ActionCloud" Style="{StaticResource Button.Ghost}" Height="32"
+                            Content="Nuvem" ToolTip="Grava, copia e envia, com link de 48 horas (N)" />
+                </ui:Stack>
+            </Border>
+        </Canvas>
+
         <!-- Dicas de teclado, no primeiro uso da sessao. -->
         <Border x:Name="Hints"
                 VerticalAlignment="Bottom"
@@ -139,7 +176,7 @@
                 Visibility="Collapsed">
             <TextBlock Style="{StaticResource Type.Small}"
                        Foreground="{DynamicResource Brush.Text.Secondary}"
-                       Text="Arraste para selecionar · Tab troca o modo · clique captura a janela · Esc cancela" />
+                       Text="Arraste para selecionar · Shift ao soltar ajusta antes de capturar · clique captura a janela · Tab troca o modo · Esc cancela" />
         </Border>
     </Grid>
 </Window>

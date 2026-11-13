@@ -54,6 +54,12 @@ public partial class OverlayWindow : Window
             Toolbar.Visibility = Visibility.Collapsed;
         }
 
+        ActionCopy.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Capturar);
+        ActionAnnotate.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Anotar);
+        ActionPin.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Fixar);
+        ActionText.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Texto);
+        ActionCloud.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Nuvem);
+
         ModeRegion.Checked += (_, _) => coordinator.SetMode(CaptureMode.Regiao);
         ModeWindow.Checked += (_, _) => coordinator.SetMode(CaptureMode.Janela);
         ModeMonitor.Checked += (_, _) => coordinator.SetMode(CaptureMode.Monitor);
@@ -91,6 +97,68 @@ public partial class OverlayWindow : Window
         {
             Toolbar.Visibility = Visibility.Visible;
         }
+    }
+
+    /// <summary>
+    /// Mostra, esconde e posiciona a barra de ações do modo de ajuste.
+    /// <para>
+    /// Fica embaixo da seleção, alinhada à direita, que é onde a mão termina o arrasto.
+    /// Sem espaço embaixo, vai para cima; sem espaço em nenhum dos dois, para dentro da
+    /// seleção. Nunca sai do monitor.
+    /// </para>
+    /// </summary>
+    internal void SyncActionBar()
+    {
+        SelectionState state = _coordinator.State;
+        bool show = state.ShowsActionBar && _coordinator.ActionBarMonitor() == Monitor.Handle;
+
+        if (!show)
+        {
+            ActionBar.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        PixelRect selection = state.Selection;
+        ActionDimensions.Text = $"{selection.Width} × {selection.Height}";
+        ActionBar.Visibility = Visibility.Visible;
+        ActionBar.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+
+        double width = ActionBar.DesiredSize.Width;
+        double height = ActionBar.DesiredSize.Height;
+        const double gap = 8;
+
+        (double left, double top) = Monitor.ToDeviceIndependent(selection.Left, selection.Top);
+        (double right, double bottom) = Monitor.ToDeviceIndependent(selection.Right, selection.Bottom);
+
+        double x = Math.Clamp(right - width, gap, Math.Max(gap, ActualWidth - width - gap));
+        double y = bottom + gap;
+
+        if (y + height > ActualHeight - gap)
+        {
+            y = top - gap - height;
+        }
+
+        if (y < gap)
+        {
+            y = Math.Max(top + gap, bottom - gap - height);
+        }
+
+        Canvas.SetLeft(ActionBar, x);
+        Canvas.SetTop(ActionBar, y);
+    }
+
+    /// <summary>O ponteiro conforme a alça sob ele, no modo de ajuste.</summary>
+    private void SyncCursor()
+    {
+        Cursor = _coordinator.GripUnderCursor() switch
+        {
+            SelectionGrip.Inside => Cursors.SizeAll,
+            SelectionGrip.Left or SelectionGrip.Right => Cursors.SizeWE,
+            SelectionGrip.Top or SelectionGrip.Bottom => Cursors.SizeNS,
+            SelectionGrip.TopLeft or SelectionGrip.BottomRight => Cursors.SizeNWSE,
+            SelectionGrip.TopRight or SelectionGrip.BottomLeft => Cursors.SizeNESW,
+            _ => Cursors.Cross,
+        };
     }
 
     /// <summary>Reflete o modo escolhido em outra janela, sem disparar o evento de volta.</summary>
@@ -136,6 +204,7 @@ public partial class OverlayWindow : Window
         // janela, as coordenadas do evento sao relativas a ela e ficam negativas ou
         // maiores que o monitor. A verdade fisica esta no cursor do sistema.
         _coordinator.PointerMoved();
+        SyncCursor();
     }
 
     /// <inheritdoc/>
@@ -146,6 +215,13 @@ public partial class OverlayWindow : Window
         if (_coordinator.State.PickingColor)
         {
             _coordinator.ConfirmColor();
+            return;
+        }
+
+        // Duplo clique dentro da selecao confirma, no modo de ajuste. Sem isto o segundo
+        // clique comecaria um arrasto de mover.
+        if (e.ClickCount == 2 && _coordinator.ConfirmByDoubleClick())
+        {
             return;
         }
 
@@ -199,6 +275,23 @@ public partial class OverlayWindow : Window
 
             case Key.Enter:
                 _coordinator.ConfirmCurrent();
+                break;
+
+            // As letras da barra de acoes, so com ela na tela.
+            case Key.A when _coordinator.State.ShowsActionBar:
+                _coordinator.ConfirmWith(OverlayAction.Anotar);
+                break;
+
+            case Key.F when _coordinator.State.ShowsActionBar:
+                _coordinator.ConfirmWith(OverlayAction.Fixar);
+                break;
+
+            case Key.T when _coordinator.State.ShowsActionBar:
+                _coordinator.ConfirmWith(OverlayAction.Texto);
+                break;
+
+            case Key.N when _coordinator.State.ShowsActionBar:
+                _coordinator.ConfirmWith(OverlayAction.Nuvem);
                 break;
 
             case Key.Tab:

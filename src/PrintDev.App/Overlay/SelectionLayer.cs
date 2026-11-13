@@ -188,7 +188,13 @@ public sealed class SelectionLayer : FrameworkElement
         if (!effective.IsEmpty)
         {
             DrawSelectionFrame(context, hole);
-            DrawDimensionBadge(context, effective, hole, full);
+
+            // Com a barra de acoes na tela, as dimensoes vao dentro dela: o selo
+            // ficaria exatamente no mesmo lugar.
+            if (!_state.ShowsActionBar)
+            {
+                DrawDimensionBadge(context, effective, hole, full);
+            }
 
             if (!_state.IsDragging && _state.HasSelection)
             {

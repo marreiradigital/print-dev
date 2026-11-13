@@ -120,13 +120,27 @@ recortar; solte e a captura já está salva e na área de transferência.
 
 | Gesto | O que faz |
 |---|---|
-| Arrastar | Recorta a região |
+| Arrastar | Recorta a região e captura ao soltar |
+| Arrastar e soltar **com `Shift`** | Entra no **modo de ajuste**: a seleção fica na tela até você confirmar |
 | Clique simples | Captura a janela sob o cursor |
 | `Tab` ou `1` `2` `3` `4` | Troca entre Região, Janela, Monitor e Tudo |
-| Setas | Movem a seleção 1 px · com `Shift`, 10 px · com `Ctrl`, redimensionam |
 | Roda do mouse | Ajusta a ampliação da lupa |
 | `Enter` | Confirma · `Esc` limpa a seleção e, sem seleção, cancela |
 | Botão direito | Cancela |
+
+### Modo de ajuste
+
+Para quando o recorte precisa sair exato. Soltar o mouse com `Shift` deixa a seleção na tela,
+com alças e uma barra de ações junto dela:
+
+| Gesto | O que faz |
+|---|---|
+| Arrastar uma alça | Redimensiona por aquele canto ou borda |
+| Arrastar por dentro | Move a seleção |
+| Arrastar fora | Começa outra seleção, ainda no modo de ajuste |
+| Setas | Movem 1 px · com `Shift`, 10 px · com `Ctrl`, redimensionam |
+| `Enter` ou duplo clique dentro | Captura, como sempre |
+| **Anotar** `A` · **Fixar** `F` · **Texto** `T` · **Nuvem** `N` | Os outros destinos da barra: abrir no editor, fixar na tela sem gravar, copiar o texto reconhecido, enviar e copiar o link |
 
 A lupa mostra a grade de pixels, marca a célula exata sob o cursor e lê a cor em HEX
 junto com a coordenada.

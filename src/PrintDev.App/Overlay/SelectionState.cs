@@ -27,6 +27,8 @@ public sealed class SelectionState : INotifyPropertyChanged
     private bool _showMagnifier = true;
     private bool _showHints = true;
     private bool _pickingColor;
+    private bool _adjusting;
+    private bool _actionsAllowed;
 
     /// <inheritdoc/>
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -99,6 +101,29 @@ public sealed class SelectionState : INotifyPropertyChanged
         get => _pickingColor;
         set => Set(ref _pickingColor, value);
     }
+
+    /// <summary>
+    /// Modo de ajuste: a seleção ficou na tela depois de soltar o mouse com Shift, com
+    /// alças para mover e redimensionar, e só é capturada ao confirmar.
+    /// </summary>
+    public bool Adjusting
+    {
+        get => _adjusting;
+        set => Set(ref _adjusting, value);
+    }
+
+    /// <summary>
+    /// Se a barra de ações (Copiar, Anotar, Fixar, Texto, Nuvem) vale nesta abertura. No
+    /// reconhecimento de texto ela não aparece: o destino já foi escolhido pelo atalho.
+    /// </summary>
+    public bool ActionsAllowed
+    {
+        get => _actionsAllowed;
+        set => Set(ref _actionsAllowed, value);
+    }
+
+    /// <summary>A barra de ações está na tela agora.</summary>
+    public bool ShowsActionBar => Adjusting && ActionsAllowed && HasSelection && !IsDragging;
 
     /// <summary>Se a faixa de dicas de teclado aparece.</summary>
     public bool ShowHints
