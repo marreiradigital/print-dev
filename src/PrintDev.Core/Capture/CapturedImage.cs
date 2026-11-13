@@ -97,6 +97,117 @@ public sealed class CapturedImage
     }
 
     /// <summary>
+    /// Reduz a imagem para caber num quadrado de <paramref name="maxSide"/> pixels,
+    /// mantendo a proporção. Nunca amplia: imagem que já cabe volta ela mesma.
+    /// <para>
+    /// Cada pixel do resultado é a <b>média de toda a área</b> que ele cobre na origem,
+    /// com peso fracionário nas bordas. É o filtro que não perde detalhe nem cria
+    /// serrilhado ao reduzir muito — texto de terminal reduzido continua legível como
+    /// mancha, em vez de virar ruído.
+    /// </para>
+    /// <para>
+    /// Feito aqui, sobre os bytes, e não com <c>TransformedBitmap</c>: aquele é
+    /// preguiçoso e guarda a imagem de origem inteira para reduzir na hora de desenhar.
+    /// Uma "miniatura" do histórico segurava assim a captura completa em memória nativa.
+    /// </para>
+    /// </summary>
+    public CapturedImage Downscale(int maxSide)
+    {
+        if (maxSide < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxSide), maxSide, "O lado máximo precisa ser positivo.");
+        }
+
+        double factor = (double)maxSide / Math.Max(Width, Height);
+        if (factor >= 1.0)
+        {
+            return this;
+        }
+
+        int targetWidth = Math.Max(1, (int)Math.Round(Width * factor));
+        int targetHeight = Math.Max(1, (int)Math.Round(Height * factor));
+
+        double spanX = (double)Width / targetWidth;
+        double spanY = (double)Height / targetHeight;
+        double area = spanX * spanY;
+
+        var result = new byte[targetWidth * targetHeight * BytesPerPixel];
+
+        // Uma linha acumulada por vez, e nao a imagem intermediaria inteira: a memoria
+        // extra fica do tamanho de uma linha da origem, seja qual for a captura.
+        float[] row = System.Buffers.ArrayPool<float>.Shared.Rent(Width * BytesPerPixel);
+
+        try
+        {
+            for (int targetY = 0; targetY < targetHeight; targetY++)
+            {
+                Array.Clear(row, 0, Width * BytesPerPixel);
+
+                double top = targetY * spanY;
+                double bottom = top + spanY;
+                int firstRow = (int)top;
+                int lastRow = Math.Min(Height - 1, (int)Math.Ceiling(bottom) - 1);
+
+                for (int sourceY = firstRow; sourceY <= lastRow; sourceY++)
+                {
+                    float weight = (float)(Math.Min(sourceY + 1, bottom) - Math.Max(sourceY, top));
+                    if (weight <= 0)
+                    {
+                        continue;
+                    }
+
+                    ReadOnlySpan<byte> source = Pixels.AsSpan(sourceY * Stride, Stride);
+                    for (int index = 0; index < source.Length; index++)
+                    {
+                        row[index] += source[index] * weight;
+                    }
+                }
+
+                int output = targetY * targetWidth * BytesPerPixel;
+
+                for (int targetX = 0; targetX < targetWidth; targetX++)
+                {
+                    double left = targetX * spanX;
+                    double right = left + spanX;
+                    int firstColumn = (int)left;
+                    int lastColumn = Math.Min(Width - 1, (int)Math.Ceiling(right) - 1);
+
+                    float blue = 0, green = 0, red = 0, alpha = 0;
+
+                    for (int sourceX = firstColumn; sourceX <= lastColumn; sourceX++)
+                    {
+                        float weight = (float)(Math.Min(sourceX + 1, right) - Math.Max(sourceX, left));
+                        if (weight <= 0)
+                        {
+                            continue;
+                        }
+
+                        int at = sourceX * BytesPerPixel;
+                        blue += row[at] * weight;
+                        green += row[at + 1] * weight;
+                        red += row[at + 2] * weight;
+                        alpha += row[at + 3] * weight;
+                    }
+
+                    result[output] = ToByte(blue / area);
+                    result[output + 1] = ToByte(green / area);
+                    result[output + 2] = ToByte(red / area);
+                    result[output + 3] = ToByte(alpha / area);
+                    output += BytesPerPixel;
+                }
+            }
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<float>.Shared.Return(row);
+        }
+
+        return new CapturedImage(result, new PixelRect(Bounds.Left, Bounds.Top, targetWidth, targetHeight));
+    }
+
+    private static byte ToByte(double value) => (byte)Math.Clamp((int)Math.Round(value), 0, 255);
+
+    /// <summary>
     /// Preenche uma área com preto opaco. Serve para apagar os buracos do desktop
     /// virtual, onde o Windows devolve lixo por não haver monitor nenhum.
     /// </summary>

@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Configuration;
@@ -130,21 +129,16 @@ public sealed class CaptureHistory
     /// megabytes, e o histórico guarda vinte delas por padrão. A miniatura é congelada
     /// para poder ser usada de qualquer thread.
     /// </para>
+    /// <para>
+    /// A redução acontece nos bytes, ANTES de virar bitmap. A versão anterior usava um
+    /// <c>TransformedBitmap</c> sobre a imagem inteira — e ele guarda a origem para
+    /// reduzir só na hora de desenhar, então cada miniatura segurava a captura completa
+    /// em memória nativa: vinte telas cheias para mostrar vinte ícones de 72 pixels.
+    /// </para>
     /// </summary>
-    private static BitmapSource CreateThumbnail(CapturedImage image, int maxSide)
+    internal static BitmapSource CreateThumbnail(CapturedImage image, int maxSide)
     {
         int side = Math.Clamp(maxSide, 48, 512);
-        double scale = Math.Min(1.0, (double)side / Math.Max(image.Width, image.Height));
-
-        BitmapSource source = image.ToBitmapSource();
-
-        if (scale >= 1.0)
-        {
-            return source;
-        }
-
-        var scaled = new TransformedBitmap(source, new ScaleTransform(scale, scale));
-        scaled.Freeze();
-        return scaled;
+        return image.Downscale(side).ToBitmapSource();
     }
 }
