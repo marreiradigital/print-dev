@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Bootstrap;
 using PrintDev.Capture;
 using PrintDev.Notifications;
+using PrintDev.Overlay;
 using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
@@ -141,6 +142,7 @@ public partial class App : Application
         });
 
         StartUpdates(_services);
+        WarmOverlaySoon(_services);
 
         _log.Information("Print Dev pronto");
 
@@ -150,6 +152,26 @@ public partial class App : Application
         Dispatcher.BeginInvoke(
             System.Windows.Threading.DispatcherPriority.ApplicationIdle,
             new Action(WorkingSet.ReleaseSoon));
+    }
+
+    /// <summary>
+    /// Aquece o seletor alguns segundos depois de subir, com o programa já quieto: a
+    /// primeira abertura do dia deixa de pagar sozinha o custo de primeiro uso.
+    /// </summary>
+    private static void WarmOverlaySoon(ServiceProvider services)
+    {
+        var timer = new System.Windows.Threading.DispatcherTimer(System.Windows.Threading.DispatcherPriority.ApplicationIdle)
+        {
+            Interval = TimeSpan.FromSeconds(4),
+        };
+
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            services.GetRequiredService<OverlayCoordinator>().Warm();
+        };
+
+        timer.Start();
     }
 
     /// <summary>

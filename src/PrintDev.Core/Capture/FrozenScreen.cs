@@ -59,6 +59,10 @@ public sealed class FrozenScreen
         }
     }
 
+    /// <summary>Uma tela preta do tamanho indicado. Serve para aquecer o seletor.</summary>
+    public static FrozenScreen Blank(PixelRect bounds)
+        => FromPixels(new byte[bounds.Width * bounds.Height * CapturedImage.BytesPerPixel], bounds);
+
     /// <summary>Cria a partir de uma captura já em memória. Serve aos testes.</summary>
     internal static FrozenScreen FromImage(CapturedImage image) => FromPixels(image.Pixels, image.Bounds);
 

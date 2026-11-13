@@ -161,6 +161,9 @@ public partial class OverlayWindow : Window
         };
     }
 
+    /// <summary>Mostra a barra de modos sem pegar o foco. Serve ao aquecimento.</summary>
+    internal void ShowToolbar() => Toolbar.Visibility = Visibility.Visible;
+
     /// <summary>Reflete o modo escolhido em outra janela, sem disparar o evento de volta.</summary>
     internal void SyncMode(CaptureMode mode)
     {

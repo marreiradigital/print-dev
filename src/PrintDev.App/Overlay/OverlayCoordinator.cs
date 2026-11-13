@@ -59,6 +59,9 @@ public sealed class OverlayCoordinator
     private (int X, int Y) _anchor;
     private bool _hintsShown;
 
+    /// <summary>Se o seletor já foi aquecido nesta sessão.</summary>
+    private bool _warmed;
+
     /// <summary>A alça pega no começo do arrasto, no modo de ajuste.</summary>
     private SelectionGrip _grip;
 
@@ -106,6 +109,10 @@ public sealed class OverlayCoordinator
             return _completion.Task;
         }
 
+        // O tempo de cada etapa vai para o log de depuracao: e o caminho entre apertar a
+        // tecla e ver a tela escurecer, e e por ele que se sabe onde cortar.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
         IReadOnlyList<MonitorInfo> monitors = VirtualDesktop.Enumerate();
         if (monitors.Count == 0)
         {
@@ -116,10 +123,12 @@ public sealed class OverlayCoordinator
         // 1. Congelar a tela ANTES de qualquer janela nossa aparecer. Sem isso o seletor
         //    se captura, e o que o usuario recorta nao e o que ele estava vendo.
         _frozen = GdiScreenCapture.FreezeAllMonitors(monitors);
+        long frozenAt = clock.ElapsedMilliseconds;
 
         // 2. Fotografar as janelas tambem antes: com o overlay na tela, perguntar quem
         //    esta sob o cursor devolveria sempre o proprio overlay.
         _targets = WindowEnumerator.Snapshot(_frozen.Bounds);
+        long targetsAt = clock.ElapsedMilliseconds;
 
         ResetState(settings);
         State.ActionsAllowed = allowActions;
@@ -135,12 +144,76 @@ public sealed class OverlayCoordinator
             window.Show();
         }
 
+        long windowsAt = clock.ElapsedMilliseconds;
+
         // Só a janela do monitor sob o cursor recebe foco: é ela que vai processar o
         // teclado, e ativar todas faria as janelas brigarem entre si pelo primeiro plano.
-        _windows.FirstOrDefault(w => w.Monitor.Handle == active?.Handle)?.TakeFocus();
+        OverlayWindow? focused = _windows.FirstOrDefault(w => w.Monitor.Handle == active?.Handle);
+        focused?.TakeFocus();
+
+        if (focused is not null)
+        {
+            focused.ContentRendered += (_, _) => _log.Debug(
+                "Seletor na tela em {Total} ms: congelar {Congelar} ms, janelas-alvo {Alvos} ms, criar {Criar} ms, primeiro quadro {Quadro} ms",
+                clock.ElapsedMilliseconds,
+                frozenAt,
+                targetsAt - frozenAt,
+                windowsAt - targetsAt,
+                clock.ElapsedMilliseconds - windowsAt);
+        }
 
         _log.Debug("Seletor aberto em {Quantidade} monitor(es)", _windows.Count);
         return _completion.Task;
+    }
+
+    /// <summary>
+    /// Abre uma janela do seletor fora da tela, deixa desenhar um quadro e fecha.
+    /// <para>
+    /// A primeira abertura da sessão pagava sozinha o que só acontece uma vez: ler o
+    /// XAML da janela, compilar o código dela e criar o dispositivo Direct3D. Medido —
+    /// 354 ms até a tela escurecer, contra 145 ms nas aberturas seguintes. Aquecer logo
+    /// depois de subir tira esse custo do primeiro PrtSc do dia.
+    /// </para>
+    /// <para>
+    /// A memória que isso ocupa é a mesma que o primeiro PrtSc ocuparia de qualquer
+    /// jeito; aqui ela só é ocupada mais cedo.
+    /// </para>
+    /// </summary>
+    public void Warm()
+    {
+        if (_warmed || _completion is not null || _colorCompletion is not null)
+        {
+            return;
+        }
+
+        _warmed = true;
+
+        // Longe de qualquer monitor: a janela existe e desenha, mas ninguem a ve. Do
+        // tamanho do monitor principal, porque e preparar superficies e texturas desse
+        // tamanho que pesa no primeiro quadro; uma janela minuscula so aquecia metade.
+        PixelRect primary = VirtualDesktop.Enumerate().FirstOrDefault(m => m.IsPrimary)?.Bounds
+                            ?? new PixelRect(0, 0, 1920, 1080);
+        var offscreen = new PixelRect(-32000, -32000, primary.Width, primary.Height);
+        var monitor = new MonitorInfo(IntPtr.Zero, "aquecimento", offscreen, offscreen, 96, 96, false);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+
+        // O cursor "dentro" da janela faz a camada desenhar a mira e a lupa, com o HEX em
+        // fonte mono: e o primeiro uso de cada fonte que pesa no primeiro quadro. Nenhum
+        // seletor esta aberto, e a abertura de verdade redefine tudo isto.
+        State.Cursor = (offscreen.Left + (offscreen.Width / 2), offscreen.Top + (offscreen.Height / 2));
+        State.ShowMagnifier = true;
+        State.PickingColor = false;
+
+        var window = new OverlayWindow(monitor, FrozenScreen.Blank(offscreen), this) { ShowActivated = false };
+        window.ShowToolbar();
+        window.ContentRendered += (_, _) =>
+        {
+            window.CloseOverlay();
+            _log.Debug("Seletor aquecido em {Ms} ms", clock.ElapsedMilliseconds);
+            WorkingSet.ReleaseSoon();
+        };
+
+        window.Show();
     }
 
     /// <summary>
