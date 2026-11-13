@@ -118,6 +118,41 @@ public sealed class CapturePipeline
     }
 
     /// <summary>
+    /// Grava a imagem por cima de um arquivo que já existe, no formato da extensão dele.
+    /// <para>
+    /// É o "Salvar" do editor quando ele foi aberto a partir de uma captura em disco: o
+    /// arquivo continua no mesmo lugar e com o mesmo nome, só que com as marcas. A
+    /// gravação é atômica como qualquer outra — quem estiver lendo o arquivo nunca vê
+    /// metade dele.
+    /// </para>
+    /// </summary>
+    public CaptureResult SaveOver(CapturedImage image, string path)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        ImageFormat format = Path.GetExtension(path).ToLowerInvariant() is ".jpg" or ".jpeg"
+            ? ImageFormat.Jpeg
+            : ImageFormat.Png;
+
+        try
+        {
+            ReadOnlyMemory<byte> encoded = ImageWriter.Encode(image, format, _settings.Current.Save.JpegQuality);
+            ImageWriter.WriteAtomically(path, encoded.Span);
+            _log.Information("Captura regravada em {Caminho} ({Largura}x{Altura})", path, image.Width, image.Height);
+
+            return new CaptureResult(image, path, null) { Png = format == ImageFormat.Png ? encoded : default };
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // O arquivo pode ter sido movido, apagado ou estar aberto em outro programa.
+            // A anotacao nao se perde: vira uma captura nova, com nome proprio.
+            _log.Warning(exception, "Não consegui regravar {Caminho}; salvando como captura nova.", path);
+            return Save(image, "anotada");
+        }
+    }
+
+    /// <summary>
     /// Pastas a tentar, em ordem. A segunda existe para o caso de a configurada ter
     /// sumido — unidade de rede fora do ar, pendrive removido, pasta apagada.
     /// </summary>

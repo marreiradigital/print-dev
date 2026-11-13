@@ -393,11 +393,18 @@ public sealed class CaptureCoordinator
     /// termina aqui, para o comportamento ser o mesmo venha de onde vier.
     /// </summary>
     private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active)
+        => Finish(_pipeline.Save(image, mode, active), publish: _settings.Current.Clipboard.CopyAutomatically);
+
+    /// <summary>
+    /// O que vem depois de a captura estar no disco: área de transferência, histórico,
+    /// aviso. Separado da gravação para o "Salvar" do editor, que grava sem copiar.
+    /// </summary>
+    private CaptureResult Finish(CaptureResult result, bool publish)
     {
-        CaptureResult result = _pipeline.Save(image, mode, active);
+        CapturedImage image = result.Image;
         _last = new LastCapture(result.SavedPath, result.Saved ? null : image, image.Bounds);
 
-        if (_settings.Current.Clipboard.CopyAutomatically)
+        if (publish)
         {
             Publish(result.Image, result.SavedPath, result.Png, _settings.Current.Clipboard.Content);
         }
@@ -421,7 +428,13 @@ public sealed class CaptureCoordinator
     /// <summary>
     /// Abre o editor de anotação com a imagem indicada e entrega o resultado.
     /// </summary>
-    public void Annotate(CapturedImage image, ActiveWindowInfo? active = null)
+    /// <param name="image">A imagem a anotar.</param>
+    /// <param name="active">A janela em primeiro plano quando a captura aconteceu.</param>
+    /// <param name="sourcePath">
+    /// O arquivo de onde a imagem veio, quando o editor foi aberto pelo aviso. É ele que
+    /// o "Salvar" regrava.
+    /// </param>
+    public void Annotate(CapturedImage image, ActiveWindowInfo? active = null, string? sourcePath = null)
     {
         ArgumentNullException.ThrowIfNull(image);
 
@@ -434,9 +447,24 @@ public sealed class CaptureCoordinator
                 return;
             }
 
-            // A imagem anotada segue o MESMO caminho de qualquer captura: grava, publica
-            // e avisa. Um caminho separado aqui produziria comportamento diferente para
-            // a mesma acao, e e assim que nascem as inconsistencias.
+            if (window.ShouldSave)
+            {
+                // Salvar grava e NAO mexe na area de transferencia: quem quis so o arquivo
+                // pode ter outra coisa copiada que nao quer perder. Aberto a partir de um
+                // arquivo, regrava o proprio arquivo, salvo se a configuracao pedir um novo.
+                bool overwrite = sourcePath is not null && !_settings.Current.Annotation.SaveAsNewFile;
+
+                Finish(
+                    overwrite
+                        ? _pipeline.SaveOver(edited, sourcePath!)
+                        : _pipeline.Save(edited, "anotada", active ?? ActiveWindowInfo.Unknown),
+                    publish: false);
+                return;
+            }
+
+            // Copiar segue o MESMO caminho de qualquer captura: grava, publica e avisa.
+            // Um caminho separado aqui produziria comportamento diferente para a mesma
+            // acao, e e assim que nascem as inconsistencias.
             Deliver(edited, "anotada", active ?? ActiveWindowInfo.Unknown);
         }
         catch (Exception exception)
@@ -461,7 +489,7 @@ public sealed class CaptureCoordinator
             return;
         }
 
-        Annotate(image);
+        Annotate(image, sourcePath: path);
     }
 
     /// <summary>

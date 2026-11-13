@@ -177,6 +177,10 @@ public partial class AnnotationWindow : Window
                 Finish(save: false);
                 break;
 
+            case Key.S when control:
+                Finish(save: true);
+                break;
+
             case Key.D1: ToolArrow.IsChecked = true; break;
             case Key.D2: ToolRectangle.IsChecked = true; break;
             case Key.D3: ToolEllipse.IsChecked = true; break;

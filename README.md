@@ -199,7 +199,8 @@ tela cheia em memória passaria de cem megabytes.
 | Marca-texto · Texto · Numeração de passos | `5` `6` `7` |
 | **Esconder** | `8` |
 | Desfazer · Refazer | `Ctrl+Z` · `Ctrl+Y` |
-| Copiar e fechar | `Ctrl+Enter` · `Esc` cancela |
+| Copiar e fechar — grava como captura nova e copia | `Ctrl+Enter` · `Esc` cancela |
+| Salvar — só grava, sem mexer na área de transferência | `Ctrl+S` |
 
 O modelo é vetorial: desfazer é remover o último item da lista, não guardar uma cópia da
 imagem por traço — em captura de tela cheia isso custaria oito megabytes por marca.
@@ -464,7 +465,7 @@ editor já vale, sem reiniciar nada.
 | `salvamento` | Pasta, subpasta por data, formato, qualidade JPEG, modelo de nome |
 | `areaDeTransferencia` | O que copiar, quais programas recebem o caminho e como ele é escrito |
 | `atalhos` | Combinações de teclas globais |
-| `anotacao` | Cor, espessura e estilo de ocultação |
+| `anotacao` | Cor, espessura, estilo de ocultação, e se o **Salvar** regrava o arquivo aberto ou cria um novo (`salvarComoNovoArquivo`) |
 | `historico` · `limpeza` | Capturas recentes e remoção automática das antigas |
 | `avancado` | Nível de log, política ao detectar outro capturador |
 

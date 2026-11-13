@@ -89,6 +89,23 @@ public sealed class CaptureHistory
 
         lock (_gate)
         {
+            // Regravar um arquivo (o Salvar do editor) nao e uma captura a mais: a
+            // entrada antiga, com a miniatura sem as marcas, sai da lista.
+            if (path is not null)
+            {
+                LinkedListNode<CaptureHistoryItem>? node = _items.First;
+                while (node is not null)
+                {
+                    LinkedListNode<CaptureHistoryItem>? next = node.Next;
+                    if (string.Equals(node.Value.Path, path, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _items.Remove(node);
+                    }
+
+                    node = next;
+                }
+            }
+
             _items.AddFirst(item);
 
             while (_items.Count > Math.Max(1, settings.Count))
