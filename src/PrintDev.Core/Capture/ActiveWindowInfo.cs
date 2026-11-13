@@ -42,7 +42,8 @@ public sealed record ActiveWindowInfo(IntPtr Handle, string Title, string Proces
         return length <= 0 ? string.Empty : new string(buffer, 0, length);
     }
 
-    private static string ReadProcessName(IntPtr window)
+    /// <summary>Nome do processo dono de uma janela, sem extensão. Vazio se não der.</summary>
+    internal static string ReadProcessName(IntPtr window)
     {
         try
         {

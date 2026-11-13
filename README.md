@@ -31,8 +31,8 @@ coisa só.
 
 ## A ideia: um `Ctrl+V` que acerta sozinho
 
-> Campo que aceita imagem (WhatsApp Web, Word, Figma, Discord) recebe **a imagem**.
-> Campo que só aceita texto (terminal, `textarea`, editor de código) recebe **o caminho**.
+> Terminal, IDE e editor de código recebem **o caminho**.
+> Todo o resto — WhatsApp Web, Word, Figma, Discord, o histórico do `Win+V` — recebe **a imagem**.
 > Sem escolher nada, sem salvar na mão, sem caçar a pasta.
 
 O arquivo é **sempre** gravado em disco antes de ir para a área de transferência — mesmo
@@ -362,9 +362,10 @@ que **não** podem casar. Um falso positivo ali significa apagar arquivo que voc
 
 ## Como o `Ctrl+V` acerta sozinho
 
-Nenhum programa consegue saber para onde você vai colar. O que resolve isso é publicar
-**vários formatos numa transação só**, na ordem certa — o programa de destino pega o
-primeiro que sabe consumir.
+Nenhum programa consegue saber para onde você vai colar. A imagem é publicada em
+**vários formatos numa transação só**, na ordem certa, e o programa de destino pega o
+primeiro que sabe consumir. O caminho é diferente: ele vai **anunciado, mas sem os
+dados**.
 
 Ordem publicada em cada captura:
 
@@ -374,10 +375,36 @@ Ordem publicada em cada captura:
 | 2 | `CF_DIBV5` | Bitmap com canal alfa: Word, OneNote, editores de imagem |
 | 3 | `CF_DIB` | Bitmap clássico, para quem não lê os anteriores |
 | 4 | `CF_HDROP` + `Preferred DropEffect` + `FileNameW` | Explorador do Windows *(desligado por padrão)* |
-| 5 | `CF_UNICODETEXT` | **O caminho do arquivo** — terminal, `textarea`, editor de código |
+| 5 | `CF_UNICODETEXT` | **O caminho do arquivo — só para terminal, IDE e editor de código** |
 
-O texto vai por último de propósito: é o que sobra para quem não entende imagem. Campo de
-imagem nunca chega nele, porque encontra um formato de imagem antes.
+### O caminho só sai para quem não aceita imagem
+
+Publicar imagem e caminho juntos e deixar o destino escolher não funciona: o histórico do
+`Win+V` e vários programas que aceitam imagem preferem o texto quando ele existe, e colavam
+o caminho no lugar da captura.
+
+Por isso o texto usa a **renderização sob demanda** do Windows. Ele aparece na lista de
+formatos, mas os dados só são produzidos quando alguém os pede — e aí o Windows pergunta
+ao Print Dev, que olha **qual programa pediu**:
+
+| Quem pede o texto | O que recebe |
+|---|---|
+| Terminal, shell, IDE, editor de código (Windows Terminal, PowerShell, VS Code, Cursor, JetBrains, Notepad++…) | O caminho |
+| Qualquer outro — navegador, chat, Office, o histórico do `Win+V` | Nada: fica com a imagem, que já estava lá |
+
+Depois de entregar o caminho a um terminal, o Print Dev republica a captura com o texto de
+novo sob demanda — senão o caminho passaria a valer para o próximo programa onde você
+colasse. A republicação vai marcada para o histórico do `Win+V` ignorar: ela não é uma
+cópia nova sua.
+
+A lista fica em **Configurações → Área de transferência → Programas que recebem o caminho**
+(`areaDeTransferencia.programasQueRecebemCaminho` no `settings.json`): nome do processo,
+como aparece no Gerenciador de Tarefas. Para colar o caminho num programa fora dela, use
+`Ctrl+Shift+V`. Quem preferir o comportamento antigo escolhe *Imagem e caminho para todos*
+em **O que copiar**.
+
+> O Print Dev precisa estar aberto para entregar o caminho. Fechado, o que estiver na área
+> de transferência continua colável como imagem, mas não mais como texto.
 
 `CF_BITMAP`, `CF_TEXT`, `CF_OEMTEXT` e `CF_LOCALE` aparecem depois na lista — são
 **sintetizados pelo próprio Windows** a partir dos que publicamos, e por isso não entram
@@ -435,7 +462,7 @@ editor já vale, sem reiniciar nada.
 | `geral` | Iniciar com o Windows, iniciar elevado, tema |
 | `captura` | Modo padrão do seletor, escurecimento, lupa, cursor, atraso, aviso |
 | `salvamento` | Pasta, subpasta por data, formato, qualidade JPEG, modelo de nome |
-| `areaDeTransferencia` | O que copiar e como o caminho é escrito ao ser colado como texto |
+| `areaDeTransferencia` | O que copiar, quais programas recebem o caminho e como ele é escrito |
 | `atalhos` | Combinações de teclas globais |
 | `anotacao` | Cor, espessura e estilo de ocultação |
 | `historico` · `limpeza` | Capturas recentes e remoção automática das antigas |

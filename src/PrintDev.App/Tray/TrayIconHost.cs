@@ -7,7 +7,6 @@ using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
-using PrintDev.Core.Paths;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Runtime;
 using PrintDev.Core.Updates;
@@ -196,7 +195,6 @@ public sealed class TrayIconHost : IDisposable
     private void Recopy(CaptureHistoryItem item)
     {
         ClipboardSettings clipboard = _settings.Current.Clipboard;
-        string? text = item.Path is null ? null : PathTextFormatter.Format(item.Path, clipboard);
 
         // A imagem vem do ARQUIVO, e nao do historico: o historico guarda so miniaturas,
         // porque vinte capturas de tela cheia em memoria passariam de cem megabytes.
@@ -207,20 +205,17 @@ public sealed class TrayIconHost : IDisposable
         ReadOnlyMemory<byte> png = default;
         CapturedImage? image = item.Path is null ? null : CapturedImage.FromFile(item.Path, out png);
 
-        if (image is null && text is null)
+        if (image is null && item.Path is null)
         {
             _log.Warning("Não há mais nada para recopiar de {Arquivo}", item.DisplayName);
             return;
         }
 
+        // O mesmo conteudo que a captura publicou na hora, pelas mesmas regras: o
+        // caminho so para terminal e IDE, a imagem para o resto.
         _clipboard.Write(
             _messageWindow.Handle,
-            new ClipboardPayload(
-                Image: image,
-                Text: text,
-                FilePath: item.Path,
-                IncludeFileDrop: clipboard.IncludeFileDrop && item.Path is not null,
-                Png: png));
+            ClipboardPayload.ForCapture(image, item.Path, png, clipboard, clipboard.Content));
 
         _log.Information("Recopiado do histórico: {Arquivo}", item.DisplayName);
         WorkingSet.ReleaseSoon();

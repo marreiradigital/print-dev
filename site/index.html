@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <title>Print Dev — capturador de tela para quem programa</title>
-<meta name="description" content="Substitui o PrtSc do Windows: uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir. Campo de imagem recebe a imagem; terminal e campo de texto recebem o caminho do arquivo. Gratuito, sem nuvem, em português.">
+<meta name="description" content="Substitui o PrtSc do Windows: uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir. Terminal e editor de código recebem o caminho do arquivo; todo o resto recebe a imagem. Gratuito, sem nuvem, em português.">
 <link rel="canonical" href="https://printdev.marreira.dev/">
 <meta name="author" content="Paulo Marreira">
 <meta name="theme-color" content="#0a0a0c">
@@ -16,7 +16,7 @@
 <meta property="og:locale" content="pt_BR">
 <meta property="og:url" content="https://printdev.marreira.dev/">
 <meta property="og:title" content="Print Dev — capturador de tela para quem programa">
-<meta property="og:description" content="Uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir. Campo de imagem recebe a imagem; terminal recebe o caminho do arquivo.">
+<meta property="og:description" content="Uma captura, um Ctrl+V, e o destino certo recebe o que sabe consumir. Terminal recebe o caminho do arquivo; todo o resto recebe a imagem.">
 <meta property="og:image" content="https://printdev.marreira.dev/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -41,7 +41,7 @@
   "@type": "SoftwareApplication",
   "name": "Print Dev",
   "alternateName": "PrintDev",
-  "description": "Capturador de tela para desenvolvedores no Windows. Publica a captura em vários formatos na área de transferência ao mesmo tempo, de forma que campos de imagem recebam a imagem e campos de texto recebam o caminho do arquivo.",
+  "description": "Capturador de tela para desenvolvedores no Windows. Publica a captura em vários formatos na área de transferência ao mesmo tempo, de forma que terminais e editores de código recebam o caminho do arquivo e todo o resto receba a imagem.",
   "url": "https://printdev.marreira.dev/",
   "image": "https://printdev.marreira.dev/assets/og.png",
   "applicationCategory": "DeveloperApplication",
@@ -99,8 +99,8 @@
 
       <p class="chamada">
         O Print Dev substitui o <kbd>PrtSc</kbd> do Windows. Você recorta uma vez e cola
-        onde quiser: <strong>campo que aceita imagem recebe a imagem</strong>,
-        <strong>terminal e campo de texto recebem o caminho do arquivo</strong>.
+        onde quiser: <strong>terminal e editor de código recebem o caminho do arquivo</strong>,
+        <strong>todo o resto recebe a imagem</strong> — inclusive o histórico do <kbd>Win</kbd>+<kbd>V</kbd>.
         Sem escolher nada, sem salvar na mão, sem caçar a pasta.
       </p>
 
@@ -163,7 +163,8 @@
             <li>WhatsApp Web, Discord, Slack, Telegram</li>
             <li>Word, PowerPoint, OneNote, Google Docs</li>
             <li>Figma, Excalidraw, Paint, Photoshop, GIMP</li>
-            <li>Qualquer campo de texto rico ou editor de imagem</li>
+            <li>Navegador, campo de texto rico, editor de imagem</li>
+            <li>O histórico do <kbd>Win</kbd>+<kbd>V</kbd>, com a miniatura</li>
           </ul>
           <p class="resultado">[ a imagem, em qualidade original ]</p>
         </div>
@@ -179,9 +180,9 @@
           </h3>
           <ul>
             <li>Windows Terminal, PowerShell, <code>cmd</code></li>
-            <li>VS Code e qualquer editor de código</li>
-            <li><code>&lt;textarea&gt;</code> e <code>&lt;input&gt;</code> em qualquer página</li>
-            <li>Bloco de Notas, barra de endereço, prompt de IA</li>
+            <li>VS Code, Cursor, JetBrains e outros editores de código</li>
+            <li>Bloco de Notas, Notepad++, Sublime Text</li>
+            <li>Fora da lista? <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd> cola o caminho em qualquer lugar</li>
           </ul>
           <p class="resultado">C:\Users\você\Pictures\PrintDev\PrintDev_2026-09-07.png</p>
         </div>
@@ -218,7 +219,7 @@
             <tr>
               <td class="mono">5</td>
               <td class="mono">CF_UNICODETEXT</td>
-              <td><strong>O caminho do arquivo</strong> — terminal, campo de texto, editor de código</td>
+              <td><strong>O caminho do arquivo</strong> — só para terminal, IDE e editor de código</td>
             </tr>
           </tbody>
         </table>

@@ -385,11 +385,37 @@
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="O que copiar"
-                                               Description="Com os dois, o app de destino escolhe: campo de imagem pega a imagem, campo de texto pega o caminho.">
-                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="280"
+                                               Description="A imagem vai para todo programa, inclusive o Win+V. O caminho só sai para os programas da lista abaixo — terminal, IDE, editor de código.">
+                                    <ComboBox Style="{StaticResource Input.Combo}" MinWidth="300"
                                               ItemsSource="{Binding Contents}" SelectedItem="{Binding ClipboardContent}" />
                                 </ui:SettingRow>
                             </ui:Stack>
+                        </ui:Card>
+
+                        <ui:Card Title="Programas que recebem o caminho">
+                            <!-- O mesmo recuo das linhas dos outros cartoes: sem ele o texto e
+                                 a caixa encostam na borda, porque aqui nao ha SettingRow. -->
+                            <Border Padding="{DynamicResource Pad.Row}">
+                                <ui:Stack Spacing="16">
+                                    <ui:Stack Spacing="8">
+                                        <TextBlock Style="{StaticResource Type.Small}" TextWrapping="Wrap"
+                                                   Text="Nome do processo, como aparece no Gerenciador de Tarefas, separado por vírgula. Quem não está aqui recebe a imagem. Para colar o caminho num programa fora da lista, use Ctrl+Shift+V." />
+                                        <!-- O estilo de campo tem recuo vertical zero, feito para uma
+                                             linha so; com varias, a primeira colava no topo. -->
+                                        <TextBox Style="{StaticResource Input.Mono}"
+                                                 HorizontalAlignment="Stretch"
+                                                 Padding="12,10,12,10"
+                                                 MinHeight="96" MaxHeight="176"
+                                                 TextWrapping="Wrap" AcceptsReturn="True"
+                                                 VerticalContentAlignment="Top"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Text="{Binding TextDestinationsText, UpdateSourceTrigger=LostFocus}" />
+                                    </ui:Stack>
+                                    <Button x:Name="RestoreTextDestinationsButton" Style="{StaticResource Button.Ghost}"
+                                            HorizontalAlignment="Left"
+                                            Content="Restaurar a lista padrão" />
+                                </ui:Stack>
+                            </Border>
                         </ui:Card>
 
                         <ui:Card Title="Como o caminho é escrito">

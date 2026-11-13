@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using PrintDev.Core.Clipboard;
 using PrintDev.Core.Cloud;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Infrastructure;
@@ -300,10 +301,27 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     public static IReadOnlyList<Option<ClipboardContent>> Contents { get; } =
     [
-        new(Core.Configuration.ClipboardContent.ImagemECaminho, "Imagem e caminho (o destino escolhe)"),
+        new(Core.Configuration.ClipboardContent.ImagemECaminho, "Imagem, e o caminho só em terminal e IDE"),
+        new(Core.Configuration.ClipboardContent.ImagemECaminhoParaTodos, "Imagem e caminho para todos (o destino escolhe)"),
         new(Core.Configuration.ClipboardContent.Imagem, "Só a imagem"),
         new(Core.Configuration.ClipboardContent.Caminho, "Só o caminho"),
     ];
+
+    /// <summary>
+    /// A lista de programas que recebem o caminho, escrita como se lê: separada por
+    /// vírgula. Aceita também ponto e vírgula, quebra de linha e o <c>.exe</c> no fim.
+    /// </summary>
+    public string TextDestinationsText
+    {
+        get => string.Join(", ", Read(s => s.Clipboard.TextDestinations));
+        set => Write(s => s with { Clipboard = s.Clipboard with { TextDestinations = TextDestination.Parse(value) } });
+    }
+
+    /// <summary>Volta a lista de fábrica, para quem apagou demais.</summary>
+    public void RestoreTextDestinations()
+        => Write(
+            s => s with { Clipboard = s.Clipboard with { TextDestinations = TextDestination.Defaults } },
+            nameof(TextDestinationsText));
 
     public Option<PathTextFormat> PathFormat
     {

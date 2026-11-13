@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using PrintDev.Core.Clipboard;
 
 namespace PrintDev.Core.Configuration;
 
@@ -170,6 +171,13 @@ public sealed record ClipboardSettings
 
     [JsonPropertyName("conteudo")]
     public ClipboardContent Content { get; init; } = ClipboardContent.ImagemECaminho;
+
+    /// <summary>
+    /// Programas que recebem o caminho quando a captura tem imagem e caminho. Nome do
+    /// processo, sem <c>.exe</c>. Todo o resto recebe a imagem.
+    /// </summary>
+    [JsonPropertyName("programasQueRecebemCaminho")]
+    public NameList TextDestinations { get; init; } = TextDestination.Defaults;
 
     [JsonPropertyName("formatoDoCaminho")]
     public PathTextFormat PathFormat { get; init; } = PathTextFormat.Windows;

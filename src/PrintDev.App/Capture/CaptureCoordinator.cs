@@ -6,7 +6,6 @@ using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.History;
 using PrintDev.Core.Hotkeys;
-using PrintDev.Core.Paths;
 using PrintDev.Core.Ocr;
 using PrintDev.Core.Picker;
 using PrintDev.Pin;
@@ -474,32 +473,17 @@ public sealed class CaptureCoordinator
     /// <param name="content">O que publicar.</param>
     private bool Publish(CapturedImage? image, string? savedPath, ReadOnlyMemory<byte> png, ClipboardContent content)
     {
-        ClipboardSettings settings = _settings.Current.Clipboard;
-
-        bool wantsImage = content is ClipboardContent.Imagem or ClipboardContent.ImagemECaminho;
-        bool wantsText = content is ClipboardContent.Caminho or ClipboardContent.ImagemECaminho;
-
-        // Sem arquivo em disco nao ha caminho para colar - mas a imagem ainda vai.
-        // Perder o arquivo e ruim; perder a captura seria pior.
-        string? text = wantsText && savedPath is not null
-            ? PathTextFormatter.Format(savedPath, settings)
-            : null;
-
-        var payload = new ClipboardPayload(
-            Image: wantsImage ? image : null,
-            Text: text,
-            FilePath: savedPath,
-            IncludeFileDrop: settings.IncludeFileDrop && savedPath is not null,
-            Png: wantsImage ? png : default);
+        var payload = ClipboardPayload.ForCapture(image, savedPath, png, _settings.Current.Clipboard, content);
 
         bool published = _clipboard.Write(_messageWindow.Handle, payload);
 
         if (published)
         {
             _log.Information(
-                "Publicado na área de transferência: imagem={Imagem} texto={Texto} arquivo={Arquivo}",
+                "Publicado na área de transferência: imagem={Imagem} texto={Texto} caminhoSoParaTerminalEIde={SobDemanda} arquivo={Arquivo}",
                 payload.Image is not null,
                 payload.Text is not null,
+                payload.TextOnlyFor is not null,
                 payload.IncludeFileDrop);
         }
 

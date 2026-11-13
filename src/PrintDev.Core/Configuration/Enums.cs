@@ -45,8 +45,12 @@ public enum NameCollision
 public enum ClipboardContent
 {
     /// <summary>
-    /// Imagem e caminho ao mesmo tempo, em formatos diferentes. É o coração do
-    /// produto: o app de destino escolhe o que sabe consumir.
+    /// A imagem para todo programa, e o caminho só para os que não aceitam imagem —
+    /// terminal, IDE, editor de código (<see cref="ClipboardSettings.TextDestinations"/>).
+    /// <para>
+    /// O caminho é anunciado sem os dados, e o Print Dev decide na hora em que alguém
+    /// pede o texto, olhando quem pediu. É o coração do produto.
+    /// </para>
     /// </summary>
     ImagemECaminho,
 
@@ -55,6 +59,13 @@ public enum ClipboardContent
 
     /// <summary>Só o texto do caminho.</summary>
     Caminho,
+
+    /// <summary>
+    /// Imagem e caminho publicados juntos para todo programa, e o destino escolhe. Era o
+    /// padrão até a 0.1.4: o Win+V e vários programas que aceitam imagem escolhiam o
+    /// texto e colavam o caminho no lugar da captura.
+    /// </summary>
+    ImagemECaminhoParaTodos,
 }
 
 /// <summary>Como o caminho do arquivo é escrito ao ser colado como texto.</summary>

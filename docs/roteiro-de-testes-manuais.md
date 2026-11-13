@@ -34,15 +34,25 @@ Marque a cada release. Um item que falha aqui vale mais que dez testes verdes.
 | `cmd.exe` | |
 | Bloco de Notas | |
 | VS Code, arquivo `.ts` | |
-| `<textarea>` e `<input>` em qualquer página | |
-| Barra de endereço do Explorador | |
-| Prompt do Claude Code | |
+| Prompt do Claude Code no terminal | |
+
+### Não recebem o caminho (fora da lista de programas)
+
+O caminho só é entregue a quem está em `areaDeTransferencia.programasQueRecebemCaminho`. O log
+registra cada decisão: `Caminho entregue a <processo>` ou `Caminho não entregue a <processo>`.
+
+| Alvo | Esperado |
+|---|---|
+| `<textarea>` e `<input>` no navegador | A imagem, se a página aceitar; senão, nada |
+| Barra de endereço do Explorador | Nada — `Ctrl+Shift+V` cola o caminho |
+| Histórico do `Win+V` | **A miniatura**, nunca o caminho |
+| Colar num terminal e, em seguida, no WhatsApp Web | Caminho no terminal, **imagem** no WhatsApp |
 
 ### Casos de fronteira
 
 - [ ] Explorador, dentro de uma pasta, com `incluirArquivo` **ligado**: cola o arquivo.
 - [ ] O mesmo com `incluirArquivo` **desligado**: não cola nada. *(Provar os dois.)*
-- [ ] `Win+V` e colar do histórico do Windows — anotar o que sai.
+- [ ] `Win+V` mostra a **miniatura** da captura, e colar do histórico entrega a imagem.
 - [ ] Colar num Bloco de Notas aberto **como administrador**.
 - [ ] `Ctrl+Shift+V` num editor de imagem: cola o **caminho**, não a imagem.
 - [ ] `Ctrl+Alt+V` num editor de texto: cola a **imagem**, se ele aceitar.

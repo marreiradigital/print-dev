@@ -49,6 +49,7 @@ public partial class SettingsWindow : Window
         CloseButton.Click += (_, _) => Close();
 
         ChooseFolderButton.Click += (_, _) => ChooseFolder();
+        RestoreTextDestinationsButton.Click += (_, _) => model.RestoreTextDestinations();
         OpenLogsButton.Click += (_, _) => ShellOpen.Folder(_paths.LogsDirectory);
         OpenSettingsFileButton.Click += (_, _) => ShellOpen.File(_paths.SettingsFile);
         RestoreDefaultsButton.Click += (_, _) => _model.RestoreDefaults();

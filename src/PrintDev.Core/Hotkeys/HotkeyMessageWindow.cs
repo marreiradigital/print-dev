@@ -56,6 +56,18 @@ public sealed class HotkeyMessageWindow : IDisposable
     /// </summary>
     public event EventHandler? SystemColorsChanged;
 
+    /// <summary>
+    /// Um programa pediu um formato que publicamos sem os dados. Quem escuta precisa
+    /// responder ali mesmo, antes de o evento voltar: o programa está esperando.
+    /// </summary>
+    public event EventHandler<uint>? ClipboardFormatRequested;
+
+    /// <summary>A área de transferência foi esvaziada e o conteúdo dela deixou de ser nosso.</summary>
+    public event EventHandler? ClipboardEmptied;
+
+    /// <summary>Hora de republicar o caminho sob demanda, depois de entregá-lo.</summary>
+    public event EventHandler? ClipboardRearmRequested;
+
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         switch (msg)
@@ -67,6 +79,23 @@ public sealed class HotkeyMessageWindow : IDisposable
                 // a fila de mensagens da interface fica parada - e capturar a tela leva
                 // dezenas de milissegundos. Quem escuta o evento agenda o trabalho.
                 HotkeyPressed?.Invoke(this, wParam.ToInt32());
+                break;
+
+            // Esta janela e a dona da area de transferencia: e por ela que o Windows pede
+            // os formatos anunciados sem os dados.
+            case NativeMethods.WM_RENDERFORMAT:
+                handled = true;
+                ClipboardFormatRequested?.Invoke(this, unchecked((uint)wParam.ToInt64()));
+                break;
+
+            case NativeMethods.WM_DESTROYCLIPBOARD:
+                handled = true;
+                ClipboardEmptied?.Invoke(this, EventArgs.Empty);
+                break;
+
+            case NativeMethods.WM_APP_REARM_CLIPBOARD:
+                handled = true;
+                ClipboardRearmRequested?.Invoke(this, EventArgs.Empty);
                 break;
 
             case NativeMethods.WM_SETTINGCHANGE:

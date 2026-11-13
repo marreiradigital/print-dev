@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PrintDev.Bootstrap;
 using PrintDev.Capture;
 using PrintDev.Notifications;
+using PrintDev.Core.Clipboard;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
@@ -87,6 +88,10 @@ public partial class App : Application
         settings.Changed += (_, current) => LoggingSetup.ApplyLevel(current.Advanced.LogLevel, _log);
 
         StartTheme(_services, settings);
+
+        // O caminho vai para a area de transferencia sem os dados, e e por esta janela
+        // que o Windows pede o texto na hora da colagem.
+        _services.GetRequiredService<ClipboardWriter>().Attach(_services.GetRequiredService<HotkeyMessageWindow>());
 
         // Programa movido de pasta deixa a entrada de inicializacao apontando para o
         // nada, e o usuario so descobre no proximo logon.

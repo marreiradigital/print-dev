@@ -54,6 +54,37 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr SetClipboardData(uint format, IntPtr memory);
 
+    /// <summary>Lê o bloco de um formato. Só vale com a área aberta.</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    internal static extern IntPtr GetClipboardData(uint format);
+
+    /// <summary>
+    /// A janela que está com a área de transferência aberta agora.
+    /// <para>
+    /// Durante um pedido de renderização sob demanda, é a janela de quem pediu — é
+    /// assim que se descobre para qual programa o texto vai.
+    /// </para>
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern IntPtr GetOpenClipboardWindow();
+
+    /// <summary>Tamanho de um bloco de memória global.</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    internal static extern UIntPtr GlobalSize(IntPtr memory);
+
+    /// <summary>Alguém pediu um formato anunciado sem os dados: hora de renderizá-lo.</summary>
+    internal const int WM_RENDERFORMAT = 0x0305;
+
+    /// <summary>A área de transferência foi esvaziada: o conteúdo deixou de ser nosso.</summary>
+    internal const int WM_DESTROYCLIPBOARD = 0x0307;
+
+    /// <summary>Mensagem própria: republicar depois de entregar o caminho.</summary>
+    internal const int WM_APP_REARM_CLIPBOARD = 0x8000 + 0x51;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PostMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "RegisterClipboardFormatW")]
     internal static extern uint RegisterClipboardFormat(string name);
 
