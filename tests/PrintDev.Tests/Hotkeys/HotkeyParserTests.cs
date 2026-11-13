@@ -151,4 +151,17 @@ public class HotkeyParserTests
     {
         Assert.Equal(esperado, HotkeyParser.NameOf(tecla));
     }
+
+    [Theory]
+    [InlineData(HotkeyModifiers.Control, "Ctrl+…")]
+    [InlineData(HotkeyModifiers.Control | HotkeyModifiers.Shift, "Ctrl+Shift+…")]
+    [InlineData(HotkeyModifiers.Windows | HotkeyModifiers.Alt, "Alt+Win+…")]
+    [InlineData(HotkeyModifiers.None, "")]
+    public void Atalho_pela_metade_mostra_os_modificadores_na_ordem_canonica(HotkeyModifiers modifiers, string expected)
+    {
+        // E o que o campo de gravacao mostra enquanto a pessoa ainda segura os
+        // modificadores. A ordem e a mesma do atalho completo, para nao trocar de lugar
+        // quando a tecla final chega.
+        Assert.Equal(expected, HotkeyParser.FormatPartial(modifiers));
+    }
 }

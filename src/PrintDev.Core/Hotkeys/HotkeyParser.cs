@@ -175,6 +175,16 @@ public static class HotkeyParser
         return string.Join('+', parts);
     }
 
+    /// <summary>
+    /// O começo de um atalho que ainda está sendo apertado: os modificadores e reticências,
+    /// como <c>Ctrl+Shift+…</c>. Vazio sem modificador nenhum.
+    /// </summary>
+    public static string FormatPartial(HotkeyModifiers modifiers)
+    {
+        string full = Format(new HotkeyDefinition(modifiers & ~HotkeyModifiers.NoRepeat, 0x41));
+        return modifiers == HotkeyModifiers.None ? string.Empty : full[..^1] + "…";
+    }
+
     /// <summary>Nome legível de uma tecla virtual.</summary>
     public static string NameOf(uint virtualKey)
     {

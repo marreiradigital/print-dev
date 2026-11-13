@@ -468,30 +468,30 @@
                     <ui:Stack x:Name="PageHotkeys" Spacing="{StaticResource Gap.CardToCard}" Visibility="Collapsed">
                         <ui:Stack Spacing="6">
                             <TextBlock Style="{StaticResource Type.Title}" Text="Atalhos" />
-                            <TextBlock Style="{StaticResource Type.Small}"
-                                       Text="Escreva na forma Ctrl+Shift+PrtSc. Combinação reservada pelo Windows é recusada com o motivo." />
+                            <TextBlock Style="{StaticResource Type.Small}" TextWrapping="Wrap"
+                                       Text="Clique no campo e aperte a combinação. Esc desiste, Backspace deixa a ação sem atalho. Combinação reservada pelo Windows é recusada com o motivo." />
                         </ui:Stack>
 
                         <ui:Card>
                             <ui:Stack Spacing="0">
                                 <ui:SettingRow Label="Abrir o seletor">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyCapture, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyCapture, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Capturar o monitor atual">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyFullScreen, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyFullScreen, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Capturar a janela ativa">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyActiveWindow, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyActiveWindow, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Repetir a última região">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyRepeatLastRegion, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyRepeatLastRegion, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                             </ui:Stack>
                         </ui:Card>
@@ -499,13 +499,13 @@
                         <ui:Card Title="Forçar o formato ao colar">
                             <ui:Stack Spacing="0">
                                 <ui:SettingRow Label="Colar como caminho">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyPasteAsPath, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyPasteAsPath, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Colar como imagem">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyPasteAsImage, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyPasteAsImage, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                             </ui:Stack>
                         </ui:Card>
@@ -513,25 +513,25 @@
                         <ui:Card Title="Ferramentas">
                             <ui:Stack Spacing="0">
                                 <ui:SettingRow Label="Conta-gotas de cor">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyColorPicker, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyColorPicker, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Reconhecer texto na tela">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyOcr, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyOcr, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Desfazer a última captura"
                                                Description="Manda o arquivo para a Lixeira, tira do histórico e limpa a área de transferência. Funciona mesmo com o aviso já fora da tela.">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeyUndoLastCapture, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeyUndoLastCapture, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                                 <Border Style="{StaticResource Row.Divider}" />
                                 <ui:SettingRow Label="Enviar a última captura para a nuvem"
                                                Description="Publica e copia o link de 48 horas. O aviso some em segundos; sem este atalho, perdê-lo obrigaria a capturar tudo de novo.">
-                                    <TextBox Style="{StaticResource Input.Mono}" Width="200"
-                                             Text="{Binding HotkeySendToCloud, UpdateSourceTrigger=LostFocus}" />
+                                    <ui:HotkeyBox Style="{StaticResource Input.Mono}" Width="240"
+                                                Text="{Binding HotkeySendToCloud, UpdateSourceTrigger=Explicit}" />
                                 </ui:SettingRow>
                             </ui:Stack>
                         </ui:Card>

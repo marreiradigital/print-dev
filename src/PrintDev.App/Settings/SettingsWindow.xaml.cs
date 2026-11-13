@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using PrintDev.Controls;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Infrastructure;
 using PrintDev.Core.Maintenance;
@@ -24,6 +25,7 @@ public partial class SettingsWindow : Window
     private readonly HotkeyManager _hotkeys;
     private readonly CleanupService _cleanup;
     private UIElement[] _pages = [];
+    private int _recordings;
 
     internal SettingsWindow(
         SettingsViewModel model, IAppPaths paths, HotkeyManager hotkeys, CleanupService cleanup)
@@ -72,6 +74,78 @@ public partial class SettingsWindow : Window
         SimulateCleanupButton.Click += (_, _) => SimulateCleanup();
 
         Loaded += (_, _) => RefreshHotkeyWarning();
+
+        WireHotkeyRecorders();
+    }
+
+    /// <summary>
+    /// Solta os atalhos globais enquanto um campo de atalho grava.
+    /// <para>
+    /// Atalho registrado é engolido pelo Windows antes de chegar a qualquer janela: sem
+    /// soltar, apertar <c>PrtSc</c> no campo abriria o seletor em vez de ser gravado.
+    /// </para>
+    /// </summary>
+    private void WireHotkeyRecorders()
+    {
+        foreach (HotkeyBox box in Descendants<HotkeyBox>(PageHotkeys))
+        {
+            box.RecordingStarted += (_, _) =>
+            {
+                _recordings++;
+                _hotkeys.Suspend();
+            };
+
+            box.RecordingEnded += (_, _) =>
+            {
+                if (_recordings == 0)
+                {
+                    return;
+                }
+
+                _recordings--;
+                _hotkeys.Resume();
+
+                // O atalho novo e registrado por quem escuta a mudanca das configuracoes,
+                // numa fila de prioridade normal. O aviso de conflito so e conferido
+                // depois dela, senao mostraria o resultado do atalho anterior.
+                Dispatcher.BeginInvoke(RefreshHotkeyWarning, System.Windows.Threading.DispatcherPriority.Background);
+            };
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+
+        // Fechar o painel no meio de uma gravacao nao pode deixar o programa sem atalho.
+        while (_recordings > 0)
+        {
+            _recordings--;
+            _hotkeys.Resume();
+        }
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject root)
+        where T : DependencyObject
+    {
+        foreach (object child in LogicalTreeHelper.GetChildren(root))
+        {
+            if (child is not DependencyObject node)
+            {
+                continue;
+            }
+
+            if (node is T match)
+            {
+                yield return match;
+            }
+
+            foreach (T nested in Descendants<T>(node))
+            {
+                yield return nested;
+            }
+        }
     }
 
     /// <inheritdoc/>

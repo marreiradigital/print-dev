@@ -28,6 +28,8 @@ public sealed class HotkeyManager : IDisposable
     private readonly ILogger _log;
     private readonly Dictionary<int, HotkeyAction> _actionsById = [];
     private readonly Dictionary<HotkeyAction, HotkeyRegistration> _registrations = [];
+    private HotkeySettings? _settings;
+    private int _suspensions;
     private bool _disposed;
 
     public HotkeyManager(HotkeyMessageWindow window, ILogger log)
@@ -63,6 +65,14 @@ public sealed class HotkeyManager : IDisposable
         ArgumentNullException.ThrowIfNull(settings);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        _settings = settings;
+
+        if (_suspensions > 0)
+        {
+            // Suspenso: guarda o que pediram e registra quando voltar.
+            return;
+        }
+
         UnregisterAll();
 
         foreach ((HotkeyAction action, string text) in Enumerate(settings))
@@ -72,6 +82,39 @@ public sealed class HotkeyManager : IDisposable
 
         int ok = _registrations.Values.Count(r => r.Registered);
         _log.Information("Atalhos registrados: {Registrados} de {Total}", ok, _registrations.Count);
+    }
+
+    /// <summary>
+    /// Solta todos os atalhos até <see cref="Resume"/>.
+    /// <para>
+    /// É o que deixa gravar um atalho apertando as teclas no painel. Um atalho registrado
+    /// é engolido pelo Windows antes de chegar a qualquer janela: sem soltar, apertar
+    /// <c>PrtSc</c> no campo abriria o seletor em vez de ser gravado.
+    /// </para>
+    /// </summary>
+    public void Suspend()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_suspensions++ == 0)
+        {
+            UnregisterAll();
+            _log.Debug("Atalhos suspensos");
+        }
+    }
+
+    /// <summary>Registra de novo o que estava valendo antes de <see cref="Suspend"/>.</summary>
+    public void Resume()
+    {
+        if (_disposed || _suspensions == 0)
+        {
+            return;
+        }
+
+        if (--_suspensions == 0 && _settings is not null)
+        {
+            Apply(_settings);
+        }
     }
 
     /// <summary>Tenta registrar de novo apenas o que falhou antes.</summary>

@@ -84,7 +84,10 @@ e execute. Leva menos de um minuto.
 | `Ctrl+Alt+Z` | **Desfaz a última captura** — arquivo para a Lixeira, histórico e área de transferência limpos |
 | `Ctrl+Alt+U` | Envia a última captura para a nuvem e copia um link de 48 horas |
 
-Todos configuráveis, e mudar vale na hora. Escreva na forma `Ctrl+Shift+PrtSc` — as
+Todos configuráveis, e mudar vale na hora. No painel, **clique no campo e aperte a
+combinação** — `Esc` desiste, `Backspace` deixa a ação sem atalho, e os atalhos do Print
+Dev ficam soltos enquanto o campo grava, para o `PrtSc` chegar até ele em vez de abrir o
+seletor. No `settings.json`, escreva na forma `Ctrl+Shift+PrtSc` — as
 grafias usuais são aceitas (`PrintScreen`, `Print`, `Esc`/`Escape`, `PgUp`, setas em
 português), sem diferenciar maiúsculas. Combinação que o Windows reserva (`Win+L`,
 `Win+Shift+S`, `Ctrl+Alt+Del`, `Win+Tab`) é recusada **com o motivo escrito**, em vez de
