@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Buffers;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
 using PrintDev.Core.Capture;
@@ -13,11 +14,16 @@ namespace PrintDev.Core.Clipboard;
 /// <param name="Text">Texto do caminho. Nulo publica só a imagem.</param>
 /// <param name="FilePath">Caminho real em disco, para o formato de arquivo.</param>
 /// <param name="IncludeFileDrop">Publicar também o formato de arquivo.</param>
+/// <param name="Png">
+/// O PNG da imagem, quando já existe — o que acabou de ir para o disco, ou o próprio
+/// arquivo. Vazio faz a imagem ser codificada aqui.
+/// </param>
 public sealed record ClipboardPayload(
     CapturedImage? Image,
     string? Text,
     string? FilePath = null,
-    bool IncludeFileDrop = false);
+    bool IncludeFileDrop = false,
+    ReadOnlyMemory<byte> Png = default);
 
 /// <summary>
 /// Publica a captura em vários formatos numa única transação.
@@ -189,13 +195,17 @@ public sealed class ClipboardWriter
     {
         if (payload.Image is { } image)
         {
-            // 1. PNG: o mais fiel, e o primeiro que o Chromium procura.
-            blocks.Add((PngFormat.Value, Allocate(ImageWriter.EncodePng(image))));
+            // 1. PNG: o mais fiel, e o primeiro que o Chromium procura. Reaproveita o
+            //    que ja foi codificado para o disco, quando houver.
+            ReadOnlyMemory<byte> png = payload.Png.IsEmpty ? ImageWriter.EncodePng(image) : payload.Png;
+            blocks.Add((PngFormat.Value, Allocate(png.Span)));
 
-            // 2. e 3. Bitmap com e sem canal alfa, para quem nao le PNG.
+            // 2. e 3. Bitmap com e sem canal alfa, para quem nao le PNG. Escritos direto
+            //    na memoria que vai para o sistema, sem um array intermediario do
+            //    tamanho da captura.
             //    CF_BITMAP nao entra: o sistema o sintetiza sozinho a partir destes.
-            blocks.Add((NativeMethods.CF_DIBV5, Allocate(DibBuilder.BuildV5(image))));
-            blocks.Add((NativeMethods.CF_DIB, Allocate(DibBuilder.BuildV3(image))));
+            blocks.Add((NativeMethods.CF_DIBV5, Allocate(DibBuilder.SizeV5(image), image, DibBuilder.WriteV5)));
+            blocks.Add((NativeMethods.CF_DIB, Allocate(DibBuilder.SizeV3(image), image, DibBuilder.WriteV3)));
         }
 
         if (payload.IncludeFileDrop && !string.IsNullOrWhiteSpace(payload.FilePath))
@@ -255,18 +265,7 @@ public sealed class ClipboardWriter
 
     private static IntPtr Allocate(ReadOnlySpan<byte> bytes)
     {
-        IntPtr memory = NativeMethods.GlobalAlloc(NativeMethods.GMEM_MOVEABLE, (UIntPtr)bytes.Length);
-        if (memory == IntPtr.Zero)
-        {
-            throw new OutOfMemoryException("Não consegui reservar memória para a área de transferência.");
-        }
-
-        IntPtr target = NativeMethods.GlobalLock(memory);
-        if (target == IntPtr.Zero)
-        {
-            NativeMethods.GlobalFree(memory);
-            throw new InvalidOperationException("Não consegui travar a memória da área de transferência.");
-        }
+        IntPtr memory = AllocateRaw(bytes.Length, out IntPtr target);
 
         try
         {
@@ -280,6 +279,50 @@ public sealed class ClipboardWriter
             // GlobalUnlock devolve falso quando a contagem chega a zero, e isso NAO e
             // erro. Verificar o retorno aqui levaria a um diagnostico falso.
             NativeMethods.GlobalUnlock(memory);
+        }
+
+        return memory;
+    }
+
+    /// <summary>
+    /// Reserva o bloco e deixa quem sabe o formato escrever direto nele.
+    /// </summary>
+    private static IntPtr Allocate(int size, CapturedImage image, SpanAction<byte, CapturedImage> write)
+    {
+        IntPtr memory = AllocateRaw(size, out IntPtr target);
+
+        try
+        {
+            unsafe
+            {
+                write(new Span<byte>((void*)target, size), image);
+            }
+        }
+        catch
+        {
+            NativeMethods.GlobalUnlock(memory);
+            NativeMethods.GlobalFree(memory);
+            throw;
+        }
+
+        NativeMethods.GlobalUnlock(memory);
+        return memory;
+    }
+
+    /// <summary>Reserva e trava um bloco móvel. Quem chama destrava.</summary>
+    private static IntPtr AllocateRaw(int size, out IntPtr target)
+    {
+        IntPtr memory = NativeMethods.GlobalAlloc(NativeMethods.GMEM_MOVEABLE, (UIntPtr)size);
+        if (memory == IntPtr.Zero)
+        {
+            throw new OutOfMemoryException("Não consegui reservar memória para a área de transferência.");
+        }
+
+        target = NativeMethods.GlobalLock(memory);
+        if (target == IntPtr.Zero)
+        {
+            NativeMethods.GlobalFree(memory);
+            throw new InvalidOperationException("Não consegui travar a memória da área de transferência.");
         }
 
         return memory;

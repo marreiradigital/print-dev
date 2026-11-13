@@ -15,6 +15,17 @@ public sealed record CaptureResult(CapturedImage Image, string? SavedPath, strin
 {
     /// <summary>Verdadeiro quando o arquivo está no disco.</summary>
     public bool Saved => SavedPath is not null;
+
+    /// <summary>
+    /// O PNG já codificado para o arquivo, quando o formato salvo é PNG. Vazio nos
+    /// outros casos.
+    /// <para>
+    /// A área de transferência publica PNG sempre. Quando o arquivo também é PNG, são
+    /// exatamente os mesmos bytes — e codificar uma tela cheia de novo custava o mesmo
+    /// tempo da primeira vez, com a captura esperando para aparecer colável.
+    /// </para>
+    /// </summary>
+    public ReadOnlyMemory<byte> Png { get; init; }
 }
 
 /// <summary>
@@ -66,6 +77,11 @@ public sealed class CapturePipeline
         string extension = ImageWriter.ExtensionOf(settings.Save.Format);
         string baseName = FileNameTemplate.Render(settings.Save.NameTemplate, context);
 
+        // Codificar uma vez, fora do laco: a segunda pasta so e tentada quando a
+        // primeira falhou, e a imagem codificada continua a mesma.
+        ReadOnlyMemory<byte> encoded = ImageWriter.Encode(image, settings.Save.Format, settings.Save.JpegQuality);
+        ReadOnlyMemory<byte> png = settings.Save.Format == ImageFormat.Png ? encoded : default;
+
         foreach (string folder in CandidateFolders(settings, when))
         {
             try
@@ -73,7 +89,7 @@ public sealed class CapturePipeline
                 Directory.CreateDirectory(folder);
                 string path = ResolvePath(folder, baseName, extension, settings.Save.OnNameCollision, when);
 
-                ImageWriter.Save(image, path, settings.Save.Format, settings.Save.JpegQuality);
+                ImageWriter.WriteAtomically(path, encoded.Span);
                 _log.Information("Captura salva em {Caminho} ({Largura}x{Altura})", path, image.Width, image.Height);
 
                 if (image.IsCompletelyBlack())
@@ -85,7 +101,7 @@ public sealed class CapturePipeline
                         "A captura saiu inteiramente preta. Costuma ser conteúdo protegido contra cópia.");
                 }
 
-                return new CaptureResult(image, path, null);
+                return new CaptureResult(image, path, null) { Png = png };
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -98,7 +114,7 @@ public sealed class CapturePipeline
 
         // A imagem volta mesmo assim: quem chamou ainda pode coloca-la na area de
         // transferencia. Perder o arquivo e ruim; perder a captura e inaceitavel.
-        return new CaptureResult(image, null, message);
+        return new CaptureResult(image, null, message) { Png = png };
     }
 
     /// <summary>

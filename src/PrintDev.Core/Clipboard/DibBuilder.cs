@@ -33,17 +33,33 @@ internal static class DibBuilder
     {
         ArgumentNullException.ThrowIfNull(image);
 
+        byte[] buffer = new byte[SizeV3(image)];
+        WriteV3(buffer, image);
+        return buffer;
+    }
+
+    /// <summary>Quantos bytes o <c>CF_DIB</c> desta imagem ocupa.</summary>
+    public static int SizeV3(CapturedImage image)
+        => Marshal.SizeOf<BITMAPINFOHEADER>() + image.Pixels.Length;
+
+    /// <summary>
+    /// Escreve o <c>CF_DIB</c> direto no destino — que, na prática, é a memória que vai
+    /// para a área de transferência. Montar antes num array e copiar depois custava um
+    /// bloco do tamanho da captura inteira a cada publicação.
+    /// </summary>
+    public static void WriteV3(Span<byte> destination, CapturedImage image)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
         int headerSize = Marshal.SizeOf<BITMAPINFOHEADER>();
-        byte[] buffer = new byte[headerSize + image.Pixels.Length];
 
         // Altura POSITIVA: de baixo para cima. E o arranjo que os programas antigos
         // esperam da area de transferencia; o de cima para baixo (altura negativa) e
         // mal suportado e aparece invertido em varios deles.
         BITMAPINFOHEADER header = BITMAPINFOHEADER.Create(image.Width, image.Height, topDown: false);
-        MemoryMarshal.Write(buffer, in header);
+        MemoryMarshal.Write(destination, in header);
 
-        CopyBottomUp(image, buffer.AsSpan(headerSize));
-        return buffer;
+        CopyBottomUp(image, destination[headerSize..]);
     }
 
     /// <summary>
@@ -59,8 +75,21 @@ internal static class DibBuilder
     {
         ArgumentNullException.ThrowIfNull(image);
 
+        byte[] buffer = new byte[SizeV5(image)];
+        WriteV5(buffer, image);
+        return buffer;
+    }
+
+    /// <summary>Quantos bytes o <c>CF_DIBV5</c> desta imagem ocupa.</summary>
+    public static int SizeV5(CapturedImage image)
+        => Marshal.SizeOf<BITMAPV5HEADER>() + image.Pixels.Length;
+
+    /// <summary>Escreve o <c>CF_DIBV5</c> direto no destino, pelo mesmo motivo do V3.</summary>
+    public static void WriteV5(Span<byte> destination, CapturedImage image)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
         int headerSize = Marshal.SizeOf<BITMAPV5HEADER>();
-        byte[] buffer = new byte[headerSize + image.Pixels.Length];
 
         var header = new BITMAPV5HEADER
         {
@@ -83,9 +112,8 @@ internal static class DibBuilder
             Intent = LCS_GM_IMAGES,
         };
 
-        MemoryMarshal.Write(buffer, in header);
-        CopyBottomUp(image, buffer.AsSpan(headerSize));
-        return buffer;
+        MemoryMarshal.Write(destination, in header);
+        CopyBottomUp(image, destination[headerSize..]);
     }
 
     /// <summary>

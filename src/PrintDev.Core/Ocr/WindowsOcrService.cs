@@ -1,9 +1,9 @@
 ﻿using PrintDev.Core.Capture;
-using PrintDev.Core.Storage;
 using Serilog;
 using Windows.Globalization;
 using Windows.Graphics.Imaging;
 using Windows.Media.Ocr;
+using Windows.Security.Cryptography;
 using Windows.Storage.Streams;
 
 namespace PrintDev.Core.Ocr;
@@ -109,29 +109,27 @@ public sealed class WindowsOcrService
     /// <summary>
     /// Converte a captura para o formato que o motor aceita.
     /// <para>
-    /// O caminho passa por PNG em memória de propósito. O atalho aparente — copiar os
-    /// bytes direto para o buffer do <c>SoftwareBitmap</c> — dependia da extensão
-    /// <c>AsBuffer</c>, que <b>não existe mais</b> no .NET moderno. Codificar e decodificar
-    /// custa alguns milissegundos e é totalmente suportado.
+    /// Os bytes vão direto para o <c>SoftwareBitmap</c>, sem passar por PNG. A extensão
+    /// <c>AsBuffer</c>, que seria o caminho óbvio, não existe mais no .NET moderno; o
+    /// <c>CryptographicBuffer</c> produz o mesmo <c>IBuffer</c> e é parte do Windows.
+    /// Codificar e decodificar um PNG só para atravessar essa fronteira custava duas
+    /// passadas inteiras sobre a imagem.
+    /// </para>
+    /// <para>
+    /// Alfa pré-multiplicado e direto são idênticos aqui: a captura é sempre opaca.
     /// </para>
     /// </summary>
-    private static async Task<SoftwareBitmap> ToSoftwareBitmapAsync(CapturedImage image)
+    private static Task<SoftwareBitmap> ToSoftwareBitmapAsync(CapturedImage image)
     {
-        byte[] png = ImageWriter.EncodePng(image);
+        IBuffer buffer = CryptographicBuffer.CreateFromByteArray(image.Pixels);
 
-        var stream = new InMemoryRandomAccessStream();
+        SoftwareBitmap bitmap = SoftwareBitmap.CreateCopyFromBuffer(
+            buffer,
+            BitmapPixelFormat.Bgra8,
+            image.Width,
+            image.Height,
+            BitmapAlphaMode.Premultiplied);
 
-        using (var writer = new DataWriter(stream))
-        {
-            writer.WriteBytes(png);
-            await writer.StoreAsync();
-            await writer.FlushAsync();
-            writer.DetachStream();
-        }
-
-        stream.Seek(0);
-
-        BitmapDecoder decoder = await BitmapDecoder.CreateAsync(stream);
-        return await decoder.GetSoftwareBitmapAsync();
+        return Task.FromResult(bitmap);
     }
 }

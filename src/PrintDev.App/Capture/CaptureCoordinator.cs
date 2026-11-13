@@ -472,7 +472,8 @@ public sealed class CaptureCoordinator
             Image: wantsImage ? result.Image : null,
             Text: text,
             FilePath: result.SavedPath,
-            IncludeFileDrop: settings.IncludeFileDrop && result.SavedPath is not null);
+            IncludeFileDrop: settings.IncludeFileDrop && result.SavedPath is not null,
+            Png: wantsImage ? result.Png : default);
 
         bool published = _clipboard.Write(_messageWindow.Handle, payload);
 

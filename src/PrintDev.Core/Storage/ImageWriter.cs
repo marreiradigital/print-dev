@@ -35,6 +35,20 @@ public static class ImageWriter
     public static void Save(CapturedImage image, string path, ImageFormat format, int jpegQuality)
     {
         ArgumentNullException.ThrowIfNull(image);
+        WriteAtomically(path, Encode(image, format, jpegQuality).Span);
+    }
+
+    /// <summary>
+    /// Grava bytes já codificados no caminho indicado, de forma atômica.
+    /// <para>
+    /// O arquivo aparece inteiro ou não aparece. Isso importa porque o caminho vai para
+    /// a área de transferência logo depois, e o programa de destino pode abrir o arquivo
+    /// em milissegundos — um PNG pela metade viraria uma imagem quebrada na tela de
+    /// quem colou.
+    /// </para>
+    /// </summary>
+    public static void WriteAtomically(string path, ReadOnlySpan<byte> encoded)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         string? directory = Path.GetDirectoryName(path);
@@ -49,7 +63,7 @@ public static class ImageWriter
         {
             using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                Encode(image, format, jpegQuality).Save(stream);
+                stream.Write(encoded);
                 stream.Flush(flushToDisk: true);
             }
 
@@ -63,6 +77,27 @@ public static class ImageWriter
     }
 
     /// <summary>
+    /// Codifica a imagem em memória, no formato pedido.
+    /// <para>
+    /// Devolve uma janela sobre o buffer do codificador, e não uma cópia dele: a captura
+    /// já passa pelo disco e pela área de transferência, e cada cópia a mais de uma tela
+    /// cheia é mais um bloco grande esperando o coletor.
+    /// </para>
+    /// </summary>
+    public static ReadOnlyMemory<byte> Encode(CapturedImage image, ImageFormat format, int jpegQuality)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+
+        // Captura de tela comprime bem: um quarto dos bytes crus quase sempre basta, e
+        // reservar de uma vez evita a sequencia de buffers dobrando de tamanho.
+        int estimate = Math.Max(64 * 1024, image.Pixels.Length / 4);
+
+        var stream = new MemoryStream(estimate);
+        CreateEncoder(image, format, jpegQuality).Save(stream);
+        return stream.GetBuffer().AsMemory(0, (int)stream.Length);
+    }
+
+    /// <summary>
     /// Codifica a imagem como PNG em memória.
     /// <para>
     /// A área de transferência recebe <b>sempre</b> PNG, mesmo quando o arquivo em disco
@@ -71,16 +106,23 @@ public static class ImageWriter
     /// JPEG da área de transferência.
     /// </para>
     /// </summary>
-    public static byte[] EncodePng(CapturedImage image)
-    {
-        ArgumentNullException.ThrowIfNull(image);
+    public static ReadOnlyMemory<byte> EncodePng(CapturedImage image)
+        => Encode(image, ImageFormat.Png, jpegQuality: 100);
 
-        using var stream = new MemoryStream();
-        Encode(image, ImageFormat.Png, jpegQuality: 100).Save(stream);
-        return stream.ToArray();
-    }
+    /// <summary>
+    /// Verdadeiro quando os bytes começam com a assinatura do PNG.
+    /// <para>
+    /// Serve para reaproveitar o arquivo em disco como está na área de transferência,
+    /// em vez de decodificar e codificar de novo a mesma imagem. A extensão não basta:
+    /// o modelo de nome é do usuário, e nada impede um <c>.png</c> que não é PNG.
+    /// </para>
+    /// </summary>
+    public static bool IsPng(ReadOnlySpan<byte> bytes)
+        => bytes.Length > PngSignature.Length && bytes[..PngSignature.Length].SequenceEqual(PngSignature);
 
-    private static BitmapEncoder Encode(CapturedImage image, ImageFormat format, int jpegQuality)
+    private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+    private static BitmapEncoder CreateEncoder(CapturedImage image, ImageFormat format, int jpegQuality)
     {
         BitmapSource source = image.ToBitmapSource();
 
