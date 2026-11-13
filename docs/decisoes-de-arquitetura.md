@@ -156,3 +156,28 @@ de monitor), 12/11/2026:
 | Memória privada depois do uso | 688 MB, sem voltar | 137 MB |
 | Pico de memória física | 774 MB | 170 MB |
 | Objetos grandes vivos no heap | 287 MB | 0,1 MB |
+
+## 10. O caminho vai sob demanda, só para terminal e IDE
+
+Até a 0.1.4 a captura publicava imagem e caminho juntos, e o programa de destino escolhia — a ideia
+era que campo de imagem acharia a imagem antes. Não funcionou: o histórico do `Win+V` e vários
+programas que aceitam imagem preferem o texto quando ele existe, e colavam o caminho no lugar da
+captura.
+
+Desde a 0.1.5 o texto usa a renderização sob demanda do Windows (`SetClipboardData` com `NULL`). Ele
+aparece na lista de formatos, mas os dados só são produzidos em `WM_RENDERFORMAT`, e aí o programa
+olha **quem pediu**: a janela de `GetOpenClipboardWindow`, ou a janela em primeiro plano quando quem
+pediu abriu a área sem janela. Se o processo dela está em `areaDeTransferencia.programasQueRecebemCaminho`,
+entrega; senão, não entrega nada e o pedinte fica com a imagem.
+
+| Escolha | Por quê |
+|---|---|
+| Republicar depois de entregar | Texto entregue fica valendo para todo mundo, inclusive para o programa de imagem onde a pessoa colar em seguida. A republicação copia os blocos da própria área de transferência e vai marcada com `ExcludeClipboardContentFromMonitorProcessing` e `CanIncludeInClipboardHistory = 0`, para o `Win+V` não registrar uma cópia que a pessoa não fez. |
+| Nome do executável, comparação exata | "Code" não pode aceitar "CodeHelper". O preço: o nome é o do executável, não o do produto — o Antigravity é `Antigravity IDE.exe`, e só um log de verdade mostrou isso. |
+| Uma linha de log por programa e por captura | O Brave lê a área de transferência a cada 0,8 s, e cada leitura chega aqui. |
+| Nada no `WM_RENDERALLFORMATS` | Ao fechar o programa o texto some e a imagem fica: o padrão é imagem. |
+| `Imagem e caminho para todos` continua existindo | Para quem prefere o comportamento antigo, ou usa um programa de texto fora da lista. Para um caso pontual, `Ctrl+Shift+V` cola o caminho em qualquer lugar. |
+
+Medido com processos reais (12/11/2026): leitor fora da lista recebe nada antes e depois de um
+terminal ler, o PowerShell recebe o caminho, a imagem continua lá, e o `svchost` do histórico do
+`Win+V` é recusado.
