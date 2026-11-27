@@ -103,6 +103,7 @@ public sealed class CaptureUndoService
         _history.Remove(item);
 
         bool clipboardLimpo = _clipboard.ClearIfOwned(_messageWindow.Handle, item.Path);
+        _clipboard.RemoveFromHistory(item.Path);
         Undone?.Invoke(this, item);
 
         if (!existia)

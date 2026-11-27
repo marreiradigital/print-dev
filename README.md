@@ -186,13 +186,15 @@ Desfazer é uma operação completa, e não só apagar o arquivo:
 
 | | |
 |---|---|
-| O arquivo | Vai para a **Lixeira**, nunca para o nada |
+| O arquivo | Vai para a **Lixeira**, nunca para o nada. Pasta de rede ou pen drive, que não têm Lixeira: o Windows pergunta antes de apagar de vez |
 | O histórico | Perde a entrada |
-| A área de transferência | É limpa — **só se o conteúdo ainda for nosso** |
+| A área de transferência | É limpa — **só se ainda estiver com esta captura** |
+| O `Win+V` | Perde a miniatura desta captura |
+| O aviso e a colagem forçada | O aviso some e `Ctrl+Shift+V` deixa de colar o caminho dela, venha o Desfazer do aviso, do atalho ou da bandeja |
 
-A conferência de dono da área de transferência não é zelo excessivo: entre a captura e o
-arrependimento você pode ter copiado outra coisa, e apagar isso seria um estrago maior
-que o desfeito. Sem a limpeza, o caminho de um arquivo que agora está na Lixeira
+A conferência da área de transferência não é zelo excessivo: entre a captura e o
+arrependimento você pode ter copiado outra coisa — ou feito outra captura —, e apagar
+isso seria um estrago maior que o desfeito. Sem a limpeza, o caminho de um arquivo que agora está na Lixeira
 continuaria colável.
 
 Se desfazer falhar, o aviso **fica na tela com o motivo escrito**, em vermelho, e para de

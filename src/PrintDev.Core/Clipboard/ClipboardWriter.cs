@@ -169,6 +169,15 @@ public sealed class ClipboardWriter : IDisposable
     private string? _publishedPath;
     private bool _publishedImage;
 
+    /// <summary>
+    /// Os itens que cada captura deixou no histórico do Win+V, pelo arquivo. É o que
+    /// deixa o Desfazer tirar a miniatura de lá: senão, colar pelo Win+V traria de volta a
+    /// captura desfeita.
+    /// </summary>
+    private readonly Dictionary<string, List<string>> _historyItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Queue<string> _historyOrder = new();
+    private const int MaxRememberedCaptures = 40;
+
     /// <summary>A captura está publicada só como imagem, esperando o histórico registrá-la.</summary>
     private bool _awaitingHistory;
     private DateTimeOffset _publishedAt;
@@ -538,11 +547,15 @@ public sealed class ClipboardWriter : IDisposable
         try
         {
             var history = await WinClipboard.GetHistoryItemsAsync();
-            DateTimeOffset newest = history.Items.Count > 0 ? history.Items[0].Timestamp : DateTimeOffset.MinValue;
 
-            if (newest < _publishedAt - HistoryClockSlack)
+            if (history.Items.Count == 0 || history.Items[0].Timestamp < _publishedAt - HistoryClockSlack)
             {
                 return;
+            }
+
+            if (generation == _generation && _publishedPath is { } path)
+            {
+                RememberHistoryItem(path, history.Items[0].Id);
             }
         }
         catch (Exception exception)
@@ -588,6 +601,62 @@ public sealed class ClipboardWriter : IDisposable
             _awaitingHistory = true;
             _historyTimeout!.Interval = AnnounceRetryDelay;
             _historyTimeout.Start();
+        }
+    }
+
+    private void RememberHistoryItem(string path, string id)
+    {
+        if (!_historyItems.TryGetValue(path, out List<string>? ids))
+        {
+            ids = [];
+            _historyItems[path] = ids;
+            _historyOrder.Enqueue(path);
+
+            while (_historyOrder.Count > MaxRememberedCaptures)
+            {
+                _historyItems.Remove(_historyOrder.Dequeue());
+            }
+        }
+
+        ids.Add(id);
+    }
+
+    /// <summary>
+    /// Tira do histórico do Win+V a miniatura que uma captura deixou lá. Parte do
+    /// Desfazer: o arquivo vai para a Lixeira, e a captura não pode continuar colável
+    /// pelo histórico.
+    /// </summary>
+    /// <param name="capturePath">O arquivo da captura desfeita.</param>
+    public void RemoveFromHistory(string? capturePath)
+    {
+        if (capturePath is null || !_historyItems.Remove(capturePath, out List<string>? ids))
+        {
+            return;
+        }
+
+        _ = RemoveFromHistoryAsync(ids);
+    }
+
+    private async Task RemoveFromHistoryAsync(List<string> ids)
+    {
+        try
+        {
+            var history = await WinClipboard.GetHistoryItemsAsync();
+            int removed = 0;
+
+            foreach (var item in history.Items.Where(i => ids.Contains(i.Id)).ToList())
+            {
+                if (WinClipboard.DeleteItemFromHistory(item))
+                {
+                    removed++;
+                }
+            }
+
+            _log.Debug("Itens da captura desfeita tirados do histórico do Win+V: {Quantos}", removed);
+        }
+        catch (Exception exception)
+        {
+            _log.Debug(exception, "Não consegui tirar a captura desfeita do histórico do Win+V.");
         }
     }
 
