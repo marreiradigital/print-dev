@@ -114,8 +114,11 @@ public sealed class ToastHost
 
         while (_visible.Count >= MaxVisible)
         {
-            _visible[0].Dismiss();
-            _visible.RemoveAt(0);
+            // Sai o mais antigo que nao esta esperando nada. Derrubar um aviso no meio de
+            // um envio deixava o link chegar sem ninguem para mostra-lo.
+            ToastWindow oldest = _visible.FirstOrDefault(t => !t.IsHeld) ?? _visible[0];
+            oldest.Dismiss();
+            _visible.Remove(oldest);
         }
 
         var toast = new ToastWindow(item, TimeSpan.FromSeconds(Math.Clamp(capture.ToastSeconds, 1, 30)));

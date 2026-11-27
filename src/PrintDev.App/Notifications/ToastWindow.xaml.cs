@@ -29,6 +29,13 @@ public partial class ToastWindow : Window
 
     private readonly DispatcherTimer _timer;
     private bool _dismissing;
+
+    /// <summary>
+    /// O aviso está esperando algo — o envio terminar, a confirmação, a leitura de uma
+    /// falha — e não pode sumir sozinho. Passar o mouse por cima e sair recomeçava a
+    /// contagem e derrubava o aviso no meio do envio.
+    /// </summary>
+    private bool _hold;
     private Point? _pressedAt;
     private bool _dragging;
 
@@ -98,6 +105,9 @@ public partial class ToastWindow : Window
     /// <summary>Altura ocupada, para o empilhamento.</summary>
     internal double MeasuredHeight => ActualHeight > 0 ? ActualHeight : 132;
 
+    /// <summary>Esperando uma resposta: não sai da tela para dar lugar a outro aviso.</summary>
+    internal bool IsHeld => _hold;
+
     private void OnThumbnailPressed(object sender, MouseButtonEventArgs e)
     {
         _pressedAt = e.GetPosition(ThumbnailFrame);
@@ -162,7 +172,7 @@ public partial class ToastWindow : Window
             _dragging = false;
             _pressedAt = null;
 
-            if (!_dismissing && !IsMouseOver)
+            if (!_dismissing && !_hold && !IsMouseOver)
             {
                 _timer.Start();
             }
@@ -233,7 +243,7 @@ public partial class ToastWindow : Window
     {
         base.OnMouseLeave(e);
 
-        if (!_dismissing)
+        if (!_dismissing && !_hold)
         {
             _timer.Start();
         }
@@ -256,6 +266,7 @@ public partial class ToastWindow : Window
     internal void ShowFailure(string message)
     {
         _timer.Stop();
+        _hold = true;
 
         Headline.Text = message;
         Headline.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Danger");
@@ -277,6 +288,7 @@ public partial class ToastWindow : Window
     internal void ShowNotCopied()
     {
         _timer.Stop();
+        _hold = true;
 
         Headline.Text = Item.Path is null
             ? "Não deu para salvar nem copiar: a área de transferência estava ocupada"
@@ -287,6 +299,8 @@ public partial class ToastWindow : Window
     /// <summary>Desfecho da nova tentativa de copiar.</summary>
     internal void ShowCopyRetried(bool copied, TimeSpan lifetime)
     {
+        _hold = false;
+
         if (copied)
         {
             Headline.Text = Item.Path is null ? "Captura copiada (não deu para salvar)" : "Captura salva e copiada";
@@ -316,6 +330,7 @@ public partial class ToastWindow : Window
     internal void ShowSending()
     {
         _timer.Stop();
+        _hold = true;
 
         Headline.Text = "Enviando para a nuvem…";
         CloudButton.IsEnabled = false;
@@ -332,6 +347,7 @@ public partial class ToastWindow : Window
     internal void AskCloudConfirmation()
     {
         _timer.Stop();
+        _hold = true;
         CloudConfirmationAsked = true;
         _confirmationAskedAt = DateTime.UtcNow;
 
@@ -343,6 +359,8 @@ public partial class ToastWindow : Window
     /// <summary>Mostra o desfecho do envio e reinicia a contagem, com folga para ler.</summary>
     internal void ShowCloudResult(string message, bool success, TimeSpan lifetime)
     {
+        _hold = false;
+
         Headline.Text = message;
 
         if (!success)
