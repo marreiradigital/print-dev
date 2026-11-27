@@ -278,7 +278,9 @@ public sealed class OverlayCoordinator
             return;
         }
 
-        (int x, int y) = VirtualDesktop.CursorPosition();
+        // Onde o botao foi apertado, e nao onde o cursor esta agora: o clique chega
+        // atrasado e o cursor ja andou. Veja VirtualDesktop.MessagePosition.
+        (int x, int y) = VirtualDesktop.MessagePosition();
         Color color = ReadColor(x, y);
 
         Close();
