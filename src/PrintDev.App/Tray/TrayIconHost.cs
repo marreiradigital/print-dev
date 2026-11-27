@@ -180,9 +180,13 @@ public sealed class TrayIconHost : IDisposable
         {
             Header = $"{item.DisplayName}   {item.Width}×{item.Height}",
             Icon = new Image { Source = item.Thumbnail, Width = 32, Height = 22, Stretch = Stretch.UniformToFill },
-            IsEnabled = item.StillExists || item.Path is null,
+            // So da para recopiar o que esta em disco: o historico guarda so a miniatura.
+            // Uma captura que nao chegou ao disco ficava clicavel e o clique nao fazia nada.
+            IsEnabled = item.StillExists,
+            ToolTip = item.Path is null ? "Esta captura não chegou ao disco: não há o que recopiar." : null,
         };
 
+        ToolTipService.SetShowOnDisabled(entry, true);
         entry.Click += (_, _) => Recopy(item);
         return entry;
     }
