@@ -219,12 +219,11 @@ public partial class App : Application
         // sem explicacao semanas depois.
         theme.VerifyFonts();
 
-        // A janela de mensagens que ja existe para os atalhos tambem recebe o aviso de
-        // mudanca de cor do sistema. O programa pode nao ter janela nenhuma visivel
+        // A troca de tema do Windows vem por SystemEvents. A janela de mensagens dos
+        // atalhos (HWND_MESSAGE) nao serve: ela nunca recebe o WM_SETTINGCHANGE, que e
+        // uma mensagem de difusao. O programa pode nao ter janela nenhuma visivel
         // quando o usuario troca o tema do Windows.
-        var messageWindow = services.GetRequiredService<HotkeyMessageWindow>();
-        messageWindow.SystemColorsChanged += (_, _) =>
-            Dispatcher.BeginInvoke(theme.OnSystemColorsChanged);
+        theme.WatchSystem();
 
         settings.Changed += (_, current) =>
             Dispatcher.BeginInvoke(() => theme.Apply(current.General.Theme));

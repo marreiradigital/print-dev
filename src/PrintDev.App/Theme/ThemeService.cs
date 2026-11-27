@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Microsoft.Win32;
 using PrintDev.Core.Configuration;
 using Serilog;
@@ -9,8 +10,15 @@ namespace PrintDev.Theme;
 /// <summary>
 /// Troca o tema em tempo de execução e acompanha o do Windows.
 /// </summary>
-public sealed class ThemeService
+public sealed class ThemeService : IDisposable
 {
+    /// <summary>
+    /// Espera depois do último aviso do Windows antes de reavaliar. Trocar o tema dispara
+    /// uma rajada de avisos (cor, estilo visual, configurações gerais) e uma releitura do
+    /// registro por aviso seria trabalho jogado fora.
+    /// </summary>
+    private static readonly TimeSpan SystemChangeDebounce = TimeSpan.FromMilliseconds(250);
+
     /// <summary>
     /// Posição reservada ao dicionário de tokens de cor em <c>App.xaml</c>.
     /// <para>
@@ -26,6 +34,8 @@ public sealed class ThemeService
 
     private readonly ILogger _log;
     private ThemeMode _requested = ThemeMode.Sistema;
+    private Dispatcher? _dispatcher;
+    private DispatcherTimer? _debounce;
 
     public ThemeService(ILogger log) => _log = log.ForContext<ThemeService>();
 
@@ -49,15 +59,91 @@ public sealed class ThemeService
     }
 
     /// <summary>
+    /// Passa a acompanhar o tema do Windows. Precisa ser chamado na thread de interface.
+    /// <para>
+    /// O aviso vem de <see cref="SystemEvents.UserPreferenceChanged"/>, e não de uma
+    /// janela do programa: o <c>WM_SETTINGCHANGE</c> é uma mensagem de difusão, e janela
+    /// só de mensagens (<c>HWND_MESSAGE</c>, a que guarda os atalhos) nunca recebe
+    /// difusão. Por ali o aviso de troca de tema simplesmente não chegava, e o programa
+    /// só mudava de tema no próximo início.
+    /// </para>
+    /// </summary>
+    public void WatchSystem()
+    {
+        if (_dispatcher is not null)
+        {
+            return;
+        }
+
+        _dispatcher = Application.Current.Dispatcher;
+
+        _debounce = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+        {
+            Interval = SystemChangeDebounce,
+        };
+
+        _debounce.Tick += (_, _) =>
+        {
+            _debounce.Stop();
+            OnSystemColorsChanged();
+        };
+
+        // Evento estatico: quem assina e nunca soltar vira vazamento do objeto inteiro,
+        // e do Dispatcher junto. A saida esta no Dispose.
+        SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+    }
+
+    /// <summary>
+    /// O aviso chega numa thread própria do <see cref="SystemEvents"/>; o trabalho todo
+    /// volta para a thread de interface.
+    /// </summary>
+    private void OnUserPreferenceChanged(object? sender, UserPreferenceChangedEventArgs e)
+    {
+        // O tema claro/escuro chega como "configuracoes gerais"; cor e estilo visual
+        // vem junto em algumas versoes do Windows. O resto (papel de parede, mouse,
+        // teclado...) nao interessa.
+        if (e.Category is not (UserPreferenceCategory.General
+            or UserPreferenceCategory.Color
+            or UserPreferenceCategory.VisualStyle))
+        {
+            return;
+        }
+
+        _dispatcher?.BeginInvoke(() =>
+        {
+            // Reinicia a contagem: o ultimo aviso da rajada e que vale.
+            _debounce?.Stop();
+            _debounce?.Start();
+        });
+    }
+
+    /// <summary>
     /// Reavalia quando o Windows avisa que a cor do sistema mudou. Só faz efeito se o
-    /// usuário escolheu acompanhar o sistema.
+    /// usuário escolheu acompanhar o sistema e se o tema do Windows de fato mudou.
     /// </summary>
     public void OnSystemColorsChanged()
     {
-        if (_requested == ThemeMode.Sistema)
+        if (_requested != ThemeMode.Sistema)
+        {
+            return;
+        }
+
+        // "Configuracoes gerais" muda por centenas de motivos; so troca os tokens (e
+        // loga) quando o tema em si mudou.
+        if (ReadSystemPrefersDark() != IsDark)
         {
             Apply(ThemeMode.Sistema);
         }
+    }
+
+    /// <summary>Solta a assinatura do evento estático do sistema.</summary>
+    public void Dispose()
+    {
+        SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+
+        _debounce?.Stop();
+        _debounce = null;
+        _dispatcher = null;
     }
 
     private void SwapTokens(bool dark)
