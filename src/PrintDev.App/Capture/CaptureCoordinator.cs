@@ -74,6 +74,16 @@ public sealed class CaptureCoordinator
         _settings = settings;
         _undo = undo;
         _log = log.ForContext<CaptureCoordinator>();
+
+        // Desfeita de onde for - aviso, atalho ou bandeja -, a captura deixa de ser a
+        // "ultima": os atalhos de colagem forcada republicariam um arquivo na Lixeira.
+        _undo.Undone += (_, item) =>
+        {
+            if (_last is { } last && string.Equals(last.Path, item.Path, StringComparison.OrdinalIgnoreCase))
+            {
+                _last = null;
+            }
+        };
     }
 
     /// <summary>Executa a ação pedida por um atalho.</summary>
@@ -158,9 +168,8 @@ public sealed class CaptureCoordinator
             return;
         }
 
-        // A captura desfeita deixa de ser a "última": os atalhos de colagem forçada
-        // republicariam um arquivo que agora está na Lixeira.
-        _last = null;
+        // A captura em si sai de _last pelo evento Undone. A regiao tambem: quem desfez
+        // pelo atalho errou o recorte, e repeti-lo seria repetir o erro.
         _lastRegion = PixelRect.Empty;
     }
 

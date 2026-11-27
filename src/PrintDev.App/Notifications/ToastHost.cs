@@ -71,6 +71,16 @@ public sealed class ToastHost
         _cloud = cloud;
         _links = links;
         _log = log.ForContext<ToastHost>();
+
+        // Desfeita pelo atalho ou pela bandeja, o aviso dela nao pode continuar na tela
+        // oferecendo Anotar, Fixar e Copiar caminho de um arquivo que foi para a Lixeira.
+        _undo.Undone += (_, item) =>
+        {
+            foreach (ToastWindow toast in _visible.Where(t => SameCapture(t.Item, item)).ToList())
+            {
+                toast.Dismiss();
+            }
+        };
     }
 
     /// <summary>
@@ -150,6 +160,10 @@ public sealed class ToastHost
 
         return new PixelRect(left, top, physicalWidth, physicalHeight);
     }
+
+    private static bool SameCapture(CaptureHistoryItem a, CaptureHistoryItem b)
+        => ReferenceEquals(a, b)
+           || (a.Path is not null && string.Equals(a.Path, b.Path, StringComparison.OrdinalIgnoreCase));
 
     private void Restack(PixelRect near)
     {

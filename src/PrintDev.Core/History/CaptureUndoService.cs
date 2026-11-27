@@ -46,6 +46,16 @@ public sealed class CaptureUndoService
         _log = log.ForContext<CaptureUndoService>();
     }
 
+    /// <summary>
+    /// Uma captura foi desfeita, venha o pedido de onde vier (aviso, atalho, bandeja).
+    /// <para>
+    /// Quem guarda referência à captura precisa saber: o aviso dela continuaria oferecendo
+    /// "Copiar caminho" de um arquivo na Lixeira, e o atalho de colar como caminho
+    /// colaria um caminho morto no terminal.
+    /// </para>
+    /// </summary>
+    public event EventHandler<CaptureHistoryItem>? Undone;
+
     /// <summary>Desfaz a captura mais recente, se houver alguma.</summary>
     public UndoOutcome UndoLast()
     {
@@ -68,6 +78,7 @@ public sealed class CaptureUndoService
             _history.Remove(item);
             bool limpou = _clipboard.ClearIfOwned(_messageWindow.Handle, capturePath: null);
             _log.Information("Captura sem arquivo removida do histórico.");
+            Undone?.Invoke(this, item);
             return new UndoOutcome(true, "Captura descartada.", limpou);
         }
 
@@ -86,6 +97,7 @@ public sealed class CaptureUndoService
         _history.Remove(item);
 
         bool clipboardLimpo = _clipboard.ClearIfOwned(_messageWindow.Handle, item.Path);
+        Undone?.Invoke(this, item);
 
         _log.Information(
             "Captura desfeita: {Arquivo} foi para a Lixeira (área de transferência limpa: {Limpou})",
