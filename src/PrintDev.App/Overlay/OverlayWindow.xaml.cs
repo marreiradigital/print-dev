@@ -227,6 +227,13 @@ public partial class OverlayWindow : Window
         SyncCursor();
     }
 
+    /// <summary>
+    /// Engole o clique nas barras flutuantes. Os botões já o tratam, mas o preenchimento e
+    /// os vãos entre eles não: o clique subia até a janela e começava um arrasto de
+    /// seleção por baixo da barra.
+    /// </summary>
+    private void SwallowClick(object sender, MouseButtonEventArgs e) => e.Handled = true;
+
     /// <inheritdoc/>
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {

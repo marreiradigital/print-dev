@@ -110,6 +110,8 @@
                 BorderThickness="1"
                 BorderBrush="{DynamicResource Brush.Border.Subtle}"
                 Effect="{StaticResource Shadow.Floating}"
+                Cursor="Arrow"
+                MouseLeftButtonDown="SwallowClick"
                 Visibility="Collapsed">
             <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.ToolbarItems}">
                 <RadioButton x:Name="ModeRegion" Style="{StaticResource ModeButton}"
@@ -141,6 +143,7 @@
                     BorderBrush="{DynamicResource Brush.Border.Subtle}"
                     Effect="{StaticResource Shadow.Floating}"
                     Cursor="Arrow"
+                    MouseLeftButtonDown="SwallowClick"
                     Visibility="Collapsed">
                 <ui:Stack Orientation="Horizontal" Spacing="{StaticResource Gap.ToolbarItems}">
                     <!-- As dimensoes moram aqui no modo de ajuste: o selo de sempre ficaria
