@@ -111,6 +111,70 @@ public class PixelRectTests
     }
 
     [Fact]
+    public void Redimensionar_encostado_na_borda_nao_move_a_esquerda()
+    {
+        // Ctrl+seta direita com a selecao colada na borda: nao ha onde crescer, e a
+        // borda esquerda tem que ficar onde estava (o ClampInside a empurrava para a
+        // esquerda, um pixel por toque).
+        var limites = new PixelRect(0, 0, 1920, 1080);
+        var colada = new PixelRect(1620, 100, 300, 200);
+
+        PixelRect depois = colada.ResizeWithin(1, 0, limites);
+
+        Assert.Equal(colada, depois);
+    }
+
+    [Fact]
+    public void Redimensionar_encostado_embaixo_nao_move_o_topo()
+    {
+        var limites = new PixelRect(0, 0, 1920, 1080);
+        var colada = new PixelRect(100, 880, 300, 200);
+
+        Assert.Equal(colada, colada.ResizeWithin(0, 10, limites));
+    }
+
+    [Fact]
+    public void Redimensionar_cresce_so_ate_a_borda_e_deixa_a_origem_parada()
+    {
+        var limites = new PixelRect(0, 0, 1920, 1080);
+        var selecao = new PixelRect(1800, 1000, 100, 50);
+
+        PixelRect depois = selecao.ResizeWithin(500, 500, limites);
+
+        Assert.Equal(new PixelRect(1800, 1000, 120, 80), depois);
+    }
+
+    [Fact]
+    public void Redimensionar_no_meio_da_tela_soma_ao_tamanho()
+    {
+        var limites = new PixelRect(0, 0, 1920, 1080);
+
+        Assert.Equal(
+            new PixelRect(100, 100, 310, 190),
+            new PixelRect(100, 100, 300, 200).ResizeWithin(10, -10, limites));
+    }
+
+    [Fact]
+    public void Redimensionar_nunca_deixa_menos_de_um_pixel()
+    {
+        var limites = new PixelRect(0, 0, 1920, 1080);
+
+        Assert.Equal(
+            new PixelRect(100, 100, 1, 1),
+            new PixelRect(100, 100, 5, 5).ResizeWithin(-50, -50, limites));
+    }
+
+    [Fact]
+    public void Redimensionar_respeita_limites_que_nao_comecam_na_origem()
+    {
+        // Monitor a esquerda do principal: as coordenadas sao negativas.
+        var limites = new PixelRect(-1920, 0, 3840, 1080);
+        var selecao = new PixelRect(1800, 10, 100, 50);
+
+        Assert.Equal(new PixelRect(1800, 10, 120, 50), selecao.ResizeWithin(500, 0, limites));
+    }
+
+    [Fact]
     public void Contem_outro_retangulo()
     {
         var fora = new PixelRect(0, 0, 100, 100);

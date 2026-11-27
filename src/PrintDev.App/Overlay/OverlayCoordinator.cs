@@ -620,13 +620,7 @@ public sealed class OverlayCoordinator
             return;
         }
 
-        PixelRect resized = State.Selection with
-        {
-            Width = Math.Max(1, State.Selection.Width + dw),
-            Height = Math.Max(1, State.Selection.Height + dh),
-        };
-
-        State.Selection = resized.ClampInside(_frozen.Bounds);
+        State.Selection = State.Selection.ResizeWithin(dw, dh, _frozen.Bounds);
     }
 
     /// <summary>Ajusta a ampliação da lupa.</summary>

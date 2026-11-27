@@ -119,6 +119,31 @@ public readonly record struct PixelRect(int Left, int Top, int Width, int Height
         return new PixelRect(left, top, width, height);
     }
 
+    /// <summary>
+    /// Muda o tamanho pelo canto inferior direito, com a borda esquerda e a superior
+    /// paradas. Largura e altura nunca passam da borda dos limites, nem ficam abaixo de um
+    /// pixel.
+    /// <para>
+    /// Redimensionar não pode passar por <see cref="ClampInside"/>: esse empurra o
+    /// retângulo para dentro, e uma seleção encostada na borda direita que crescesse um
+    /// pixel andaria um pixel para a esquerda em vez de parar.
+    /// </para>
+    /// </summary>
+    /// <param name="dw">Quanto somar à largura. Pode ser negativo.</param>
+    /// <param name="dh">Quanto somar à altura. Pode ser negativo.</param>
+    /// <param name="bounds">A área de onde o retângulo não pode sair.</param>
+    public PixelRect ResizeWithin(int dw, int dh, PixelRect bounds)
+    {
+        int maxWidth = Math.Max(1, bounds.Right - Left);
+        int maxHeight = Math.Max(1, bounds.Bottom - Top);
+
+        return this with
+        {
+            Width = Math.Clamp(Width + dw, 1, maxWidth),
+            Height = Math.Clamp(Height + dh, 1, maxHeight),
+        };
+    }
+
     /// <summary>Garante um tamanho mínimo, crescendo para a direita e para baixo.</summary>
     public PixelRect EnsureMinimum(int minWidth, int minHeight)
         => this with { Width = Math.Max(Width, minWidth), Height = Math.Max(Height, minHeight) };
