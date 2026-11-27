@@ -10,6 +10,8 @@ internal static partial class NativeMethods
     internal const byte VK_CONTROL = 0x11;
     internal const byte VK_SHIFT = 0x10;
     internal const byte VK_MENU = 0x12; // Alt
+    internal const byte VK_LWIN = 0x5B;
+    internal const byte VK_RWIN = 0x5C;
     internal const byte VK_V = 0x56;
 
     internal const uint KEYEVENTF_KEYUP = 0x0002;

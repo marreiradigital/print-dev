@@ -13,31 +13,49 @@ namespace PrintDev.Core.Clipboard;
 /// </summary>
 public static class PasteSender
 {
+    /// <summary>Quanto esperar a pessoa soltar as teclas do atalho antes de colar.</summary>
+    private static readonly TimeSpan ReleaseWait = TimeSpan.FromMilliseconds(600);
+
     /// <summary>
-    /// Manda colar.
+    /// Manda colar assim que a pessoa soltar Shift, Alt e Windows do atalho.
     /// </summary>
     /// <remarks>
     /// A parte delicada é que o usuário <b>ainda está segurando</b> as teclas do atalho
     /// quando isto roda. Se mandássemos o V direto, o programa de destino veria
     /// <c>Ctrl+Shift+V</c> — que em muitos editores é "colar sem formatação" e em
-    /// terminais não é colar nada. Por isso os modificadores presos são soltos antes, e
-    /// devolvidos depois, para o usuário não terminar com uma tecla grudada.
+    /// terminais não é colar nada — ou <c>Win+V</c>, que abre o histórico.
+    /// <para>
+    /// Antes, os modificadores presos eram soltos à força e <b>apertados de novo</b>
+    /// depois. Apertar o Alt de novo, com a pessoa soltando o dela logo em seguida, é um
+    /// toque de Alt sozinho: o programa de destino abria o menu e engolia o que se
+    /// digitava depois. Esperar a pessoa soltar evita mexer no estado das teclas dela;
+    /// só se ela continuar segurando além do tempo é que os modificadores são soltos, e
+    /// nunca reapertados.
+    /// </para>
     /// </remarks>
-    public static void SendPaste()
+    public static async Task SendPasteAsync()
     {
-        bool shiftDown = IsDown(NativeMethods.VK_SHIFT);
-        bool altDown = IsDown(NativeMethods.VK_MENU);
+        long deadline = Environment.TickCount64 + (long)ReleaseWait.TotalMilliseconds;
+
+        while (AnyModifierHeld() && Environment.TickCount64 < deadline)
+        {
+            await Task.Delay(15).ConfigureAwait(true);
+        }
+
+        SendPaste();
+    }
+
+    private static void SendPaste()
+    {
+        foreach (byte key in (byte[])[NativeMethods.VK_SHIFT, NativeMethods.VK_MENU, NativeMethods.VK_LWIN, NativeMethods.VK_RWIN])
+        {
+            if (IsDown(key))
+            {
+                Release(key);
+            }
+        }
+
         bool controlDown = IsDown(NativeMethods.VK_CONTROL);
-
-        if (shiftDown)
-        {
-            Release(NativeMethods.VK_SHIFT);
-        }
-
-        if (altDown)
-        {
-            Release(NativeMethods.VK_MENU);
-        }
 
         if (!controlDown)
         {
@@ -51,20 +69,13 @@ public static class PasteSender
         {
             Release(NativeMethods.VK_CONTROL);
         }
-
-        // Devolve o estado das teclas que estavam presas. Sem isto, o Windows continua
-        // achando que o Shift esta pressionado ate o usuario aperta-lo e solta-lo de
-        // novo - e tudo que ele digitar sai em maiuscula.
-        if (altDown)
-        {
-            Press(NativeMethods.VK_MENU);
-        }
-
-        if (shiftDown)
-        {
-            Press(NativeMethods.VK_SHIFT);
-        }
     }
+
+    private static bool AnyModifierHeld()
+        => IsDown(NativeMethods.VK_SHIFT)
+           || IsDown(NativeMethods.VK_MENU)
+           || IsDown(NativeMethods.VK_LWIN)
+           || IsDown(NativeMethods.VK_RWIN);
 
     private static bool IsDown(byte virtualKey)
         => (NativeMethods.GetAsyncKeyState(virtualKey) & NativeMethods.KeyPressedMask) != 0;

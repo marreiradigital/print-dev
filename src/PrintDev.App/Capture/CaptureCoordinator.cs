@@ -667,8 +667,21 @@ public sealed class CaptureCoordinator
             return;
         }
 
-        PasteSender.SendPaste();
-        _log.Debug("Colagem forçada como {Conteudo}", content);
+        _ = PasteWhenReleasedAsync(content);
+    }
+
+    /// <summary>Manda colar quando a pessoa soltar as teclas do atalho.</summary>
+    private async Task PasteWhenReleasedAsync(ClipboardContent content)
+    {
+        try
+        {
+            await PasteSender.SendPasteAsync().ConfigureAwait(true);
+            _log.Debug("Colagem forçada como {Conteudo}", content);
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha ao mandar colar");
+        }
     }
 
     private CaptureResult? NotYet(HotkeyAction action)
