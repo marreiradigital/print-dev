@@ -412,7 +412,15 @@ public sealed class OverlayCoordinator
         {
             State.HasSelection = false;
             UpdateHover();
-            Confirm(State.HoveredWindow);
+
+            // No modo Regiao nada fica destacado antes do arrasto, e por isso o clique
+            // nao pode confiar no destaque: capturaria um retangulo vazio, que vira
+            // cancelamento. Quem clica sem arrastar quer a janela sob o cursor.
+            PixelRect target = State.Mode == CaptureMode.Regiao
+                ? WindowOrMonitorAt(x, y)
+                : State.HoveredWindow;
+
+            Confirm(target);
             return;
         }
 
@@ -647,14 +655,21 @@ public sealed class OverlayCoordinator
         {
             CaptureMode.TelaInteira => _frozen.Bounds,
             CaptureMode.Monitor => MonitorRectAt(x, y),
-            CaptureMode.Janela => WindowEnumerator.HitTest(_targets, x, y)?.Bounds ?? MonitorRectAt(x, y),
+            CaptureMode.Janela => WindowOrMonitorAt(x, y),
 
             // No modo Regiao nada fica destacado antes do arrasto: um retangulo pulando
             // de janela em janela enquanto a pessoa mira e distracao pura. O clique
-            // simples ainda captura a janela sob o cursor.
+            // simples ainda captura a janela sob o cursor (veja DragEnded).
             _ => PixelRect.Empty,
         };
     }
+
+    /// <summary>
+    /// A janela mais à frente sob o ponto e, se ele estiver sobre a área de trabalho, o
+    /// monitor dele.
+    /// </summary>
+    private PixelRect WindowOrMonitorAt(int x, int y)
+        => WindowEnumerator.HitTest(_targets, x, y)?.Bounds ?? MonitorRectAt(x, y);
 
     private PixelRect MonitorRectAt(int x, int y)
     {
