@@ -86,12 +86,16 @@ public sealed class OverlayCoordinator
     /// <summary>Estado compartilhado por todas as janelas do seletor.</summary>
     internal SelectionState State { get; } = new();
 
-    /// <summary>Verdadeiro enquanto o seletor está na tela.</summary>
-    public bool IsOpen => _completion is not null;
+    /// <summary>
+    /// Verdadeiro enquanto o seletor ou o conta-gotas está na tela. É o que quem escuta os
+    /// atalhos globais consulta para ignorar os que não fazem sentido com o overlay aberto.
+    /// </summary>
+    public bool IsOpen => _completion is not null || _colorCompletion is not null;
 
     /// <summary>
     /// Mostra o seletor e espera a escolha. Devolve <see langword="null"/> se o usuário
-    /// cancelar.
+    /// cancelar — e também, na hora, se o seletor ou o conta-gotas já estiver aberto: só
+    /// quem abriu primeiro recebe a escolha.
     /// </summary>
     /// <param name="settings">As configurações em vigor.</param>
     /// <param name="allowActions">
@@ -102,11 +106,13 @@ public sealed class OverlayCoordinator
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        if (_completion is not null)
+        if (IsOpen)
         {
-            // Apertar a tecla de novo com o seletor aberto nao pode abrir um segundo.
+            // Apertar a tecla de novo com o seletor (ou o conta-gotas) aberto nao pode abrir
+            // um segundo conjunto de janelas, e tambem nao pode devolver a MESMA tarefa do
+            // primeiro: dois a esperar o mesmo resultado entregam a captura duas vezes.
             _log.Debug("O seletor já está aberto; ignorando.");
-            return _completion.Task;
+            return Task.FromResult<OverlayResult?>(null);
         }
 
         // O tempo de cada etapa vai para o log de depuracao: e o caminho entre apertar a
@@ -181,7 +187,7 @@ public sealed class OverlayCoordinator
     /// </summary>
     public void Warm()
     {
-        if (_warmed || _completion is not null || _colorCompletion is not null)
+        if (_warmed || IsOpen)
         {
             return;
         }
@@ -228,7 +234,7 @@ public sealed class OverlayCoordinator
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        if (_completion is not null || _colorCompletion is not null)
+        if (IsOpen)
         {
             return Task.FromResult<Color?>(null);
         }
@@ -542,31 +548,37 @@ public sealed class OverlayCoordinator
 
         CaptureMode mode = State.Mode;
         FrozenScreen frozen = _frozen;
-        Close();
-        _completion?.TrySetResult(new OverlayResult(clipped, frozen, mode, action));
+        TaskCompletionSource<OverlayResult?> completion = _completion;
         _completion = null;
+
+        Close();
+        completion.TrySetResult(new OverlayResult(clipped, frozen, mode, action));
     }
 
-    /// <summary>Fecha o seletor sem capturar nada.</summary>
+    /// <summary>
+    /// Fecha o seletor, ou o conta-gotas, sem capturar nada. Conclui e limpa o que estiver
+    /// aberto: deixar uma das duas tarefas pendurada travaria aquele recurso até reiniciar
+    /// o programa, porque <see cref="IsOpen"/> continuaria verdadeiro.
+    /// </summary>
     internal void Cancel()
     {
-        if (_colorCompletion is not null)
+        TaskCompletionSource<OverlayResult?>? selector = _completion;
+        TaskCompletionSource<Color?>? picker = _colorCompletion;
+
+        if (selector is null && picker is null)
         {
-            Close();
-            _colorCompletion.TrySetResult(null);
-            _colorCompletion = null;
-            State.PickingColor = false;
             return;
         }
 
-        if (_completion is null)
-        {
-            return;
-        }
+        // Limpar antes de fechar: se fechar uma janela falhar, o seletor nao fica preso
+        // num estado "aberto" que ninguem mais consegue encerrar.
+        _completion = null;
+        _colorCompletion = null;
+        State.PickingColor = false;
 
         Close();
-        _completion.TrySetResult(null);
-        _completion = null;
+        selector?.TrySetResult(null);
+        picker?.TrySetResult(null);
         _log.Debug("Seletor cancelado");
     }
 
