@@ -92,7 +92,11 @@ public sealed class ToastHost
     /// sempre na tela principal: quem capturou no monitor secundário está olhando para
     /// ele.
     /// </param>
-    public void Show(CaptureHistoryItem item, PixelRect near)
+    /// <param name="copied">
+    /// Falso quando a captura devia ir para a área de transferência e não foi. O aviso diz
+    /// isso em vez de "Captura salva", e espera a nova tentativa.
+    /// </param>
+    public void Show(CaptureHistoryItem item, PixelRect near, bool copied = true)
     {
         ArgumentNullException.ThrowIfNull(item);
 
@@ -130,6 +134,22 @@ public sealed class ToastHost
 
         _visible.Add(toast);
         toast.ShowAt(SlotFor(near, _visible.Count - 1, toast.MeasuredHeight));
+
+        if (!copied)
+        {
+            toast.ShowNotCopied();
+        }
+    }
+
+    /// <summary>Mostra no aviso da captura o desfecho da nova tentativa de copiá-la.</summary>
+    public void ShowCopyRetried(CaptureHistoryItem item, bool copied)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        foreach (ToastWindow toast in _visible.Where(t => SameCapture(t.Item, item)))
+        {
+            toast.ShowCopyRetried(copied, copied ? TimeSpan.FromSeconds(Math.Clamp(_settings.Current.Capture.ToastSeconds, 1, 30)) : AvisoDeLeitura);
+        }
     }
 
     /// <summary>

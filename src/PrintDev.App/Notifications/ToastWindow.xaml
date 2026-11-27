@@ -55,6 +55,8 @@
                 <ui:Stack Spacing="{StaticResource Gap.LabelToHint}" VerticalAlignment="Center">
                     <TextBlock x:Name="Headline"
                                Style="{StaticResource Type.BodyMedium}"
+                               TextWrapping="Wrap"
+                               MaxWidth="292"
                                Text="Captura salva" />
                     <TextBlock x:Name="FileName"
                                Style="{StaticResource Type.MonoSmall}"

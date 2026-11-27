@@ -454,17 +454,36 @@ public sealed class CaptureCoordinator
         CapturedImage image = result.Image;
         _last = new LastCapture(result.SavedPath, result.Saved ? null : image, image.Bounds);
 
-        if (publish)
-        {
-            Publish(result.Image, result.SavedPath, result.Png, _settings.Current.Clipboard.Content);
-        }
+        ClipboardPayload? payload = publish
+            ? ClipboardPayload.ForCapture(image, result.SavedPath, result.Png, _settings.Current.Clipboard, _settings.Current.Clipboard.Content)
+            : null;
+
+        bool copied = payload is null || Publish(payload);
 
         _history.Add(image, result.SavedPath);
 
         CaptureHistoryItem? item = _history.Latest;
         if (item is not null)
         {
-            _toasts.Show(item, image.Bounds);
+            _toasts.Show(item, image.Bounds, copied);
+        }
+
+        if (!copied)
+        {
+            // Sem isto, o proximo Ctrl+V colaria a captura anterior. O aviso ja diz que
+            // nao foi copiada e mostra o desfecho da nova tentativa.
+            _clipboard.RetrySoon(_messageWindow.Handle, payload!, ok =>
+            {
+                if (ok)
+                {
+                    LogPublished(payload!);
+                }
+
+                if (item is not null)
+                {
+                    _toasts.ShowCopyRetried(item, ok);
+                }
+            });
         }
 
         if (result.SavedPath is not null && _settings.Current.Save.OpenFolderAfterSave)
@@ -550,23 +569,27 @@ public sealed class CaptureCoordinator
     /// <param name="png">O PNG já codificado, quando houver; senão é codificado aqui.</param>
     /// <param name="content">O que publicar.</param>
     private bool Publish(CapturedImage? image, string? savedPath, ReadOnlyMemory<byte> png, ClipboardContent content)
-    {
-        var payload = ClipboardPayload.ForCapture(image, savedPath, png, _settings.Current.Clipboard, content);
+        => Publish(ClipboardPayload.ForCapture(image, savedPath, png, _settings.Current.Clipboard, content));
 
+    private bool Publish(ClipboardPayload payload)
+    {
         bool published = _clipboard.Write(_messageWindow.Handle, payload);
 
         if (published)
         {
-            _log.Information(
-                "Publicado na área de transferência: imagem={Imagem} texto={Texto} caminhoSoParaTerminalEIde={SobDemanda} arquivo={Arquivo}",
-                payload.Image is not null,
-                payload.Text is not null,
-                payload.TextOnlyFor is not null,
-                payload.IncludeFileDrop);
+            LogPublished(payload);
         }
 
         return published;
     }
+
+    private void LogPublished(ClipboardPayload payload)
+        => _log.Information(
+            "Publicado na área de transferência: imagem={Imagem} texto={Texto} caminhoSoParaTerminalEIde={SobDemanda} arquivo={Arquivo}",
+            payload.Image is not null,
+            payload.Text is not null,
+            payload.TextOnlyFor is not null,
+            payload.IncludeFileDrop);
 
     /// <summary>
     /// Republica a última captura num formato só e manda colar.

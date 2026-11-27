@@ -188,6 +188,7 @@ public sealed class ClipboardWriter : IDisposable
     private IntPtr _foregroundHook;
 
     private const int MaxAnnounceRetries = 4;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(700);
     private static readonly TimeSpan AnnounceRetryDelay = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
@@ -369,6 +370,48 @@ public sealed class ClipboardWriter : IDisposable
                 NativeMethods.GlobalFree(memory);
             }
         }
+    }
+
+    /// <summary>
+    /// Tenta publicar de novo daqui a pouco, depois de uma publicação que falhou.
+    /// <para>
+    /// A área de transferência ocupada por mais de um segundo é rara, mas acontece — e a
+    /// captura que não chegou lá faz o próximo Ctrl+V colar a anterior. A nova tentativa
+    /// só acontece se <b>ninguém copiou nada</b> nesse meio tempo: publicar por cima do
+    /// que a pessoa acabou de copiar seria um estrago maior que a falha.
+    /// </para>
+    /// </summary>
+    /// <param name="owner">A janela de mensagens do programa.</param>
+    /// <param name="payload">O mesmo conteúdo que falhou.</param>
+    /// <param name="done">Recebe o desfecho, na thread de interface.</param>
+    public void RetrySoon(IntPtr owner, ClipboardPayload payload, Action<bool> done)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        ArgumentNullException.ThrowIfNull(done);
+
+        uint sequence = NativeMethods.GetClipboardSequenceNumber();
+        var timer = new DispatcherTimer(DispatcherPriority.Normal, _dispatcher ?? Dispatcher.CurrentDispatcher)
+        {
+            Interval = RetryDelay,
+        };
+
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+
+            if (NativeMethods.GetClipboardSequenceNumber() != sequence)
+            {
+                _log.Information("Nova tentativa cancelada: outra coisa foi copiada depois da falha.");
+                done(false);
+                return;
+            }
+
+            bool published = Write(owner, payload);
+            _log.Information("Nova tentativa de publicar: {Resultado}", published ? "deu certo" : "falhou de novo");
+            done(published);
+        };
+
+        timer.Start();
     }
 
     /// <summary>

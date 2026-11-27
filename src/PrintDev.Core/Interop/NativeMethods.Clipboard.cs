@@ -54,6 +54,13 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr SetClipboardData(uint format, IntPtr memory);
 
+    /// <summary>
+    /// Número que o Windows incrementa a cada mudança da área de transferência. Igual em
+    /// dois momentos quer dizer que ninguém copiou nada entre eles.
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern uint GetClipboardSequenceNumber();
+
     /// <summary>Lê o bloco de um formato. Só vale com a área aberta.</summary>
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern IntPtr GetClipboardData(uint format);

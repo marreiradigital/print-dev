@@ -259,6 +259,45 @@ public partial class ToastWindow : Window
     }
 
     /// <summary>
+    /// Diz que a captura foi salva mas não chegou à área de transferência.
+    /// <para>
+    /// "Captura salva" sozinho fazia a pessoa colar e receber a captura anterior sem saber
+    /// por quê. O aviso para de contar o tempo enquanto o programa tenta de novo.
+    /// </para>
+    /// </summary>
+    internal void ShowNotCopied()
+    {
+        _timer.Stop();
+
+        Headline.Text = Item.Path is null
+            ? "Não deu para salvar nem copiar: a área de transferência estava ocupada"
+            : "Salva, mas não copiada: a área de transferência estava ocupada";
+        Headline.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Warning");
+    }
+
+    /// <summary>Desfecho da nova tentativa de copiar.</summary>
+    internal void ShowCopyRetried(bool copied, TimeSpan lifetime)
+    {
+        if (copied)
+        {
+            Headline.Text = Item.Path is null ? "Captura copiada (não deu para salvar)" : "Captura salva e copiada";
+            Headline.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text.Primary");
+        }
+        else
+        {
+            Headline.Text = "Salva, mas não copiada: copie de novo em Capturas recentes, na bandeja";
+        }
+
+        if (_dismissing)
+        {
+            return;
+        }
+
+        _timer.Interval = lifetime;
+        _timer.Start();
+    }
+
+    /// <summary>
     /// Segura o aviso na tela enquanto o envio acontece.
     /// <para>
     /// Sem isto o aviso sumiria no meio do envio e o link chegaria sem ninguém para
