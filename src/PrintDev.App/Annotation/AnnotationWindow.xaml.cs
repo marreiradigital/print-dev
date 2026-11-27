@@ -206,16 +206,18 @@ public partial class AnnotationWindow : Window
         _textAt = at;
 
         // O campo aparece onde o texto vai ficar, e nao num canto: escrever longe do
-        // lugar em que o texto entra obriga a imaginar o resultado.
-        Point onScreen = _canvas.TranslatePoint(new Point(0, 0), CanvasHost);
-        double scale = _canvas.ActualWidth <= 0 ? 1 : _canvas.ActualWidth / _canvas.RenderSize.Width;
+        // lugar em que o texto entra obriga a imaginar o resultado. O ponto vem em pixels
+        // da imagem; na tela ele e escalado e deslocado pelo preenchimento e pela
+        // centralizacao da area da imagem, que e a mesma celula onde o campo mora.
+        double scale = _canvas.DisplayScale;
+        Point onArea = _canvas.TranslatePoint(new Point(at.X * scale, at.Y * scale), ImageArea);
+
+        // Clique perto da borda direita ou de baixo nao pode jogar o campo para fora.
+        double left = Math.Clamp(onArea.X, 0, Math.Max(0, ImageArea.ActualWidth - TextEntry.Width));
+        double top = Math.Clamp(onArea.Y, 0, Math.Max(0, ImageArea.ActualHeight - 40));
 
         TextEntry.Text = string.Empty;
-        TextEntry.Margin = new Thickness(
-            CanvasHost.Margin.Left + onScreen.X + (at.X * scale),
-            CanvasHost.Margin.Top + onScreen.Y + (at.Y * scale),
-            0,
-            0);
+        TextEntry.Margin = new Thickness(left, top, 0, 0);
 
         TextEntry.Visibility = Visibility.Visible;
         TextEntry.Focus();

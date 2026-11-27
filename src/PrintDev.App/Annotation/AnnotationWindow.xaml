@@ -164,7 +164,7 @@
         </Grid>
 
         <!-- Imagem -->
-        <Border Grid.Row="1" Background="{DynamicResource Brush.Surface.Sunken}"
+        <Border x:Name="ImageArea" Grid.Row="1" Background="{DynamicResource Brush.Surface.Sunken}"
                 Padding="20" ClipToBounds="True">
             <Grid x:Name="CanvasHost" HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Border>

@@ -107,6 +107,9 @@ public sealed class AnnotationCanvas : FrameworkElement
     /// <summary>Fator entre pixel da imagem e unidade na tela.</summary>
     private double Scale => ActualWidth <= 0 ? 1 : ActualWidth / _source.Width;
 
+    /// <summary>Fator entre pixel da imagem e unidade na tela, para quem posiciona algo sobre ela.</summary>
+    internal double DisplayScale => Scale;
+
     /// <inheritdoc/>
     protected override void OnRender(DrawingContext context)
     {
