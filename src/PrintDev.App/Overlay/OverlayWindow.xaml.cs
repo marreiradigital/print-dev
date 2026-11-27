@@ -368,7 +368,13 @@ public partial class OverlayWindow : Window
 
         // Fechada por fora (Alt+F4, por exemplo): trata como cancelamento para o
         // coordenador nao ficar esperando uma resposta que nunca vem.
+        //
+        // O cancelamento NAO pode rodar aqui dentro: ele fecha todas as janelas, esta
+        // inclusive, e fechar uma janela que ja esta fechando lanca InvalidOperationException
+        // - as outras janelas do seletor ficavam na tela e a tarefa do coordenador pendurada.
+        // Entao esta janela se recusa a fechar agora, e o coordenador a fecha logo depois,
+        // por CloseOverlay, que marca _closing e passa direto por este metodo.
         e.Cancel = true;
-        _coordinator.Cancel();
+        Dispatcher.BeginInvoke(_coordinator.Cancel);
     }
 }
