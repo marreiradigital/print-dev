@@ -199,7 +199,7 @@ inteiro** quando um formato anunciado volta vazio. Na 0.1.5 a captura simplesmen
 
 Por isso, com o histórico ligado, a primeira publicação leva só a imagem e o texto é anunciado
 na republicação marcada, quando `Clipboard.HistoryChanged` avisa e o item mais novo do histórico
-é posterior à captura — de 0,3 a 0,5 s, conforme o log. Um tempo-limite de 1,5 s anuncia o texto
+é posterior à captura — de 0,3 a 0,7 s nas medições. Um tempo-limite de 1,5 s anuncia o texto
 mesmo sem o aviso. O preço, aceito pelo Paulo: um `Ctrl+V` no terminal nesse primeiro instante
 ainda não tem o caminho.
 
