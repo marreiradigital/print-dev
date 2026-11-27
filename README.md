@@ -511,6 +511,12 @@ Três padrões que são decisão consciente, não esquecimento:
 
 Arquivo inválido não impede o programa de subir: ele é renomeado para
 `settings.corrompido-<data>.json`, os padrões entram no lugar e o motivo vai para o log.
+Arquivo **bloqueado** na hora de subir (antivírus, editor) é outra coisa: o programa não o
+sobrescreve com os padrões. Roda com os padrões na memória, tenta ler de novo a cada poucos
+segundos e, quando consegue, reaplica por cima do conteúdo real o que você mudou nesse meio
+tempo. Gravação que falha (arquivo preso, disco cheio) continua pendente e é refeita, e uma
+edição à mão feita no instante em que o painel está gravando outra mudança não desfaz essa
+mudança.
 Chave que este código não conhece é preservada na regravação, então uma versão mais nova
 não perde configuração ao ser aberta por uma mais antiga.
 

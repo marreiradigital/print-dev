@@ -13,13 +13,18 @@ public interface ISettingsService : IDisposable
     /// <summary>
     /// Disparado quando as configurações mudam, seja pela interface, seja porque
     /// alguém editou o arquivo. Vem de um thread qualquer: quem for tocar em
-    /// interface precisa passar pelo dispatcher.
+    /// interface precisa passar pelo dispatcher. Os avisos saem na ordem das mudanças,
+    /// um de cada vez, e um assinante que lança não impede os outros.
     /// </summary>
     event EventHandler<AppSettings>? Changed;
 
     /// <summary>
     /// Lê o arquivo. Nunca lança por causa do conteúdo: arquivo ausente vira padrões,
-    /// arquivo corrompido é posto de lado e o aplicativo sobe mesmo assim.
+    /// arquivo corrompido é posto de lado e o aplicativo sobe mesmo assim. Arquivo que
+    /// existe mas está bloqueado por outro programa também não derruba a partida: o
+    /// aplicativo sobe com os padrões na memória, <b>não grava</b> por cima do arquivo
+    /// enquanto não conseguir lê-lo, e reaplica as mudanças feitas nesse meio tempo
+    /// sobre o conteúdo real quando ele ficar legível.
     /// </summary>
     void Load();
 
