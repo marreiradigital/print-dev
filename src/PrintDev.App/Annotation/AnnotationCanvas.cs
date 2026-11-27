@@ -263,6 +263,22 @@ public sealed class AnnotationCanvas : FrameworkElement
     }
 
     /// <inheritdoc/>
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+
+        // Alt+Tab, uma janela do sistema ou o Windows tirando o mouse no meio do arrasto:
+        // o botao solto nunca chega aqui, e a previa ficava desenhada como se a marca
+        // existisse. Cancela o arrasto.
+        if (_dragging)
+        {
+            _dragging = false;
+            _freehand = null;
+            InvalidateVisual();
+        }
+    }
+
+    /// <inheritdoc/>
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonUp(e);
@@ -272,6 +288,8 @@ public sealed class AnnotationCanvas : FrameworkElement
             return;
         }
 
+        // Desligar antes de soltar o mouse: soltar dispara OnLostMouseCapture, que
+        // cancelaria este mesmo arrasto.
         _dragging = false;
         ReleaseMouseCapture();
         _dragCurrent = ToImage(e.GetPosition(this));
@@ -357,6 +375,10 @@ public sealed class AnnotationCanvas : FrameworkElement
         // colocado por clique de verdade.
         bool tooSmall = bounds.Width < 4 && bounds.Height < 4;
 
+        // Recortar exige as DUAS medidas: um arrasto de 100 por 1 pixel viraria uma
+        // imagem de uma linha so, e e quase sempre um clique que escorregou.
+        bool tooSmallToCrop = bounds.Width < 4 || bounds.Height < 4;
+
         return Tool switch
         {
             AnnotationTool.Arrow when !tooSmall =>
@@ -374,7 +396,7 @@ public sealed class AnnotationCanvas : FrameworkElement
             AnnotationTool.Redact when !tooSmall =>
                 new RedactAnnotation(bounds, RedactionStyle, RedactionStrength),
 
-            AnnotationTool.Crop when !tooSmall =>
+            AnnotationTool.Crop when !tooSmallToCrop =>
                 new CropAnnotation(bounds),
 
             AnnotationTool.Pen when _freehand is { Count: > 1 } =>
