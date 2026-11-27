@@ -175,6 +175,14 @@ public sealed class ClipboardWriter : IDisposable
     private bool _historySubscribed;
     private int _announceRetries;
 
+    /// <summary>
+    /// O caminho foi entregue e ficou valendo para todos; falta devolvê-lo ao modo sob
+    /// demanda. Fica pendente enquanto um terminal ou IDE estiver em primeiro plano.
+    /// </summary>
+    private bool _rearmPending;
+    private NativeMethods.WinEventProc? _foregroundCallback;
+    private IntPtr _foregroundHook;
+
     private const int MaxAnnounceRetries = 4;
     private static readonly TimeSpan AnnounceRetryDelay = TimeSpan.FromMilliseconds(250);
 
@@ -214,12 +222,28 @@ public sealed class ClipboardWriter : IDisposable
             // falhar, a colagem nao.
             _log.Warning(exception, "Não consegui acompanhar o histórico do Win+V.");
         }
+
+        _foregroundCallback = (_, _, _, _, _, _, _) => RearmIfLeftDestination();
+        _foregroundHook = NativeMethods.SetWinEventHook(
+            NativeMethods.EVENT_SYSTEM_FOREGROUND,
+            NativeMethods.EVENT_SYSTEM_FOREGROUND,
+            IntPtr.Zero,
+            _foregroundCallback,
+            0,
+            0,
+            NativeMethods.WINEVENT_OUTOFCONTEXT);
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
         _historyTimeout?.Stop();
+
+        if (_foregroundHook != IntPtr.Zero)
+        {
+            NativeMethods.UnhookWinEvent(_foregroundHook);
+            _foregroundHook = IntPtr.Zero;
+        }
 
         if (_historySubscribed)
         {
@@ -421,6 +445,7 @@ public sealed class ClipboardWriter : IDisposable
         // de imagem onde a pessoa colar em seguida. Republicar logo depois devolve o
         // caminho ao estado sob demanda. Por mensagem: quem pediu ainda esta com a area
         // aberta, e so a solta quando esta chamada voltar.
+        _rearmPending = true;
         NativeMethods.PostMessage(
             _owner,
             NativeMethods.WM_APP_REARM_CLIPBOARD,
@@ -435,6 +460,7 @@ public sealed class ClipboardWriter : IDisposable
         _onDemandFor = null;
         _published = [];
         _awaitingHistory = false;
+        _rearmPending = false;
         _historyTimeout?.Stop();
     }
 
@@ -536,14 +562,45 @@ public sealed class ClipboardWriter : IDisposable
     /// <summary>
     /// Depois de entregar o caminho, devolve-o ao modo sob demanda — se a publicação a
     /// que o pedido se refere ainda for a atual.
+    /// <para>
+    /// <b>Não enquanto um terminal ou IDE estiver em primeiro plano.</b> Ali o caminho é
+    /// o que a pessoa quer colar, e republicar a cada leitura custava caro: o Brave lê a
+    /// área a cada 0,8 s sem janela, a leitura caía na conta do terminal em primeiro plano,
+    /// e cada uma copiava a imagem inteira de novo e acordava todo programa que vigia a
+    /// área de transferência. A republicação fica para quando o primeiro plano sair da
+    /// lista — antes de a pessoa colar num programa de imagem.
+    /// </para>
     /// </summary>
     private void RearmAfterDelivery(int generation)
     {
-        if (generation == _generation && Republish(generation))
+        if (generation != _generation || !_rearmPending || ForegroundTakesText())
+        {
+            return;
+        }
+
+        _rearmPending = false;
+
+        if (Republish(generation))
         {
             _log.Debug("Caminho de volta ao modo sob demanda");
         }
     }
+
+    /// <summary>A janela em primeiro plano mudou: se saiu de terminal e IDE, é a hora.</summary>
+    private void RearmIfLeftDestination()
+    {
+        if (_rearmPending)
+        {
+            RearmAfterDelivery(_generation);
+        }
+    }
+
+    /// <summary>O programa em primeiro plano está entre os que recebem o caminho.</summary>
+    private bool ForegroundTakesText()
+        => _onDemandFor is { } allowed
+           && TextDestination.Accepts(
+               ActiveWindowInfo.ReadProcessName(NativeMethods.GetForegroundWindow()),
+               allowed);
 
     /// <summary>
     /// Republica a captura com o caminho sob demanda.

@@ -115,6 +115,39 @@ internal static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool PeekMessage(out MSG message, IntPtr window, uint filterMin, uint filterMax, uint remove);
 
+    /// <summary>A janela em primeiro plano mudou.</summary>
+    internal const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+
+    /// <summary>O aviso chega pela fila desta thread, sem injetar nada em outro processo.</summary>
+    internal const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+
+    internal delegate void WinEventProc(
+        IntPtr hook,
+        uint eventType,
+        IntPtr window,
+        int objectId,
+        int childId,
+        uint threadId,
+        uint time);
+
+    /// <summary>
+    /// Pede avisos de eventos da interface — aqui, a troca da janela em primeiro plano.
+    /// O delegado precisa ficar vivo enquanto o gancho existir.
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern IntPtr SetWinEventHook(
+        uint eventMin,
+        uint eventMax,
+        IntPtr module,
+        WinEventProc callback,
+        uint processId,
+        uint threadId,
+        uint flags);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool UnhookWinEvent(IntPtr hook);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
 
