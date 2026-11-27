@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using System.Windows.Interop;
+﻿using System.Windows.Interop;
 using PrintDev.Core.Interop;
 
 namespace PrintDev.Core.Hotkeys;
@@ -13,8 +12,10 @@ namespace PrintDev.Core.Hotkeys;
 /// não recebe foco e custa praticamente nada.
 /// </para>
 /// <para>
-/// Ela também será a receptora de <c>WM_SETTINGCHANGE</c> (mudança de tema do Windows)
-/// e <c>WM_DISPLAYCHANGE</c> (monitor conectado ou removido), pelo mesmo motivo.
+/// Também é a dona da área de transferência, por onde chegam os pedidos do caminho sob
+/// demanda. Mensagens de difusão — <c>WM_SETTINGCHANGE</c>, <c>WM_DISPLAYCHANGE</c> —
+/// <b>nunca</b> chegam a uma janela <c>HWND_MESSAGE</c>; a troca de tema é acompanhada
+/// pelo <c>ThemeService</c>, por <c>SystemEvents</c>.
 /// </para>
 /// </summary>
 public sealed class HotkeyMessageWindow : IDisposable
@@ -49,12 +50,6 @@ public sealed class HotkeyMessageWindow : IDisposable
     /// Disparado quando um atalho registrado é acionado, com o identificador dele.
     /// </summary>
     public event EventHandler<int>? HotkeyPressed;
-
-    /// <summary>
-    /// Disparado quando o Windows muda o conjunto de cores do sistema — é assim que se
-    /// descobre que o usuário trocou entre tema claro e escuro.
-    /// </summary>
-    public event EventHandler? SystemColorsChanged;
 
     /// <summary>
     /// Um programa pediu um formato que publicamos sem os dados. Quem escuta precisa
@@ -99,17 +94,6 @@ public sealed class HotkeyMessageWindow : IDisposable
             case NativeMethods.WM_APP_REARM_CLIPBOARD:
                 handled = true;
                 ClipboardRearmRequested?.Invoke(this, unchecked((int)wParam.ToInt64()));
-                break;
-
-            case NativeMethods.WM_SETTINGCHANGE:
-                // A mensagem serve para dezenas de coisas; so a de conjunto de cores
-                // interessa. O nome vem em lParam como texto.
-                if (lParam != IntPtr.Zero
-                    && Marshal.PtrToStringUni(lParam) == NativeMethods.ImmersiveColorSet)
-                {
-                    SystemColorsChanged?.Invoke(this, EventArgs.Empty);
-                }
-
                 break;
         }
 
