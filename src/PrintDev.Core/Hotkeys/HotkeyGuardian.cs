@@ -137,7 +137,7 @@ public sealed class HotkeyGuardian : IDisposable
 
         _timer.Stop();
 
-        IReadOnlyList<HotkeyRegistration> failures = _manager.Failures;
+        IReadOnlyList<HotkeyRegistration> failures = _manager.RetryableFailures;
         if (failures.Count == 0)
         {
             _lastReportedProblem = string.Empty;
@@ -163,14 +163,14 @@ public sealed class HotkeyGuardian : IDisposable
         if (competitors.Count > 0 && advanced.OnCompetitorDetected == CompetitorPolicy.AssumirAutomaticamente)
         {
             await TakeOverAsync(competitors);
-            Reschedule(active: _manager.Failures.Count > 0);
+            Reschedule(active: _manager.RetryableFailures.Count > 0);
             return;
         }
 
         // Sem encerrar ninguem, ainda vale tentar de novo: o usuario pode ter fechado o
         // concorrente na mao desde a ultima verificacao. O registro, esse sim, na thread
         // da janela -- que e esta, de volta do await.
-        if (_manager.RetryFailures() > 0 && _manager.Failures.Count == 0)
+        if (_manager.RetryFailures() > 0 && _manager.RetryableFailures.Count == 0)
         {
             _log.Information("Atalhos recuperados sem precisar encerrar nada.");
             _lastReportedProblem = string.Empty;
@@ -178,7 +178,7 @@ public sealed class HotkeyGuardian : IDisposable
             return;
         }
 
-        IReadOnlyList<HotkeyRegistration> stillFailing = _manager.Failures;
+        IReadOnlyList<HotkeyRegistration> stillFailing = _manager.RetryableFailures;
         ReportOnce(Describe(stillFailing, competitors));
 
         if (competitors.Count > 0 && advanced.OnCompetitorDetected == CompetitorPolicy.Perguntar)
@@ -191,7 +191,7 @@ public sealed class HotkeyGuardian : IDisposable
 
     private async Task TakeOverAsync(IReadOnlyList<Competitor> competitors)
     {
-        string keys = string.Join(", ", _manager.Failures.Select(f => f.Text));
+        string keys = string.Join(", ", _manager.RetryableFailures.Select(f => f.Text));
 
         foreach (Competitor competitor in competitors)
         {

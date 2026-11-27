@@ -46,9 +46,10 @@ public sealed class HotkeyThreadingTests : IDisposable
         _ui = dispatcher!;
     }
 
-    private static HotkeySettings OnlyTestKey() => new()
+    /// <summary>Nenhum atalho: ninguém registra nada de verdade.</summary>
+    private static HotkeySettings Blank() => new()
     {
-        Capture = TestCombo,
+        Capture = string.Empty,
         FullScreen = string.Empty,
         ActiveWindow = string.Empty,
         RepeatLastRegion = string.Empty,
@@ -59,6 +60,8 @@ public sealed class HotkeyThreadingTests : IDisposable
         UndoLastCapture = string.Empty,
         SendToCloud = string.Empty,
     };
+
+    private static HotkeySettings OnlyTestKey() => Blank() with { Capture = TestCombo };
 
     private T OnUi<T>(Func<T> work) => _ui.Invoke(work);
 
@@ -146,6 +149,75 @@ public sealed class HotkeyThreadingTests : IDisposable
                 manager.Dispose();
                 window.Dispose();
                 holder.Dispose();
+                return 0;
+            });
+        }
+    }
+
+    // ==================== O que aparece como falha ====================
+
+    [Fact]
+    public void Atalho_escrito_errado_aparece_nas_falhas_com_o_motivo_e_nao_e_reinsistido()
+    {
+        // O filtro era "tem tecla", e texto que nao se le vira "sem tecla": o erro dele
+        // nunca chegava ao aviso do painel. E o guardiao nao deve insistir nele.
+        HotkeyMessageWindow window = OnUi(() => new HotkeyMessageWindow());
+        HotkeyManager manager = OnUi(() => new HotkeyManager(window, Serilog.Core.Logger.None));
+
+        try
+        {
+            manager.Apply(Blank() with { Capture = "Ctrl+Banana", FullScreen = "Enter" });
+
+            Assert.Equal(2, manager.Failures.Count);
+            Assert.Contains(manager.Failures, f => f.Action == HotkeyAction.Capture && f.Error!.Contains("Banana"));
+            Assert.Contains(manager.Failures, f => f.Action == HotkeyAction.FullScreen && f.Error!.Contains("Ctrl, Alt ou Win"));
+
+            // Texto que nao melhora sozinho nao e tentado de novo a cada 30 segundos.
+            Assert.Empty(manager.RetryableFailures);
+            Assert.Equal(0, manager.RetryFailures());
+
+            // E o campo em branco continua sendo so "sem atalho", nao falha.
+            Assert.DoesNotContain(manager.Failures, f => f.Action == HotkeyAction.Ocr);
+        }
+        finally
+        {
+            OnUi(() =>
+            {
+                manager.Dispose();
+                window.Dispose();
+                return 0;
+            });
+        }
+    }
+
+    [Fact]
+    public void Duas_acoes_na_mesma_combinacao_nao_sao_culpa_de_outro_programa()
+    {
+        // O Windows recusa a segunda com o mesmo erro de "ja registrado" que usa para
+        // outro programa, e a mensagem mandava o usuario procurar o culpado fora.
+        HotkeyMessageWindow window = OnUi(() => new HotkeyMessageWindow());
+        HotkeyManager manager = OnUi(() => new HotkeyManager(window, Serilog.Core.Logger.None));
+
+        try
+        {
+            manager.Apply(Blank() with { Capture = TestCombo, FullScreen = TestCombo });
+
+            Assert.True(manager.Registrations[HotkeyAction.Capture].Registered);
+
+            HotkeyRegistration repetida = Assert.Single(manager.Failures);
+            Assert.Equal(HotkeyAction.FullScreen, repetida.Action);
+            Assert.Contains("Abrir o seletor", repetida.Error);
+            Assert.DoesNotContain("outro programa", repetida.Error);
+
+            // So mudar a configuracao resolve: o vigia nao insiste.
+            Assert.Empty(manager.RetryableFailures);
+        }
+        finally
+        {
+            OnUi(() =>
+            {
+                manager.Dispose();
+                window.Dispose();
                 return 0;
             });
         }

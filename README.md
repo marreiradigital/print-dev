@@ -96,7 +96,9 @@ Tecla de digitação sozinha (`Enter`, `Espaço`, letras, números, setas) tamb�
 mesmo vale para ela só com `Shift`: um atalho global é engolido antes de chegar a qualquer
 programa, e a pessoa deixaria de conseguir digitar. Use `Ctrl`, `Alt` ou `Win` junto — só
 `PrtSc`, `F1`–`F24`, `Pause` e `Insert` podem ir sozinhas. O campo do painel recusa na hora,
-com o motivo escrito nele.
+com o motivo escrito nele. Atalho escrito errado no `settings.json` e duas ações na mesma
+combinação (a segunda não registra) aparecem no aviso da seção Atalhos, cada um com o seu
+motivo — e só a recusa do Windows, que outro programa pode soltar, é tentada de novo.
 
 ### Quando outro programa está com a tecla
 

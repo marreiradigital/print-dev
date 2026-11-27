@@ -14,12 +14,18 @@ namespace PrintDev.Core.Hotkeys;
 /// <param name="Hotkey">Atalho interpretado.</param>
 /// <param name="Registered">Se o Windows aceitou.</param>
 /// <param name="Error">Motivo da recusa, em português, pronto para a interface.</param>
+/// <param name="Retryable">
+/// Se vale tentar de novo mais tarde: só a recusa do próprio Windows (outro programa pode
+/// soltar a tecla). Texto que não se lê e combinação repetida dentro do Print Dev só
+/// mudam quando a configuração muda.
+/// </param>
 public sealed record HotkeyRegistration(
     HotkeyAction Action,
     string Text,
     HotkeyDefinition Hotkey,
     bool Registered,
-    string? Error);
+    string? Error,
+    bool Retryable = false);
 
 /// <summary>
 /// Registra os atalhos globais e avisa quando algum é acionado.
@@ -80,8 +86,14 @@ public sealed class HotkeyManager : IDisposable
     }
 
     /// <summary>
-    /// Atalhos que a configuração pede mas o Windows recusou. É o que o vigia observa
-    /// para tentar de novo depois.
+    /// Tudo que a configuração pede e não está valendo, com o motivo: o Windows recusou,
+    /// o texto não se lê (atalho escrito errado à mão no arquivo) ou a combinação já é de
+    /// outra ação do Print Dev. É o que a tela de atalhos mostra.
+    /// <para>
+    /// Atalho em branco não entra: é "sem atalho", escolha válida. E o filtro NÃO pode ser
+    /// "tem tecla": um texto que não se lê vira <see cref="HotkeyDefinition.None"/>, e por
+    /// esse filtro o erro dele nunca aparecia em lugar nenhum.
+    /// </para>
     /// </summary>
     public IReadOnlyList<HotkeyRegistration> Failures
     {
@@ -89,7 +101,24 @@ public sealed class HotkeyManager : IDisposable
         {
             lock (_gate)
             {
-                return _registrations.Values.Where(r => r.Hotkey.IsSet && !r.Registered).ToList();
+                return _registrations.Values.Where(r => !r.Registered && r.Error is not null).ToList();
+            }
+        }
+    }
+
+    /// <summary>
+    /// A parte de <see cref="Failures"/> em que vale insistir: a recusa do próprio Windows.
+    /// É o que o vigia observa — um texto ilegível ou uma combinação repetida não melhoram
+    /// sozinhos, e tentar de novo a cada trinta segundos só mentiria no log que "outro
+    /// programa" está com a tecla.
+    /// </summary>
+    public IReadOnlyList<HotkeyRegistration> RetryableFailures
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _registrations.Values.Where(r => !r.Registered && r.Retryable).ToList();
             }
         }
     }
@@ -224,7 +253,7 @@ public sealed class HotkeyManager : IDisposable
 
             int recovered = 0;
 
-            foreach (HotkeyRegistration failure in Failures)
+            foreach (HotkeyRegistration failure in RetryableFailures)
             {
                 HotkeyRegistration retried = Register(failure.Action, failure.Text);
                 _registrations[failure.Action] = retried;
@@ -270,6 +299,20 @@ public sealed class HotkeyManager : IDisposable
             return new HotkeyRegistration(action, text, hotkey, false, null);
         }
 
+        // Duas acoes do proprio Print Dev na mesma combinacao: o Windows recusa a segunda
+        // com o mesmo erro de "ja registrado", e a mensagem dizia "usado por outro
+        // programa" -- o usuario ia procurar o culpado fora, quando e so trocar uma delas.
+        foreach (HotkeyRegistration other in _registrations.Values)
+        {
+            if (other.Registered && other.Action != action && other.Hotkey == hotkey)
+            {
+                string duplicate = $"O atalho {text} já está atribuído a \"{LabelOf(other.Action)}\". Cada ação precisa de uma combinação própria.";
+
+                _log.Warning("Atalho repetido: {Acao} e {Outra} usam {Atalho}", action, other.Action, text);
+                return new HotkeyRegistration(action, text, hotkey, false, duplicate);
+            }
+        }
+
         int id = (int)action;
 
         if (NativeMethods.RegisterHotKey(_window.Handle, id, hotkey.ModifiersForRegistration, hotkey.VirtualKey))
@@ -284,8 +327,24 @@ public sealed class HotkeyManager : IDisposable
             : $"O Windows recusou o atalho {text}: {new Win32Exception(lastError).Message}";
 
         _log.Warning("Falha ao registrar {Acao} ({Atalho}): {Erro}", action, text, message);
-        return new HotkeyRegistration(action, text, hotkey, false, message);
+        return new HotkeyRegistration(action, text, hotkey, false, message, Retryable: true);
     }
+
+    /// <summary>O nome da ação como o painel de atalhos a mostra.</summary>
+    private static string LabelOf(HotkeyAction action) => action switch
+    {
+        HotkeyAction.Capture => "Abrir o seletor",
+        HotkeyAction.FullScreen => "Capturar o monitor atual",
+        HotkeyAction.ActiveWindow => "Capturar a janela ativa",
+        HotkeyAction.RepeatLastRegion => "Repetir a última região",
+        HotkeyAction.PasteAsPath => "Colar como caminho",
+        HotkeyAction.PasteAsImage => "Colar como imagem",
+        HotkeyAction.ColorPicker => "Conta-gotas de cor",
+        HotkeyAction.Ocr => "Reconhecer texto na tela",
+        HotkeyAction.UndoLastCapture => "Desfazer a última captura",
+        HotkeyAction.SendToCloud => "Enviar a última captura para a nuvem",
+        _ => action.ToString(),
+    };
 
     // Chamar so com _gate seguro, na thread da janela.
     private void UnregisterAll()
