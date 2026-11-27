@@ -95,6 +95,30 @@ public class CloudLinkStoreTests : IDisposable
         Assert.Null(store.ParaArquivo("   "));
     }
 
+    /// <summary>
+    /// Anotar com tarja e salvar regrava o mesmo arquivo. O link guardado é da imagem de
+    /// antes, sem a tarja: recopiá-lo faria a pessoa compartilhar o que quis esconder.
+    /// </summary>
+    [Fact]
+    public void Arquivo_regravado_depois_do_envio_nao_reaproveita_o_link()
+    {
+        string arquivo = Path.Combine(_raiz, "captura.png");
+        File.WriteAllBytes(arquivo, [1, 2, 3]);
+        File.SetLastWriteTimeUtc(arquivo, new DateTime(2026, 11, 27, 10, 0, 0, DateTimeKind.Utc));
+
+        CloudLinkStore store = Criar();
+        store.Add(Link(arquivo: arquivo));
+        Assert.NotNull(store.ParaArquivo(arquivo));
+
+        File.WriteAllBytes(arquivo, [1, 2, 3, 4]);
+        File.SetLastWriteTimeUtc(arquivo, new DateTime(2026, 11, 27, 10, 5, 0, DateTimeKind.Utc));
+
+        Assert.Null(store.ParaArquivo(arquivo));
+
+        // O envio antigo continua na lista: ele ainda está no ar e pode ser excluído.
+        Assert.Single(store.Items);
+    }
+
     [Fact]
     public void Arquivo_com_envio_vencido_nao_e_encontrado()
     {

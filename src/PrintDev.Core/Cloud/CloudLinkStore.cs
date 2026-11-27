@@ -66,7 +66,15 @@ public sealed class CloudLinkStore
         }
     }
 
-    /// <summary>O envio ainda válido desta captura, se houver.</summary>
+    /// <summary>
+    /// O envio ainda válido desta captura, se houver — <b>e se o arquivo não mudou
+    /// desde o envio</b>.
+    /// <para>
+    /// Anotar com tarja e salvar regrava o mesmo arquivo. Achar o envio só pelo caminho
+    /// recopiava o link da imagem de antes, sem a tarja, e a pessoa compartilhava achando
+    /// que era a versão escondida. Arquivo mudado conta como captura nova.
+    /// </para>
+    /// </summary>
     public CloudLink? ParaArquivo(string? localPath)
     {
         if (string.IsNullOrWhiteSpace(localPath))
@@ -74,12 +82,33 @@ public sealed class CloudLinkStore
             return null;
         }
 
+        string? versaoAtual = VersaoDoArquivo(localPath);
+
         lock (_trava)
         {
             return Carregar()
                 .Where(NaoExpirou)
-                .FirstOrDefault(e => string.Equals(e.Arquivo, localPath, StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault(e => string.Equals(e.Arquivo, localPath, StringComparison.OrdinalIgnoreCase)
+                                     && string.Equals(e.Versao, versaoAtual, StringComparison.Ordinal))
                 ?.ParaLink();
+        }
+    }
+
+    /// <summary>
+    /// Data de gravação e tamanho do arquivo, como texto. Nulo se ele não existe. Um
+    /// registro sem versão (gravado antes dela existir) nunca casa com um arquivo que
+    /// existe: na dúvida, envia de novo em vez de arriscar o link da versão errada.
+    /// </summary>
+    private static string? VersaoDoArquivo(string path)
+    {
+        try
+        {
+            var arquivo = new FileInfo(path);
+            return arquivo.Exists ? $"{arquivo.LastWriteTimeUtc.Ticks}:{arquivo.Length}" : null;
+        }
+        catch (Exception excecao) when (excecao is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
         }
     }
 
@@ -88,12 +117,14 @@ public sealed class CloudLinkStore
     {
         ArgumentNullException.ThrowIfNull(link);
 
+        string? versao = VersaoDoArquivo(link.LocalPath);
+
         lock (_trava)
         {
             List<Entrada> entradas = Carregar();
 
             entradas.RemoveAll(e => e.Id == link.Id);
-            entradas.Add(Entrada.De(link));
+            entradas.Add(Entrada.De(link) with { Versao = versao });
 
             Gravar(entradas);
         }
@@ -191,6 +222,10 @@ public sealed class CloudLinkStore
 
         [JsonPropertyName("arquivo")]
         public string Arquivo { get; init; } = string.Empty;
+
+        /// <summary>Como o arquivo estava quando foi enviado. Ver <see cref="VersaoDoArquivo"/>.</summary>
+        [JsonPropertyName("versao")]
+        public string? Versao { get; init; }
 
         public static Entrada De(CloudLink link) => new()
         {
