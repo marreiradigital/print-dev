@@ -119,8 +119,8 @@ public sealed class ClipboardWriter
     private static readonly Lazy<uint> CanIncludeInHistory =
         new(() => NativeMethods.RegisterClipboardFormat("CanIncludeInClipboardHistory"));
 
-    private const int OpenAttempts = 12;
-    private const int OpenRetryDelayMs = 60;
+    private const int OpenBudgetMs = 1000;
+    private const int OpenRetryDelayMs = 50;
     private const uint DropEffectCopy = 1;
 
     private readonly ILogger _log;
@@ -520,25 +520,40 @@ public sealed class ClipboardWriter
     }
 
     /// <summary>
-    /// Abre a área de transferência tentando algumas vezes.
+    /// Abre a área de transferência tentando por até <see cref="OpenBudgetMs"/>.
     /// <para>
     /// Ela é um recurso exclusivo de todo o sistema: gerenciadores de área de
     /// transferência, sessões de área de trabalho remota e o Teams a abrem por
     /// milissegundos o tempo todo. Desistir na primeira tentativa transformaria uma
     /// disputa banal em captura perdida.
     /// </para>
+    /// <para>
+    /// <b>A espera continua atendendo os pedidos do caminho sob demanda.</b> Quem pede um
+    /// formato anunciado sem os dados fica com a área aberta, parado, até esta thread
+    /// responder. Se ela dormisse esperando a área ficar livre, os dois esperariam um pelo
+    /// outro até o tempo acabar — e a captura nova não chegava à área de transferência.
+    /// Era isso que fazia falhar a colagem de prints seguidos: um navegador lendo a área
+    /// enquanto a captura anterior ainda estava nela.
+    /// </para>
     /// </summary>
     private bool OpenWithRetry(IntPtr owner)
     {
-        for (int attempt = 1; attempt <= OpenAttempts; attempt++)
+        long deadline = Environment.TickCount64 + OpenBudgetMs;
+        int attempts = 0;
+
+        while (true)
         {
+            attempts++;
+
             if (NativeMethods.OpenClipboard(owner))
             {
                 return true;
             }
 
             int error = Marshal.GetLastWin32Error();
-            if (attempt == OpenAttempts)
+            long remaining = deadline - Environment.TickCount64;
+
+            if (remaining <= 0)
             {
                 // O acesso negado é o caso esperado — outro programa está com a área
                 // aberta — e merece nome, e não um número que ninguém vai procurar.
@@ -548,15 +563,49 @@ public sealed class ClipboardWriter
 
                 _log.Warning(
                     "Área de transferência ocupada após {Tentativas} tentativas: {Causa}.",
-                    OpenAttempts,
+                    attempts,
                     causa);
                 return false;
             }
 
-            Thread.Sleep(OpenRetryDelayMs);
+            WaitAnsweringRequests((int)Math.Min(OpenRetryDelayMs, remaining));
         }
+    }
 
-        return false;
+    /// <summary>
+    /// Espera sem deixar de responder quem está parado esperando esta thread.
+    /// <para>
+    /// Atende só as mensagens <b>enviadas</b> — é por elas que chegam os pedidos de
+    /// renderização. As postadas (atalhos, cliques, timers) ficam na fila para depois: tratá-las
+    /// aqui seria rodar outra captura no meio desta.
+    /// </para>
+    /// </summary>
+    private static void WaitAnsweringRequests(int milliseconds)
+    {
+        long deadline = Environment.TickCount64 + milliseconds;
+
+        while (true)
+        {
+            NativeMethods.PeekMessage(
+                out _,
+                IntPtr.Zero,
+                0,
+                0,
+                NativeMethods.PM_NOREMOVE | NativeMethods.PM_QS_SENDMESSAGE);
+
+            long remaining = deadline - Environment.TickCount64;
+            if (remaining <= 0)
+            {
+                return;
+            }
+
+            NativeMethods.MsgWaitForMultipleObjectsEx(
+                0,
+                IntPtr.Zero,
+                (uint)remaining,
+                NativeMethods.QS_SENDMESSAGE,
+                NativeMethods.MWMO_INPUTAVAILABLE);
+        }
     }
 
     private static IntPtr Allocate(ReadOnlySpan<byte> bytes)

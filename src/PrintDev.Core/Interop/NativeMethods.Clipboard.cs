@@ -88,6 +88,33 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "RegisterClipboardFormatW")]
     internal static extern uint RegisterClipboardFormat(string name);
 
+    /// <summary>Mensagens enviadas por outra thread ou processo, como <c>WM_RENDERFORMAT</c>.</summary>
+    internal const uint QS_SENDMESSAGE = 0x0040;
+
+    /// <summary>Olhar a fila sem tirar nada dela.</summary>
+    internal const uint PM_NOREMOVE = 0x0000;
+
+    /// <summary>Com <see cref="PeekMessage"/>: atender só as mensagens enviadas.</summary>
+    internal const uint PM_QS_SENDMESSAGE = QS_SENDMESSAGE << 16;
+
+    /// <summary>Acordar também pelo que já estava esperando antes da chamada.</summary>
+    internal const uint MWMO_INPUTAVAILABLE = 0x0004;
+
+    /// <summary>
+    /// Espera por mensagens da thread. Com <see cref="QS_SENDMESSAGE"/>, acorda quando outro
+    /// programa manda uma mensagem e fica esperando a resposta.
+    /// </summary>
+    [DllImport("user32.dll")]
+    internal static extern uint MsgWaitForMultipleObjectsEx(uint count, IntPtr handles, uint milliseconds, uint wakeMask, uint flags);
+
+    /// <summary>
+    /// Olha a fila. Antes de olhar, o Windows entrega as mensagens enviadas que estão
+    /// esperando — é isso que se usa aqui, e não a fila em si.
+    /// </summary>
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool PeekMessage(out MSG message, IntPtr window, uint filterMin, uint filterMax, uint remove);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern IntPtr GlobalAlloc(uint flags, UIntPtr bytes);
 
@@ -147,6 +174,19 @@ internal struct BITMAPV5HEADER
     public uint ProfileData;
     public uint ProfileSize;
     public uint Reserved;
+}
+
+/// <summary>Uma mensagem da fila. Só serve aqui como destino do <c>PeekMessage</c>.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct MSG
+{
+    public IntPtr Window;
+    public uint Message;
+    public IntPtr WParam;
+    public IntPtr LParam;
+    public uint Time;
+    public int PointX;
+    public int PointY;
 }
 
 /// <summary>
