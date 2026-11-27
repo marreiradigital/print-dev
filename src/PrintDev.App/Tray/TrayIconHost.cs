@@ -139,8 +139,10 @@ public sealed class TrayIconHost : IDisposable
     {
         RefreshUpdateItem();
 
-        // Tira o submenu anterior, se houver, e o recria com o estado de agora.
-        foreach (object item in menu.Items.OfType<object>().Where(i => i is MenuItem { Tag: HistoryTag }).ToList())
+        // Tira o submenu anterior, se houver, e o recria com o estado de agora. O separador
+        // que vem junto tambem: filtrando so MenuItem, ele ficava, e cada abertura do menu
+        // empilhava mais uma linha.
+        foreach (object item in menu.Items.OfType<object>().Where(i => i is System.Windows.FrameworkElement { Tag: HistoryTag }).ToList())
         {
             menu.Items.Remove(item);
         }
