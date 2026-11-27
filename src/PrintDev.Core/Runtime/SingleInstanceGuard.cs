@@ -1,4 +1,6 @@
-﻿using PrintDev.Core.Interop;
+﻿using System.Security.AccessControl;
+using System.Security.Principal;
+using PrintDev.Core.Interop;
 
 namespace PrintDev.Core.Runtime;
 
@@ -19,12 +21,12 @@ public sealed class SingleInstanceGuard : IDisposable
     private const string DefaultMutexName = "PrintDev.InstanciaUnica";
     private const string DefaultSignalName = "PrintDev.Ativar";
 
-    private readonly Mutex _mutex;
-    private readonly EventWaitHandle _activationSignal;
+    private readonly Mutex? _mutex;
+    private readonly EventWaitHandle? _activationSignal;
     private RegisteredWaitHandle? _registration;
     private bool _disposed;
 
-    private SingleInstanceGuard(Mutex mutex, EventWaitHandle activationSignal, bool isPrimary)
+    private SingleInstanceGuard(Mutex? mutex, EventWaitHandle? activationSignal, bool isPrimary)
     {
         _mutex = mutex;
         _activationSignal = activationSignal;
@@ -37,7 +39,11 @@ public sealed class SingleInstanceGuard : IDisposable
     /// </summary>
     public bool IsPrimary { get; }
 
-    /// <summary>Tenta assumir a instância única da sessão.</summary>
+    /// <summary>
+    /// Tenta assumir a instância única da sessão. Nunca lança por causa de permissão:
+    /// objeto que existe mas não dá para abrir significa, com certeza, que há outro
+    /// Print Dev rodando.
+    /// </summary>
     public static SingleInstanceGuard Acquire(
         string mutexName = DefaultMutexName,
         string signalName = DefaultSignalName)
@@ -45,14 +51,47 @@ public sealed class SingleInstanceGuard : IDisposable
         // initiallyOwned: false de proposito. Com true, um encerramento anormal deixa
         // o mutex "abandonado" e a proxima instancia recebe AbandonedMutexException.
         // O que interessa aqui e apenas quem criou o nome primeiro.
-        var mutex = new Mutex(initiallyOwned: false, mutexName, out bool createdNew);
-        var signal = new EventWaitHandle(
-            initialState: false,
-            mode: EventResetMode.AutoReset,
-            name: signalName,
-            createdNew: out _);
+        //
+        // O descritor de seguranca e explicito de proposito. Sem ele o objeto herda a
+        // DACL padrao do token de QUEM CRIA, e um Print Dev elevado (a tarefa do
+        // Agendador sobe assim) cria o mutex so para administradores: o duplo clique
+        // seguinte, sem elevacao, levava UnauthorizedAccessException antes de qualquer
+        // tratador de erro existir, e o programa morria sem uma palavra.
+        Mutex? mutex;
+        bool isPrimary;
 
-        return new SingleInstanceGuard(mutex, signal, createdNew);
+        try
+        {
+            mutex = MutexAcl.Create(initiallyOwned: false, mutexName, out bool createdNew, CreateMutexSecurity());
+            isPrimary = createdNew;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // O objeto existe, foi criado por um processo mais privilegiado (ou por uma
+            // versao anterior, sem o descritor) e nao nos deixa abrir. Ha outro Print Dev.
+            mutex = null;
+            isPrimary = false;
+        }
+
+        EventWaitHandle? signal;
+
+        try
+        {
+            signal = EventWaitHandleAcl.Create(
+                initialState: false,
+                mode: EventResetMode.AutoReset,
+                name: signalName,
+                createdNew: out _,
+                eventSecurity: CreateSignalSecurity());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Sem o sinal nao da para acordar a primaria; tenta o minimo de direitos
+            // (so sinalizar). Se nem isso, o duplo clique apenas nao abre o painel.
+            signal = TryOpenSignal(signalName);
+        }
+
+        return new SingleInstanceGuard(mutex, signal, isPrimary);
     }
 
     /// <summary>
@@ -69,6 +108,12 @@ public sealed class SingleInstanceGuard : IDisposable
         {
             throw new InvalidOperationException(
                 "Só a instância primária pode escutar pedidos de ativação.");
+        }
+
+        if (_activationSignal is null)
+        {
+            // Nao deu para criar o sinal: o programa funciona, so nao reage ao duplo clique.
+            return;
         }
 
         _registration = ThreadPool.RegisterWaitForSingleObject(
@@ -97,7 +142,68 @@ public sealed class SingleInstanceGuard : IDisposable
         // funcionado.
         NativeMethods.AllowSetForegroundWindow(NativeMethods.ASFW_ANY);
 
-        _activationSignal.Set();
+        try
+        {
+            _activationSignal?.Set();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Sem permissao para sinalizar: nao ha o que fazer alem de sair em silencio.
+        }
+    }
+
+    /// <summary>
+    /// Quem pode abrir os objetos: o usuário desta sessão e os administradores.
+    /// Elevado ou não, o mesmo usuário tem o mesmo SID — é isso que deixa um processo
+    /// sem elevação enxergar o objeto criado por um elevado, e vice-versa.
+    /// </summary>
+    private static IEnumerable<SecurityIdentifier> AllowedIdentities()
+    {
+        SecurityIdentifier? user = WindowsIdentity.GetCurrent().User;
+
+        if (user is not null)
+        {
+            yield return user;
+        }
+
+        yield return new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+    }
+
+    private static MutexSecurity CreateMutexSecurity()
+    {
+        var security = new MutexSecurity();
+
+        foreach (SecurityIdentifier identity in AllowedIdentities())
+        {
+            security.AddAccessRule(new MutexAccessRule(identity, MutexRights.FullControl, AccessControlType.Allow));
+        }
+
+        return security;
+    }
+
+    private static EventWaitHandleSecurity CreateSignalSecurity()
+    {
+        var security = new EventWaitHandleSecurity();
+
+        foreach (SecurityIdentifier identity in AllowedIdentities())
+        {
+            security.AddAccessRule(
+                new EventWaitHandleAccessRule(identity, EventWaitHandleRights.FullControl, AccessControlType.Allow));
+        }
+
+        return security;
+    }
+
+    private static EventWaitHandle? TryOpenSignal(string signalName)
+    {
+        try
+        {
+            return EventWaitHandleAcl.OpenExisting(signalName, EventWaitHandleRights.Modify);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or WaitHandleCannotBeOpenedException)
+        {
+            return null;
+        }
     }
 
     /// <inheritdoc/>
@@ -111,7 +217,7 @@ public sealed class SingleInstanceGuard : IDisposable
         _disposed = true;
         _registration?.Unregister(waitObject: null);
         _registration = null;
-        _activationSignal.Dispose();
-        _mutex.Dispose();
+        _activationSignal?.Dispose();
+        _mutex?.Dispose();
     }
 }

@@ -80,46 +80,80 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     public bool StartWithWindows
     {
         get => _autoStart.IsRunKeyEnabled || _autoStart.IsElevatedTaskInstalled;
-        set
-        {
-            if (StartElevated)
-            {
-                _autoStart.RequestElevatedTask(value);
-            }
-            else
-            {
-                _autoStart.SetRunKey(value);
-            }
-
-            Write(s => s with { General = s.General with { StartWithWindows = value } });
-            Notify(nameof(StartElevated));
-        }
+        set => _ = SetStartWithWindowsAsync(value);
     }
 
     public bool StartElevated
     {
         get => _autoStart.IsElevatedTaskInstalled;
-        set
+        set => _ = SetStartElevatedAsync(value);
+    }
+
+    /// <summary>
+    /// Liga ou desliga o início com o Windows.
+    /// <para>
+    /// Com a tarefa elevada instalada, desligar é remover a tarefa — o que pede elevação
+    /// e o usuário pode recusar. Por isso as configurações só mudam depois da resposta:
+    /// gravar "desligado" antes deixaria o arquivo dizendo uma coisa e o Windows fazendo
+    /// outra.
+    /// </para>
+    /// </summary>
+    private async Task SetStartWithWindowsAsync(bool value)
+    {
+        if (_autoStart.IsElevatedTaskInstalled)
         {
-            // Alternar entre as duas formas: sai de uma e entra na outra. Manter as duas
-            // faria o programa ser aberto duas vezes no logon.
+            if (await _autoStart.RequestElevatedTaskAsync(install: value))
+            {
+                // A tarefa saiu: nenhuma forma de inicio sobra, e o modo elevado tambem acaba.
+                Write(
+                    s => s with { General = s.General with { StartWithWindows = value, StartElevated = value } },
+                    nameof(StartWithWindows));
+            }
+        }
+        else
+        {
+            _autoStart.SetRunKey(value);
+            Write(s => s with { General = s.General with { StartWithWindows = value } }, nameof(StartWithWindows));
+        }
+
+        // Recusado ou nao, a tela volta a mostrar o que o sistema tem de verdade.
+        Notify(nameof(StartWithWindows));
+        Notify(nameof(StartElevated));
+    }
+
+    /// <summary>
+    /// Alterna entre a entrada comum e a tarefa elevada: sai de uma e entra na outra.
+    /// Manter as duas faria o programa ser aberto duas vezes no logon.
+    /// <para>
+    /// A ordem importa na volta: a entrada comum só é recriada DEPOIS de a tarefa ter
+    /// saído de verdade. Recriá-la antes de saber (a elevação é assíncrona e pode ser
+    /// recusada) deixava as duas ativas.
+    /// </para>
+    /// </summary>
+    private async Task SetStartElevatedAsync(bool value)
+    {
+        bool autoStartWasOn = StartWithWindows;
+
+        if (await _autoStart.RequestElevatedTaskAsync(install: value))
+        {
             if (value)
             {
-                _autoStart.RequestElevatedTask(install: true);
+                // O processo elevado ja tira a entrada comum; repetir aqui, no processo
+                // do usuario, cobre o caso de a elevacao ter sido por outra conta.
+                _autoStart.SetRunKey(false);
             }
-            else
+            else if (autoStartWasOn)
             {
-                _autoStart.RequestElevatedTask(install: false);
-
-                if (StartWithWindows)
-                {
-                    _autoStart.SetRunKey(true);
-                }
+                _autoStart.SetRunKey(true);
             }
 
-            Write(s => s with { General = s.General with { StartElevated = value } });
-            Notify(nameof(StartWithWindows));
+            Write(
+                s => s with { General = s.General with { StartElevated = value, StartWithWindows = value || autoStartWasOn } },
+                nameof(StartElevated));
         }
+
+        Notify(nameof(StartElevated));
+        Notify(nameof(StartWithWindows));
     }
 
     public Option<ThemeMode> Theme

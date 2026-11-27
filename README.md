@@ -539,7 +539,9 @@ funciona com o Gerenciador de Tarefas, o `regedit` ou um instalador em primeiro 
 
 Criar a tarefa exige privilégio, então o programa se relança elevado **uma vez só**;
 depois disso ela sobe sozinha, sem prompt de UAC no logon. Os dois modos são mutuamente
-exclusivos — manter os dois abriria o programa duas vezes.
+exclusivos — manter os dois abriria o programa duas vezes. Voltar do elevado para o normal
+só recria a entrada do registro depois de a tarefa ter saído de verdade: se você recusar o
+UAC, nada muda e o painel volta a mostrar o que o Windows tem.
 
 ---
 

@@ -147,33 +147,66 @@ public sealed class AutoStartService
     /// Criar a tarefa exige privilégio, então o programa se relança elevado uma única
     /// vez. Depois disso a tarefa sobe sozinha, <b>sem prompt de UAC no logon</b>.
     /// </para>
+    /// <para>
+    /// Espera o processo elevado terminar e diz se ele conseguiu. Quem chama precisa
+    /// dessa resposta para não deixar as duas formas de inicialização ligadas ao mesmo
+    /// tempo: trocar para a entrada comum só depois de a tarefa ter saído de verdade, e
+    /// não quando o usuário recusou o pedido de elevação.
+    /// </para>
     /// </summary>
-    public bool RequestElevatedTask(bool install)
+    /// <returns>
+    /// <see langword="true"/> quando a tarefa ficou como pedido; <see langword="false"/>
+    /// quando o usuário recusou a elevação ou o Agendador falhou.
+    /// </returns>
+    public async Task<bool> RequestElevatedTaskAsync(bool install, CancellationToken cancellation = default)
     {
-        if (IsElevated)
-        {
-            return install ? InstallElevatedTask() : RemoveElevatedTask();
-        }
-
-        try
-        {
-            var start = new ProcessStartInfo(ExecutablePath)
+        // Fora da thread de interface: ShellExecute com "runas" so volta depois de o
+        // usuario responder ao UAC, e o schtasks tambem leva o seu tempo.
+        return await Task.Run(
+            async () =>
             {
-                Arguments = install ? "--install-elevated-task" : "--uninstall-elevated-task",
-                UseShellExecute = true,
-                Verb = "runas",
-            };
+                if (IsElevated)
+                {
+                    return install ? InstallElevatedTask() : RemoveElevatedTask();
+                }
 
-            Process.Start(start);
-            return true;
-        }
-        catch (Exception exception)
-        {
-            // O usuario pode simplesmente recusar o pedido de elevacao, e isso e uma
-            // resposta valida - nao um erro do programa.
-            _log.Information(exception, "A elevação foi recusada ou falhou.");
-            return false;
-        }
+                try
+                {
+                    var start = new ProcessStartInfo(ExecutablePath)
+                    {
+                        Arguments = install ? "--install-elevated-task" : "--uninstall-elevated-task",
+                        UseShellExecute = true,
+                        Verb = "runas",
+                    };
+
+                    using Process? helper = Process.Start(start);
+                    if (helper is null)
+                    {
+                        return false;
+                    }
+
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                    timeout.CancelAfter(TimeSpan.FromMinutes(2));
+
+                    await helper.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+
+                    // O codigo de saida e o do RunTaskCommand: 0 deu certo, 3 falhou.
+                    return helper.ExitCode == 0;
+                }
+                catch (OperationCanceledException)
+                {
+                    _log.Warning("O processo elevado demorou demais para terminar a tarefa de inicialização.");
+                    return false;
+                }
+                catch (Exception exception)
+                {
+                    // O usuario pode simplesmente recusar o pedido de elevacao, e isso e uma
+                    // resposta valida - nao um erro do programa.
+                    _log.Information(exception, "A elevação foi recusada ou falhou.");
+                    return false;
+                }
+            },
+            cancellation).ConfigureAwait(false);
     }
 
     /// <summary>Cria a tarefa. Precisa estar rodando elevado.</summary>

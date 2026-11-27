@@ -42,6 +42,21 @@ public partial class App : Application
 
         Options = StartupOptions.Parse(e.Args);
 
+        if (Options.Command != StartupCommand.Run)
+        {
+            // Estes comandos existem para o proprio programa se relancar ELEVADO uma vez
+            // so, criar ou remover a tarefa do Agendador, e sair. Nao sobem a bandeja.
+            //
+            // Rodam ANTES da instancia unica, e de proposito: o processo elevado nasce
+            // com o Print Dev normal ja de pe (foi ele quem pediu), entao a guarda o
+            // trataria como "segunda instancia", acordaria a primaria e sairia sem criar
+            // a tarefa. "Iniciar com privilegios elevados" nunca funcionaria.
+            StartLogging();
+            _log.Information("Print Dev executando o comando {Comando}", Options.Command);
+            RunTaskCommand(Options.Command);
+            return;
+        }
+
         _instanceGuard = SingleInstanceGuard.Acquire();
         if (!_instanceGuard.IsPrimary)
         {
@@ -53,12 +68,7 @@ public partial class App : Application
             return;
         }
 
-        var paths = new AppPaths();
-        paths.EnsureCreated();
-
-        _log = LoggingSetup.Create(paths);
-        Log.Logger = _log;
-        GlobalExceptionHandlers.Install(this, _log);
+        AppPaths paths = StartLogging();
 
         _log.Information(
             "Print Dev iniciando. Silencioso={Silencioso} Configuracoes={Configuracoes} Comando={Comando}",
@@ -69,14 +79,6 @@ public partial class App : Application
         if (Options.Unrecognized.Count > 0)
         {
             _log.Warning("Argumentos ignorados: {Argumentos}", Options.Unrecognized);
-        }
-
-        if (Options.Command != StartupCommand.Run)
-        {
-            // Estes comandos existem para o proprio programa se relancar ELEVADO uma vez
-            // so, criar ou remover a tarefa do Agendador, e sair. Nao sobem a bandeja.
-            RunTaskCommand(Options.Command);
-            return;
         }
 
         _services = ServiceRegistration.Build(Options, paths, _log);
@@ -172,6 +174,22 @@ public partial class App : Application
         };
 
         timer.Start();
+    }
+
+    /// <summary>
+    /// Liga o log em arquivo e os tratadores de exceção. É o primeiro passo depois de
+    /// saber que este processo vai de fato fazer alguma coisa.
+    /// </summary>
+    private AppPaths StartLogging()
+    {
+        var paths = new AppPaths();
+        paths.EnsureCreated();
+
+        _log = LoggingSetup.Create(paths);
+        Log.Logger = _log;
+        GlobalExceptionHandlers.Install(this, _log);
+
+        return paths;
     }
 
     /// <summary>
