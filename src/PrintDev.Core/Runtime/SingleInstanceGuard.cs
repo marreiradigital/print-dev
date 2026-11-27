@@ -159,7 +159,9 @@ public sealed class SingleInstanceGuard : IDisposable
     /// </summary>
     private static IEnumerable<SecurityIdentifier> AllowedIdentities()
     {
-        SecurityIdentifier? user = WindowsIdentity.GetCurrent().User;
+        // O token do processo e um handle: sem o using ele ficaria aberto ate o fim.
+        using WindowsIdentity identity = WindowsIdentity.GetCurrent();
+        SecurityIdentifier? user = identity.User;
 
         if (user is not null)
         {
