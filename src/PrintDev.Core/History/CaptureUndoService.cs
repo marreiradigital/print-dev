@@ -1,4 +1,5 @@
-﻿using PrintDev.Core.Clipboard;
+﻿using System.IO;
+using PrintDev.Core.Clipboard;
 using PrintDev.Core.Hotkeys;
 using PrintDev.Core.Storage;
 using Serilog;
@@ -82,7 +83,12 @@ public sealed class CaptureUndoService
             return new UndoOutcome(true, "Captura descartada.", limpou);
         }
 
-        if (!RecycleBin.Send(item.Path, out string? motivo))
+        // O arquivo pode ter sido movido ou renomeado depois da captura. A Lixeira
+        // responderia "feito" sem ter feito nada; dizer que o arquivo foi para la seria
+        // mentira, e o arquivo continua no disco.
+        bool existia = File.Exists(item.Path);
+
+        if (existia && !RecycleBin.Send(item.Path, out string? motivo, perguntarAntesDeApagarDeVez: true))
         {
             _log.Warning(
                 "Não consegui mandar {Arquivo} para a Lixeira: {Motivo}",
@@ -98,6 +104,16 @@ public sealed class CaptureUndoService
 
         bool clipboardLimpo = _clipboard.ClearIfOwned(_messageWindow.Handle, item.Path);
         Undone?.Invoke(this, item);
+
+        if (!existia)
+        {
+            _log.Information(
+                "Captura desfeita sem arquivo: {Arquivo} já não estava lá (área de transferência limpa: {Limpou})",
+                item.Path,
+                clipboardLimpo);
+
+            return new UndoOutcome(true, "O arquivo já não estava na pasta; a captura saiu do histórico.", clipboardLimpo);
+        }
 
         _log.Information(
             "Captura desfeita: {Arquivo} foi para a Lixeira (área de transferência limpa: {Limpou})",

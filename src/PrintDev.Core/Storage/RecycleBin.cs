@@ -22,6 +22,13 @@ public static class RecycleBin
     private const ushort FOF_NO_UI = 0x0004 | 0x0010 | 0x0400 | 0x0200;
 
     /// <summary>
+    /// Pergunta antes de apagar de vez o que não pode ir para a Lixeira (pasta de rede,
+    /// pen drive, arquivo maior que a Lixeira). Sem isto, junto com a falta de
+    /// confirmação, o shell apaga esses arquivos para sempre e em silêncio.
+    /// </summary>
+    private const ushort FOF_WANTNUKEWARNING = 0x4000;
+
+    /// <summary>
     /// Tamanho que a estrutura tem de ter em 64 bits.
     /// <para>
     /// Existe para o teste conferir. Um erro de alinhamento aqui não dá exceção: dá
@@ -69,7 +76,14 @@ public static class RecycleBin
     /// <summary>
     /// Move um arquivo para a Lixeira, dizendo o motivo quando não consegue.
     /// </summary>
-    public static bool Send(string path, out string? motivo)
+    /// <param name="path">O arquivo.</param>
+    /// <param name="motivo">Por que não deu, quando não deu.</param>
+    /// <param name="perguntarAntesDeApagarDeVez">
+    /// Quando o arquivo não pode ir para a Lixeira, perguntar antes de apagá-lo de vez — e
+    /// tratar o "não" como falha. Só para ações em que a pessoa está olhando; numa faxina
+    /// automática, uma pergunta por arquivo seria pior que o problema.
+    /// </param>
+    public static bool Send(string path, out string? motivo, bool perguntarAntesDeApagarDeVez = false)
     {
         motivo = null;
 
@@ -106,7 +120,7 @@ public static class RecycleBin
             {
                 Function = FO_DELETE,
                 From = origem,
-                Flags = FOF_ALLOWUNDO | FOF_NO_UI,
+                Flags = (ushort)(FOF_ALLOWUNDO | FOF_NO_UI | (perguntarAntesDeApagarDeVez ? FOF_WANTNUKEWARNING : 0)),
             };
 
             int codigo = SHFileOperation(ref operacao);
