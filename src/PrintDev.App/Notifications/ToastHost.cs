@@ -102,12 +102,16 @@ public sealed class ToastHost
     /// Falso quando a captura devia ir para a área de transferência e não foi. O aviso diz
     /// isso em vez de "Captura salva", e espera a nova tentativa.
     /// </param>
-    public void Show(CaptureHistoryItem item, PixelRect near, bool copied = true)
+    /// <param name="force">
+    /// Mostra mesmo com o aviso desligado nas configurações. Só para quando o aviso é o
+    /// único lugar onde a resposta de uma ação pedida aparece — o envio para a nuvem.
+    /// </param>
+    public void Show(CaptureHistoryItem item, PixelRect near, bool copied = true, bool force = false)
     {
         ArgumentNullException.ThrowIfNull(item);
 
         CaptureSettings capture = _settings.Current.Capture;
-        if (!capture.ShowToast)
+        if (!capture.ShowToast && !force)
         {
             return;
         }
@@ -288,7 +292,9 @@ public sealed class ToastHost
             return;
         }
 
-        Show(item, near);
+        // Com o aviso desligado, nao haveria onde mostrar o link nem o motivo de uma falha:
+        // o atalho e o botao Nuvem do seletor simplesmente nao faziam nada.
+        Show(item, near, force: true);
 
         ToastWindow? recem = _visible.LastOrDefault(t => ReferenceEquals(t.Item, item));
 
