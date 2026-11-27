@@ -250,7 +250,21 @@ public partial class OverlayWindow : Window
     {
         base.OnMouseRightButtonDown(e);
 
-        // Botao direito cancela: e o reflexo de quem ja usou qualquer outro capturador.
+        // Quem cancela é o SOLTAR (veja abaixo): o apertar só é engolido.
+        e.Handled = true;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnMouseRightButtonUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseRightButtonUp(e);
+
+        // Botão direito cancela: é o reflexo de quem já usou qualquer outro capturador.
+        //
+        // Cancelar só ao soltar, e não ao apertar: fechando no apertar, o soltar caía no
+        // aplicativo que estava embaixo, que o tomava por um clique direito completo e
+        // abria o menu de contexto dele.
+        e.Handled = true;
         _coordinator.Cancel();
     }
 
