@@ -165,6 +165,10 @@ public sealed class ClipboardWriter : IDisposable
     private IReadOnlyCollection<string>? _onDemandFor;
     private uint[] _published = [];
 
+    /// <summary>O arquivo da captura publicada agora, para o Desfazer saber se ela ainda está aí.</summary>
+    private string? _publishedPath;
+    private bool _publishedImage;
+
     /// <summary>A captura está publicada só como imagem, esperando o histórico registrá-la.</summary>
     private bool _awaitingHistory;
     private DateTimeOffset _publishedAt;
@@ -330,6 +334,8 @@ public sealed class ClipboardWriter : IDisposable
                 _generation++;
                 _owner = owner;
                 _published = formats;
+                _publishedPath = payload.FilePath;
+                _publishedImage = payload.Image is not null;
                 _awaitingHistory = historyFirst;
                 _publishedAt = DateTimeOffset.Now;
                 _sincePublished = Stopwatch.StartNew();
@@ -459,6 +465,8 @@ public sealed class ClipboardWriter : IDisposable
         _onDemandText = null;
         _onDemandFor = null;
         _published = [];
+        _publishedPath = null;
+        _publishedImage = false;
         _awaitingHistory = false;
         _rearmPending = false;
         _historyTimeout?.Stop();
@@ -616,6 +624,8 @@ public sealed class ClipboardWriter : IDisposable
         string? text = _onDemandText;
         IReadOnlyCollection<string>? allowed = _onDemandFor;
         uint[] formats = _published;
+        string? path = _publishedPath;
+        bool image = _publishedImage;
 
         if (text is null || allowed is null || formats.Length == 0 || !OpenWithRetry(_owner))
         {
@@ -662,6 +672,8 @@ public sealed class ClipboardWriter : IDisposable
             _onDemandText = text;
             _onDemandFor = allowed;
             _published = formats;
+            _publishedPath = path;
+            _publishedImage = image;
             return true;
         }
         catch (Exception exception)
@@ -720,9 +732,15 @@ public sealed class ClipboardWriter : IDisposable
     /// <see langword="true"/> quando limpou. <see langword="false"/> quando o conteúdo já
     /// era de outro programa — que também é um desfecho correto, e não um erro.
     /// </returns>
-    public bool ClearIfOwned(IntPtr owner)
+    /// <param name="owner">A janela de mensagens do programa.</param>
+    /// <param name="capturePath">
+    /// O arquivo da captura desfeita; nulo para uma captura que não chegou ao disco. Só
+    /// limpa se o que está na área de transferência é <b>dessa</b> captura: ser nosso não
+    /// basta — a captura seguinte, uma cor do conta-gotas ou um link da nuvem também são.
+    /// </param>
+    public bool ClearIfOwned(IntPtr owner, string? capturePath)
     {
-        if (owner == IntPtr.Zero || NativeMethods.GetClipboardOwner() != owner)
+        if (owner == IntPtr.Zero || NativeMethods.GetClipboardOwner() != owner || !Holds(capturePath))
         {
             return false;
         }
@@ -748,7 +766,7 @@ public sealed class ClipboardWriter : IDisposable
                 return false;
             }
 
-            _log.Debug("Área de transferência limpa: o conteúdo era nosso.");
+            _log.Debug("Área de transferência limpa: o conteúdo era da captura desfeita.");
             return true;
         }
         finally
@@ -756,6 +774,12 @@ public sealed class ClipboardWriter : IDisposable
             NativeMethods.CloseClipboard();
         }
     }
+
+    /// <summary>O que está publicado agora é a captura deste arquivo.</summary>
+    private bool Holds(string? capturePath)
+        => capturePath is null
+            ? _publishedImage && _publishedPath is null
+            : string.Equals(_publishedPath, capturePath, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Monta os blocos <b>na ordem em que serão publicados</b>.

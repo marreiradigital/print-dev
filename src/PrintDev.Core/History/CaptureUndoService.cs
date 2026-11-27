@@ -66,7 +66,7 @@ public sealed class CaptureUndoService
         if (string.IsNullOrWhiteSpace(item.Path))
         {
             _history.Remove(item);
-            bool limpou = _clipboard.ClearIfOwned(_messageWindow.Handle);
+            bool limpou = _clipboard.ClearIfOwned(_messageWindow.Handle, capturePath: null);
             _log.Information("Captura sem arquivo removida do histórico.");
             return new UndoOutcome(true, "Captura descartada.", limpou);
         }
@@ -85,7 +85,7 @@ public sealed class CaptureUndoService
         // Lixeira deixaria um arquivo em disco que o programa não sabe mais que existe.
         _history.Remove(item);
 
-        bool clipboardLimpo = _clipboard.ClearIfOwned(_messageWindow.Handle);
+        bool clipboardLimpo = _clipboard.ClearIfOwned(_messageWindow.Handle, item.Path);
 
         _log.Information(
             "Captura desfeita: {Arquivo} foi para a Lixeira (área de transferência limpa: {Limpou})",
