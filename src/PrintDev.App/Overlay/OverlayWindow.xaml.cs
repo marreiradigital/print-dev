@@ -54,7 +54,7 @@ public partial class OverlayWindow : Window
             Toolbar.Visibility = Visibility.Collapsed;
         }
 
-        ActionCopy.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Capturar);
+        ActionCopy.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Copiar);
         ActionAnnotate.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Anotar);
         ActionPin.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Fixar);
         ActionText.Click += (_, _) => coordinator.ConfirmWith(OverlayAction.Texto);

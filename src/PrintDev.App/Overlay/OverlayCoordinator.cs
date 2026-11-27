@@ -21,8 +21,15 @@ public sealed record OverlayResult(
 /// <summary>O destino escolhido na barra de ações do modo de ajuste.</summary>
 public enum OverlayAction
 {
-    /// <summary>O caminho normal: grava, copia e avisa.</summary>
+    /// <summary>O caminho normal: grava, copia (se a cópia automática estiver ligada) e avisa.</summary>
     Capturar,
+
+    /// <summary>
+    /// O botão Copiar da barra de ações: grava, copia e avisa — sempre. Quem clicou em
+    /// "Copiar" quer copiar, esteja a cópia automática ligada ou não, e não quer o editor
+    /// mesmo que a ação depois da captura seja anotar.
+    /// </summary>
+    Copiar,
 
     /// <summary>Abre o editor de anotação com o recorte.</summary>
     Anotar,

@@ -204,6 +204,10 @@ public sealed class CaptureCoordinator
 
             switch (chosen.Action)
             {
+                case OverlayAction.Copiar:
+                    Deliver(cropped, ModeName(chosen.Mode), active, publish: true);
+                    return;
+
                 case OverlayAction.Anotar:
                     Annotate(cropped, active);
                     return;
@@ -455,8 +459,12 @@ public sealed class CaptureCoordinator
     /// Onde a captura está na tela, para o aviso. Nulo usa os limites da própria imagem,
     /// que só valem quando ela veio da tela — a imagem relida de um arquivo começa em 0,0.
     /// </param>
-    private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active, PixelRect? near = null)
-        => Finish(_pipeline.Save(image, mode, active), publish: _settings.Current.Clipboard.CopyAutomatically, near);
+    /// <param name="publish">
+    /// Forçar (ou não) a cópia. Nulo segue a cópia automática das configurações; um
+    /// "Copiar" clicado de propósito passa verdadeiro.
+    /// </param>
+    private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active, PixelRect? near = null, bool? publish = null)
+        => Finish(_pipeline.Save(image, mode, active), publish: publish ?? _settings.Current.Clipboard.CopyAutomatically, near);
 
     /// <summary>
     /// O que vem depois de a captura estar no disco: área de transferência, histórico,
@@ -552,8 +560,9 @@ public sealed class CaptureCoordinator
 
             // Copiar segue o MESMO caminho de qualquer captura: grava, publica e avisa.
             // Um caminho separado aqui produziria comportamento diferente para a mesma
-            // acao, e e assim que nascem as inconsistencias.
-            Deliver(edited, "anotada", active ?? ActiveWindowInfo.Unknown, near);
+            // acao, e e assim que nascem as inconsistencias. Publica sempre: o botao se
+            // chama Copiar, e a copia automatica desligada nao pode anula-lo.
+            Deliver(edited, "anotada", active ?? ActiveWindowInfo.Unknown, near, publish: true);
         }
         catch (Exception exception)
         {
