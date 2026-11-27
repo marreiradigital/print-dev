@@ -54,6 +54,10 @@ public sealed class OverlayCoordinator
     private TaskCompletionSource<OverlayResult?>? _completion;
     private TaskCompletionSource<Color?>? _colorCompletion;
     private readonly List<OverlayWindow> _windows = [];
+
+    /// <summary>Os monitores que têm janela do seletor agora.</summary>
+    private IReadOnlyList<MonitorInfo> _monitors = [];
+
     private IReadOnlyList<WindowTarget> _targets = [];
     private FrozenScreen? _frozen;
     private (int X, int Y) _anchor;
@@ -142,6 +146,7 @@ public sealed class OverlayCoordinator
         _completion = new TaskCompletionSource<OverlayResult?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         MonitorInfo? active = VirtualDesktop.MonitorUnderCursor(monitors);
+        _monitors = monitors;
 
         foreach (MonitorInfo monitor in monitors)
         {
@@ -256,6 +261,7 @@ public sealed class OverlayCoordinator
         _colorCompletion = new TaskCompletionSource<Color?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         MonitorInfo? active = VirtualDesktop.MonitorUnderCursor(monitors);
+        _monitors = monitors;
 
         foreach (MonitorInfo monitor in monitors)
         {
@@ -501,32 +507,17 @@ public sealed class OverlayCoordinator
 
     /// <summary>
     /// O monitor onde a barra de ações aparece: o do canto inferior direito da seleção,
-    /// que é onde a mão está ao terminar o arrasto. Se esse canto cair no buraco entre
-    /// dois monitores, vale outro canto, e por fim o monitor do cursor.
+    /// que é onde a mão está ao terminar o arrasto.
     /// </summary>
-    internal IntPtr ActionBarMonitor()
-    {
-        PixelRect selection = State.Selection;
-        (int X, int Y)[] corners =
-        [
-            (selection.Right - 1, selection.Bottom - 1),
-            (selection.Left, selection.Bottom - 1),
-            (selection.Right - 1, selection.Top),
-            (selection.Left, selection.Top),
-            State.Cursor,
-        ];
+    internal IntPtr ActionBarMonitor() => AnchorMonitor(State.Selection);
 
-        foreach ((int x, int y) in corners)
-        {
-            MonitorInfo? monitor = _windows.Select(w => w.Monitor).FirstOrDefault(m => m.Bounds.Contains(x, y));
-            if (monitor is not null)
-            {
-                return monitor.Handle;
-            }
-        }
-
-        return IntPtr.Zero;
-    }
+    /// <summary>
+    /// O monitor dono de um retângulo, que mostra o que existe uma vez só por seleção:
+    /// a barra de ações e o selo de dimensões. <see cref="IntPtr.Zero"/> se nenhum monitor
+    /// do seletor contiver nenhum dos pontos, o que inclui o seletor fechado.
+    /// </summary>
+    internal IntPtr AnchorMonitor(PixelRect rect)
+        => VirtualDesktop.AnchorMonitor(_monitors, rect, State.Cursor)?.Handle ?? IntPtr.Zero;
 
     /// <summary>
     /// Folga para pegar uma alça, em pixels físicos: seis unidades de tela no monitor do
@@ -690,6 +681,7 @@ public sealed class OverlayCoordinator
         }
 
         _windows.Clear();
+        _monitors = [];
         _targets = [];
 
         // Quem chamou ja recebeu a sua referencia no resultado e recorta a partir dela.

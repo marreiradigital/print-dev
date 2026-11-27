@@ -163,4 +163,49 @@ public class VirtualDesktopTests
         // metades sem sinal jogaria o clique a 65 mil pixels de distancia.
         Assert.Equal((x, y), VirtualDesktop.Unpack(packed));
     }
+
+    [Fact]
+    public void Dono_da_selecao_que_atravessa_os_monitores_e_o_do_canto_inferior_direito()
+    {
+        // Comeca no principal e termina no secundario: e o secundario que mostra o selo
+        // de dimensoes e a barra de acoes, uma vez so.
+        var atravessa = new PixelRect(1000, 300, 1500, 400);
+
+        MonitorInfo? dono = VirtualDesktop.AnchorMonitor(Ambos, atravessa, (0, 0));
+
+        Assert.Equal(@"\\.\DISPLAY1", dono!.DeviceName);
+    }
+
+    [Fact]
+    public void Dono_da_selecao_muda_para_outro_canto_quando_o_inferior_direito_cai_no_buraco()
+    {
+        // O canto inferior direito (2499, 1059) esta abaixo do secundario, no buraco.
+        var selecao = new PixelRect(1000, 500, 1500, 560);
+
+        MonitorInfo? dono = VirtualDesktop.AnchorMonitor(Ambos, selecao, (2500, 500));
+
+        Assert.Equal(@"\\.\DISPLAY2", dono!.DeviceName);
+    }
+
+    [Fact]
+    public void Dono_da_selecao_com_todos_os_cantos_no_buraco_e_o_monitor_do_cursor()
+    {
+        // Acima do secundario (que comeca em y=171) e ao lado do principal: nenhum canto
+        // cai numa tela.
+        var selecao = new PixelRect(2400, 0, 200, 100);
+
+        Assert.Equal(
+            @"\\.\DISPLAY1",
+            VirtualDesktop.AnchorMonitor(Ambos, selecao, (2500, 500))!.DeviceName);
+        Assert.Null(VirtualDesktop.AnchorMonitor(Ambos, selecao, (2500, 50)));
+    }
+
+    [Fact]
+    public void Dono_de_selecao_vazia_e_o_monitor_do_cursor()
+    {
+        // Um retangulo vazio nao tem cantos: os "cantos" dele seriam pontos de fora.
+        MonitorInfo? dono = VirtualDesktop.AnchorMonitor(Ambos, PixelRect.Empty, (100, 100));
+
+        Assert.Equal(@"\\.\DISPLAY2", dono!.DeviceName);
+    }
 }

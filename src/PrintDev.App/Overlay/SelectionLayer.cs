@@ -54,6 +54,7 @@ public sealed class SelectionLayer : FrameworkElement
     private readonly MonitorInfo _monitor;
     private readonly FrozenScreen _frozen;
     private readonly SelectionState _state;
+    private readonly Func<PixelRect, IntPtr> _anchorMonitor;
 
     /// <summary>
     /// O bitmap da lupa, reaproveitado entre os quadros. Criar um recorte novo a cada
@@ -79,14 +80,24 @@ public sealed class SelectionLayer : FrameworkElement
     private readonly Pen _bracketPen;
     private readonly Typeface _mono;
 
+    /// <param name="monitor">O monitor que esta camada cobre.</param>
+    /// <param name="frozen">A tela congelada.</param>
+    /// <param name="state">O estado compartilhado do seletor.</param>
+    /// <param name="anchorMonitor">
+    /// Diz qual monitor é o dono de um retângulo (<see cref="OverlayCoordinator.AnchorMonitor"/>).
+    /// O selo de dimensões é desenhado só nele: numa seleção que atravessa monitores, cada
+    /// camada desenharia o seu, cada um com o tamanho do pedaço que cabe na sua tela.
+    /// </param>
     public SelectionLayer(
         MonitorInfo monitor,
         FrozenScreen frozen,
-        SelectionState state)
+        SelectionState state,
+        Func<PixelRect, IntPtr> anchorMonitor)
     {
         _monitor = monitor;
         _frozen = frozen;
         _state = state;
+        _anchorMonitor = anchorMonitor;
 
         IsHitTestVisible = false;
 
@@ -180,7 +191,10 @@ public sealed class SelectionLayer : FrameworkElement
             return;
         }
 
-        PixelRect effective = _state.Effective.Intersect(_monitor.Bounds);
+        // O retangulo inteiro, que e o que sera capturado, e o pedaco dele que cai neste
+        // monitor, que e o que esta camada desenha.
+        PixelRect whole = _state.Effective;
+        PixelRect effective = whole.Intersect(_monitor.Bounds);
         Rect hole = ToLocal(effective);
 
         DrawVeil(context, full, effective, hole);
@@ -190,10 +204,12 @@ public sealed class SelectionLayer : FrameworkElement
             DrawSelectionFrame(context, hole);
 
             // Com a barra de acoes na tela, as dimensoes vao dentro dela: o selo
-            // ficaria exatamente no mesmo lugar.
-            if (!_state.ShowsActionBar)
+            // ficaria exatamente no mesmo lugar. E so um monitor desenha o selo, com o
+            // tamanho do recorte inteiro - o mesmo que a barra de acoes mostra e que o
+            // arquivo salvo vai ter.
+            if (!_state.ShowsActionBar && OwnsBadge(whole))
             {
-                DrawDimensionBadge(context, effective, hole, full);
+                DrawDimensionBadge(context, whole, hole, full);
             }
 
             if (!_state.IsDragging && _state.HasSelection)
@@ -317,11 +333,11 @@ public sealed class SelectionLayer : FrameworkElement
     /// isso empurraria o badge para fora do monitor.
     /// </para>
     /// </summary>
-    private void DrawDimensionBadge(DrawingContext context, PixelRect effective, Rect hole, Rect full)
+    private void DrawDimensionBadge(DrawingContext context, PixelRect whole, Rect hole, Rect full)
     {
         // O multiplicador tipografico, e nao a letra x: e a diferenca entre parecer
         // desenhado e parecer digitado com pressa.
-        string label = $"{effective.Width} × {effective.Height}";
+        string label = $"{whole.Width} × {whole.Height}";
         FormattedText text = Format(label, 11.5);
 
         const double padX = 8;
@@ -498,6 +514,13 @@ public sealed class SelectionLayer : FrameworkElement
         size,
         _badgeText,
         VisualTreeHelper.GetDpi(this).PixelsPerDip);
+
+    /// <summary>Se este monitor é o que desenha o selo de dimensões desta seleção.</summary>
+    private bool OwnsBadge(PixelRect whole)
+    {
+        IntPtr owner = _anchorMonitor(whole);
+        return owner != IntPtr.Zero && owner == _monitor.Handle;
+    }
 
     private bool CursorIsHere() => _monitor.Bounds.Contains(_state.Cursor.X, _state.Cursor.Y);
 

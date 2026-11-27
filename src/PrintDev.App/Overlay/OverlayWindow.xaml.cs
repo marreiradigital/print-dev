@@ -42,7 +42,7 @@ public partial class OverlayWindow : Window
                 monitor.Bounds.Width,
                 monitor.Bounds.Height));
 
-        _layer = new SelectionLayer(monitor, frozen, coordinator.State);
+        _layer = new SelectionLayer(monitor, frozen, coordinator.State, coordinator.AnchorMonitor);
         LayerHost.Content = _layer;
 
         SyncMode(coordinator.State.Mode);

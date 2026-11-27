@@ -171,6 +171,46 @@ public static class VirtualDesktop
         return best;
     }
 
+    /// <summary>
+    /// O monitor "dono" de uma seleção: o que mostra as coisas que existem uma vez só por
+    /// seleção, como a barra de ações e o selo de dimensões. É o do canto inferior direito,
+    /// que é onde a mão está ao terminar o arrasto. Se esse canto cair num buraco do
+    /// desktop virtual, vale outro canto, e por fim o monitor do cursor.
+    /// </summary>
+    /// <param name="monitors">Os monitores com janela do seletor.</param>
+    /// <param name="selection">A seleção, em pixels físicos. Vazia pula direto para o cursor.</param>
+    /// <param name="cursor">O cursor, em pixels físicos.</param>
+    /// <returns>O monitor, ou <see langword="null"/> se nenhum contiver nenhum dos pontos.</returns>
+    public static MonitorInfo? AnchorMonitor(
+        IReadOnlyList<MonitorInfo> monitors,
+        PixelRect selection,
+        (int X, int Y) cursor)
+    {
+        ArgumentNullException.ThrowIfNull(monitors);
+
+        if (!selection.IsEmpty)
+        {
+            (int X, int Y)[] corners =
+            [
+                (selection.Right - 1, selection.Bottom - 1),
+                (selection.Left, selection.Bottom - 1),
+                (selection.Right - 1, selection.Top),
+                (selection.Left, selection.Top),
+            ];
+
+            foreach ((int x, int y) in corners)
+            {
+                MonitorInfo? monitor = MonitorAt(monitors, x, y);
+                if (monitor is not null)
+                {
+                    return monitor;
+                }
+            }
+        }
+
+        return MonitorAt(monitors, cursor.X, cursor.Y);
+    }
+
     /// <summary>Monitor sob o cursor, ou o principal se algo der errado.</summary>
     public static MonitorInfo? MonitorUnderCursor(IReadOnlyList<MonitorInfo> monitors)
     {
