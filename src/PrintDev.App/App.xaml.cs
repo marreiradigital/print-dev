@@ -68,6 +68,27 @@ public partial class App : Application
             return;
         }
 
+        try
+        {
+            StartPrimary();
+        }
+        catch (Exception exception)
+        {
+            OnStartupFailed(exception);
+        }
+    }
+
+    /// <summary>
+    /// A partida da instância primária: log, configurações, bandeja, atalhos.
+    /// <para>
+    /// Roda dentro de um <c>try</c> em <see cref="OnStartup"/>. Uma exceção aqui chegava ao
+    /// tratador do dispatcher, que a engole e deixa o processo vivo — sem bandeja, sem
+    /// atalho e segurando o mutex de instância única, o que fazia o próximo duplo clique
+    /// só acordar um fantasma.
+    /// </para>
+    /// </summary>
+    private void StartPrimary()
+    {
         AppPaths paths = StartLogging();
 
         _log.Information(
@@ -127,7 +148,7 @@ public partial class App : Application
             _services.GetRequiredService<SettingsWindowHost>().Show();
         }
 
-        _instanceGuard.WhenActivationRequested(OnActivationRequested);
+        _instanceGuard?.WhenActivationRequested(OnActivationRequested);
 
         // A limpeza roda uma vez por inicializacao, em segundo plano: varrer a pasta na
         // thread de interface deixaria o programa mudo por segundos numa pasta grande.
@@ -154,6 +175,29 @@ public partial class App : Application
         Dispatcher.BeginInvoke(
             System.Windows.Threading.DispatcherPriority.ApplicationIdle,
             new Action(WorkingSet.ReleaseSoon));
+    }
+
+    /// <summary>
+    /// A partida falhou no meio: registra o motivo e encerra de verdade, liberando o
+    /// mutex (o <see cref="OnExit"/> descarta tudo o que chegou a ser criado).
+    /// </summary>
+    private void OnStartupFailed(Exception exception)
+    {
+        _log.Fatal(exception, "O Print Dev não conseguiu iniciar; encerrando");
+
+        // Quem abriu o programa na mao merece saber por que nada apareceu. Na partida
+        // silenciosa (logon) um dialogo seria pior que o silencio: o log basta.
+        if (!Options.Silent)
+        {
+            MessageBox.Show(
+                $"O Print Dev não conseguiu iniciar.{Environment.NewLine}{Environment.NewLine}{exception.Message}"
+                + $"{Environment.NewLine}{Environment.NewLine}O detalhe completo está no arquivo de log.",
+                "Print Dev",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+
+        Shutdown(1);
     }
 
     /// <summary>
@@ -391,7 +435,17 @@ public partial class App : Application
 
         // A ordem inversa da inicializacao: o container primeiro (para o icone sair da
         // bandeja), a instancia unica depois, e o log por ultimo, para registrar tudo.
-        _services?.Dispose();
+        try
+        {
+            _services?.Dispose();
+        }
+        catch (Exception exception)
+        {
+            // Um servico que falha ao ser descartado nao pode impedir o resto: o mutex de
+            // instancia unica precisa sair sempre, senao o proximo inicio acha que ja ha um.
+            _log.Error(exception, "Falha ao descartar os serviços ao encerrar");
+        }
+
         _instanceGuard?.Dispose();
 
         _log.Information("Print Dev encerrado com código {Codigo}", e.ApplicationExitCode);
