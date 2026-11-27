@@ -91,9 +91,12 @@ public sealed class AnnotationCanvas : FrameworkElement
     protected override Size MeasureOverride(Size availableSize)
     {
         // Cabe na área disponível mantendo a proporção; nunca amplia além de 1:1, porque
-        // ampliar uma captura só deixa o pixel grande e borrado.
+        // ampliar uma captura só deixa o pixel grande e borrado. 1:1 é um pixel da imagem
+        // por pixel da TELA: em 150% de escala do Windows isso é 1/1,5 de unidade do WPF.
+        // Limitar em 1 unidade, como era, ampliava a captura 1,5 vez e a borrava.
+        double oneToOne = 1.0 / Math.Max(VisualTreeHelper.GetDpi(this).DpiScaleX, 0.01);
         double scale = Math.Min(
-            1.0,
+            oneToOne,
             Math.Min(availableSize.Width / _source.Width, availableSize.Height / _source.Height));
 
         if (double.IsInfinity(scale) || double.IsNaN(scale) || scale <= 0)
@@ -106,6 +109,15 @@ public sealed class AnnotationCanvas : FrameworkElement
 
     /// <summary>Fator entre pixel da imagem e unidade na tela.</summary>
     private double Scale => ActualWidth <= 0 ? 1 : ActualWidth / _source.Width;
+
+    /// <inheritdoc/>
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+
+        // A janela foi para um monitor com outra escala: o 1:1 mudou de tamanho.
+        InvalidateMeasure();
+    }
 
     /// <summary>Fator entre pixel da imagem e unidade na tela, para quem posiciona algo sobre ela.</summary>
     internal double DisplayScale => Scale;
