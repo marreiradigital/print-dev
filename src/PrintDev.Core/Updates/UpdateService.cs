@@ -15,24 +15,23 @@ namespace PrintDev.Core.Updates;
 /// </summary>
 public sealed class UpdateService : IDisposable
 {
-    /// <summary>
-    /// Espera antes da primeira consulta. A inicialização deste programa leva cerca
-    /// de meio segundo, e disputar largura de banda e disco com ela para perguntar
-    /// algo que pode esperar seria trocar a partida rápida por nada.
-    /// </summary>
-    private static readonly TimeSpan PrimeiraEspera = TimeSpan.FromSeconds(60);
-
     private readonly GitHubReleaseClient _github;
     private readonly UpdateInstaller _installer;
     private readonly UpdateStateStore _store;
     private readonly ISettingsService _settings;
     private readonly ILogger _log;
+    private readonly Timings _timings;
 
     private readonly CancellationTokenSource _parada = new();
     private readonly SemaphoreSlim _umDeCadaVez = new(1, 1);
 
+    // Protege o instalador pronto e a marca de "ja estou esperando a hora de instalar".
+    private readonly object _trava = new();
+
     private Task? _laco;
-    private bool _descartado;
+    private string? _instaladorPronto;
+    private bool _aguardandoMomento;
+    private volatile bool _descartado;
 
     public UpdateService(
         GitHubReleaseClient github,
@@ -40,12 +39,46 @@ public sealed class UpdateService : IDisposable
         UpdateStateStore store,
         ISettingsService settings,
         ILogger log)
+        : this(github, installer, store, settings, log, Timings.Default)
+    {
+    }
+
+    internal UpdateService(
+        GitHubReleaseClient github,
+        UpdateInstaller installer,
+        UpdateStateStore store,
+        ISettingsService settings,
+        ILogger log,
+        Timings timings)
     {
         _github = github;
         _installer = installer;
         _store = store;
         _settings = settings;
         _log = log.ForContext<UpdateService>();
+        _timings = timings;
+    }
+
+    /// <summary>Os tempos do serviço. Os testes encurtam; o aplicativo usa os padrões.</summary>
+    internal sealed record Timings
+    {
+        public static Timings Default { get; } = new();
+
+        /// <summary>
+        /// Espera antes da primeira consulta. A inicialização deste programa leva cerca
+        /// de meio segundo, e disputar largura de banda e disco com ela para perguntar
+        /// algo que pode esperar seria trocar a partida rápida por nada.
+        /// </summary>
+        public TimeSpan PrimeiraEspera { get; init; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>Intervalo entre consultas. Nulo usa o das configurações.</summary>
+        public TimeSpan? Intervalo { get; init; }
+
+        /// <summary>
+        /// De quanto em quanto tempo perguntar de novo se já dá para interromper, quando
+        /// a instalação automática encontrou uma janela aberta.
+        /// </summary>
+        public TimeSpan EsperaParaInstalar { get; init; } = TimeSpan.FromMinutes(1);
     }
 
     /// <summary>
@@ -65,8 +98,37 @@ public sealed class UpdateService : IDisposable
     /// </summary>
     public Func<bool>? PodeInterromper { get; set; }
 
+    /// <summary>
+    /// Chamado quando o serviço mesmo iniciou o instalador (política automática, ou o
+    /// instalador de uma sessão anterior que ficou pendente): o aplicativo precisa
+    /// encerrar logo em seguida para liberar o executável. Dispara em thread de segundo
+    /// plano — quem encerra precisa passar pelo despachante.
+    /// <para>
+    /// Sem isso o instalador silencioso encontrava o mutex de instância única ainda
+    /// preso, desistia, e a tentativa ficava registrada como feita.
+    /// </para>
+    /// </summary>
+    public Action? EncerrarParaInstalar { get; set; }
+
     /// <summary>Instalador baixado e conferido, esperando a hora.</summary>
-    public string? InstaladorPronto { get; private set; }
+    public string? InstaladorPronto
+    {
+        get
+        {
+            lock (_trava)
+            {
+                return _instaladorPronto;
+            }
+        }
+
+        private set
+        {
+            lock (_trava)
+            {
+                _instaladorPronto = value;
+            }
+        }
+    }
 
     /// <summary>Liga a verificação periódica.</summary>
     public void Start()
@@ -83,7 +145,10 @@ public sealed class UpdateService : IDisposable
         // e, pior, esqueceria um instalador ja baixado que so faltava instalar.
         Publicar(DoEstado(_store.Read()));
 
-        _laco = Task.Run(() => LacoAsync(_parada.Token));
+        // O token e lido agora: dentro da lambda ele seria lido numa thread do pool, talvez
+        // depois do Dispose.
+        CancellationToken parada = _parada.Token;
+        _laco = Task.Run(() => LacoAsync(parada));
     }
 
     /// <summary>
@@ -92,7 +157,19 @@ public sealed class UpdateService : IDisposable
     /// </summary>
     public async Task<UpdateCheckResult> CheckAsync(bool forcado, CancellationToken cancellation = default)
     {
-        if (!await _umDeCadaVez.WaitAsync(0, cancellation).ConfigureAwait(false))
+        if (_descartado)
+        {
+            return Last;
+        }
+
+        try
+        {
+            if (!await _umDeCadaVez.WaitAsync(0, cancellation).ConfigureAwait(false))
+            {
+                return Last;
+            }
+        }
+        catch (ObjectDisposedException)
         {
             return Last;
         }
@@ -103,7 +180,7 @@ public sealed class UpdateService : IDisposable
         }
         finally
         {
-            _umDeCadaVez.Release();
+            LiberarUm();
         }
     }
 
@@ -127,34 +204,83 @@ public sealed class UpdateService : IDisposable
     /// Devolver <see langword="true"/> obriga quem chamou a desligar em seguida: o
     /// instalador não substitui um executável em uso.
     /// </para>
+    /// <para>
+    /// O instalador é consumido na primeira chamada que o inicia. O menu da bandeja
+    /// chama aqui e depois encerra o programa, e o encerramento chama de novo (política
+    /// "ao sair"): sem isso o instalador abria duas vezes.
+    /// </para>
     /// </summary>
     public bool InstalarAgora()
     {
-        if (InstaladorPronto is null)
+        string? instalador;
+
+        lock (_trava)
         {
-            return false;
+            instalador = _instaladorPronto;
+
+            if (instalador is null)
+            {
+                return false;
+            }
+
+            _instaladorPronto = null;
         }
 
-        UpdateState estado = _store.Read();
+        UpdateState anterior = _store.Read();
 
         // Registrado ANTES de tentar. Depois de encerrar não há ninguém vivo para
         // anotar o fracasso, e é a partida seguinte que descobre o que houve.
-        _store.Write(estado with
+        _store.Write(anterior with
         {
-            LastAttemptTag = estado.ReadyInstallerTag,
+            LastAttemptTag = anterior.ReadyInstallerTag,
             LastAttemptAt = DateTimeOffset.Now,
         });
 
-        return _installer.Launch(InstaladorPronto, _settings.Current);
+        bool iniciou;
+
+        try
+        {
+            iniciou = _installer.Launch(instalador, _settings.Current);
+        }
+        catch (Exception excecao)
+        {
+            _log.Error(excecao, "Falha ao iniciar o instalador");
+            iniciou = false;
+        }
+
+        if (iniciou)
+        {
+            return true;
+        }
+
+        // Nada foi iniciado, entao nao houve tentativa. Deixar a marca faria esta versao
+        // ser tratada como "a instalacao automatica falhou" para sempre. O instalador que
+        // nao abre (sumiu, bloqueado) e esquecido: a proxima consulta baixa outro.
+        _store.Write(_store.Read() with
+        {
+            LastAttemptTag = anterior.LastAttemptTag,
+            LastAttemptAt = anterior.LastAttemptAt,
+            ReadyInstaller = null,
+            ReadyInstallerTag = null,
+        });
+
+        Publicar(new UpdateCheckResult(
+            UpdateStatus.Disponivel,
+            Last.Update,
+            "Não consegui iniciar o instalador. Procure atualizações de novo para baixá-lo outra vez."));
+
+        return false;
     }
 
     /// <summary>
-    /// Chamado no encerramento. Instala se a política for "ao sair" e houver algo
-    /// pronto — sem nunca segurar o encerramento por causa de rede.
+    /// Chamado no encerramento. Instala se a política for "ao sair" (ou automática, que
+    /// ainda esperava uma folga) e houver algo pronto — sem nunca segurar o encerramento
+    /// por causa de rede. Quem encerra o programa é quem chamou: aqui só se inicia o
+    /// instalador.
     /// </summary>
     public bool InstalarAoSairSeHouver()
     {
-        if (_settings.Current.Updates.Action != UpdateAction.InstalarAoSair)
+        if (_settings.Current.Updates.Action is not (UpdateAction.InstalarAoSair or UpdateAction.InstalarAutomaticamente))
         {
             return false;
         }
@@ -166,7 +292,9 @@ public sealed class UpdateService : IDisposable
     {
         try
         {
-            await Task.Delay(PrimeiraEspera, cancellation).ConfigureAwait(false);
+            await Task.Delay(_timings.PrimeiraEspera, cancellation).ConfigureAwait(false);
+
+            TentarInstalarPendenteDaSessaoAnterior();
 
             while (!cancellation.IsCancellationRequested)
             {
@@ -176,14 +304,18 @@ public sealed class UpdateService : IDisposable
                     {
                         await VerificarAsync(forcado: false, cancellation).ConfigureAwait(false);
                     }
-                    catch (Exception excecao) when (excecao is not OperationCanceledException)
+                    catch (Exception excecao) when (!cancellation.IsCancellationRequested)
                     {
-                        // Verificar atualização não pode derrubar o programa. Nunca.
+                        // Verificar atualização não pode derrubar o programa. Nunca. E
+                        // nenhuma excecao encerra o laco: um cancelamento que NAO e o do
+                        // encerramento (o tempo-limite de um download, por exemplo) e so
+                        // uma verificacao que falhou -- tratar como "parar" deixava uma
+                        // unica queda de conexao desligar todas as verificacoes futuras.
                         _log.Error(excecao, "Falha inesperada na verificação de atualização");
                     }
                     finally
                     {
-                        _umDeCadaVez.Release();
+                        LiberarUm();
                     }
                 }
 
@@ -191,9 +323,18 @@ public sealed class UpdateService : IDisposable
                 await Task.Delay(intervalo, cancellation).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             // Encerramento normal.
+        }
+        catch (ObjectDisposedException)
+        {
+            // O servico foi descartado no meio de uma volta.
+        }
+        catch (Exception excecao)
+        {
+            // Nada que escape daqui pode virar excecao de tarefa sem dono.
+            _log.Error(excecao, "O laço de verificação de atualização terminou por erro");
         }
     }
 
@@ -297,21 +438,180 @@ public sealed class UpdateService : IDisposable
         InstaladorPronto = download.Path;
         _store.Write(estado with { ReadyInstaller = download.Path, ReadyInstallerTag = achado.Tag });
 
+        bool automatico = _settings.Current.Updates.Action == UpdateAction.InstalarAutomaticamente;
+
         UpdateCheckResult pronto = new(
             UpdateStatus.Baixado,
             achado,
-            $"A versão {achado.Version.ToString(3)} está baixada e será instalada quando você sair.");
+            automatico
+                ? $"A versão {achado.Version.ToString(3)} está baixada e será instalada assim que o programa estiver livre."
+                : $"A versão {achado.Version.ToString(3)} está baixada e será instalada quando você sair.");
 
-        if (_settings.Current.Updates.Action == UpdateAction.InstalarAutomaticamente
-            && PodeInterromper?.Invoke() != false)
+        Publicar(pronto);
+
+        if (automatico)
         {
-            _log.Information("Instalando a {Versao} automaticamente", achado.Version.ToString(3));
-            Publicar(pronto);
-            InstalarAgora();
-            return pronto;
+            AgendarInstalacaoAutomatica();
         }
 
-        return Publicar(pronto);
+        return pronto;
+    }
+
+    /// <summary>
+    /// Instala sozinho assim que der, e reavalia enquanto não der.
+    /// <para>
+    /// "Dá para interromper" era perguntado uma única vez, no instante em que o
+    /// download terminava. Se houvesse uma janela aberta naquele segundo, a resposta
+    /// era não, ninguém perguntava de novo, e o instalador ficava parado para sempre —
+    /// o modo automático não instalava nunca, e a política "ao sair" não se aplica a ele.
+    /// </para>
+    /// </summary>
+    private void AgendarInstalacaoAutomatica()
+    {
+        CancellationToken parada;
+
+        lock (_trava)
+        {
+            if (_aguardandoMomento || _descartado)
+            {
+                return;
+            }
+
+            try
+            {
+                parada = _parada.Token;
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            _aguardandoMomento = true;
+        }
+
+        _ = Task.Run(() => AguardarMomentoDeInstalarAsync(parada));
+    }
+
+    private async Task AguardarMomentoDeInstalarAsync(CancellationToken cancellation)
+    {
+        try
+        {
+            while (!cancellation.IsCancellationRequested)
+            {
+                if (!AindaDeveInstalarSozinho())
+                {
+                    return;
+                }
+
+                if (PodeInterromperAgora())
+                {
+                    _log.Information("Instalando a atualização automaticamente");
+                    IniciarInstalacaoEEncerrar();
+                    return;
+                }
+
+                await Task.Delay(_timings.EsperaParaInstalar, cancellation).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // Encerramento normal.
+        }
+        catch (Exception excecao)
+        {
+            _log.Error(excecao, "Falha ao esperar o momento de instalar a atualização");
+        }
+        finally
+        {
+            lock (_trava)
+            {
+                _aguardandoMomento = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Na partida, aplica o instalador que uma sessão anterior baixou e não chegou a
+    /// instalar.
+    /// <para>
+    /// A política "ao sair" instala no encerramento do programa — mas quando o Windows
+    /// desliga ou termina a sessão, o programa pode ser morto sem passar por ele, e o
+    /// instalador já conferido ficava parado em disco para sempre. Este é o primeiro
+    /// momento calmo seguinte. Só vale uma tentativa por instalador: se a anterior desta
+    /// mesma versão já falhou, não se insiste.
+    /// </para>
+    /// </summary>
+    private void TentarInstalarPendenteDaSessaoAnterior()
+    {
+        try
+        {
+            if (InstaladorPronto is null || TentativaJaFeita(_store.Read()))
+            {
+                return;
+            }
+
+            switch (_settings.Current.Updates.Action)
+            {
+                case UpdateAction.InstalarAutomaticamente:
+                    AgendarInstalacaoAutomatica();
+                    break;
+
+                case UpdateAction.InstalarAoSair when PodeInterromperAgora():
+                    _log.Information("Instalando a atualização que ficou pendente da sessão anterior");
+                    IniciarInstalacaoEEncerrar();
+                    break;
+            }
+        }
+        catch (Exception excecao)
+        {
+            _log.Error(excecao, "Falha ao aplicar a atualização pendente");
+        }
+    }
+
+    private bool AindaDeveInstalarSozinho()
+        => InstaladorPronto is not null
+           && _settings.Current.Updates.Action == UpdateAction.InstalarAutomaticamente
+           && !TentativaJaFeita(_store.Read());
+
+    private static bool TentativaJaFeita(UpdateState estado)
+        => estado.LastAttemptTag is not null
+           && string.Equals(estado.LastAttemptTag, estado.ReadyInstallerTag, StringComparison.OrdinalIgnoreCase);
+
+    private void IniciarInstalacaoEEncerrar()
+    {
+        if (!InstalarAgora())
+        {
+            return;
+        }
+
+        if (EncerrarParaInstalar is null)
+        {
+            _log.Warning("O instalador foi iniciado, mas ninguém está ligado para encerrar o programa.");
+            return;
+        }
+
+        try
+        {
+            EncerrarParaInstalar();
+        }
+        catch (Exception excecao)
+        {
+            _log.Error(excecao, "Falha ao pedir o encerramento para instalar a atualização");
+        }
+    }
+
+    private bool PodeInterromperAgora()
+    {
+        try
+        {
+            return PodeInterromper?.Invoke() != false;
+        }
+        catch (Exception excecao)
+        {
+            // Aplicativo encerrando, despachante parado: nao e hora de interromper nada.
+            _log.Debug(excecao, "Não consegui perguntar se dá para interromper");
+            return false;
+        }
     }
 
     /// <summary>
@@ -394,6 +694,11 @@ public sealed class UpdateService : IDisposable
 
     private TimeSpan IntervaloConfigurado()
     {
+        if (_timings.Intervalo is { } fixo)
+        {
+            return fixo;
+        }
+
         // Um valor absurdo no arquivo de configuração não pode virar consulta em laço
         // nem verificação que nunca acontece.
         int horas = Math.Clamp(_settings.Current.Updates.IntervalHours, 1, 24 * 7);
@@ -415,6 +720,23 @@ public sealed class UpdateService : IDisposable
         return resultado;
     }
 
+    /// <summary>
+    /// Solta o semáforo sem estourar: o laço de verificação pode estar no fim de uma
+    /// volta quando o serviço é descartado, e o <c>Release</c> do <c>finally</c> dele
+    /// encontrava o semáforo já descartado.
+    /// </summary>
+    private void LiberarUm()
+    {
+        try
+        {
+            _umDeCadaVez.Release();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Descartado enquanto a verificacao terminava.
+        }
+    }
+
     public void Dispose()
     {
         if (_descartado)
@@ -424,7 +746,17 @@ public sealed class UpdateService : IDisposable
 
         _descartado = true;
 
-        _parada.Cancel();
+        try
+        {
+            _parada.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        // O laco e a espera de instalar ainda podem estar saindo de uma volta; nao se
+        // espera por eles (quem descarta e a thread de interface, e uma delas pergunta
+        // "dá para interromper" a ela). O que importa e que o fim delas nao estoure.
         _parada.Dispose();
         _umDeCadaVez.Dispose();
     }

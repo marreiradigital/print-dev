@@ -335,10 +335,12 @@ meio do dia é o oposto disso.
 |---|---|
 | **Baixar e instalar quando eu sair** | Padrão. Baixa em segundo plano; a troca acontece no encerramento |
 | Só avisar | Notifica na bandeja; nada é baixado sem um clique |
-| Instalar assim que der | Reinicia sozinho — nunca durante uma captura, com o editor aberto ou com um pin na tela |
+| Instalar assim que der | Reinicia sozinho — nunca durante uma captura, com o editor aberto ou com um pin na tela. Se houver uma janela aberta na hora, espera e pergunta de novo a cada minuto |
 | Não procurar | Desliga a verificação |
 
 Em **Configurações → Atualizações** há o botão **Procurar agora**, que ignora o intervalo.
+
+Se o Windows desligar ou terminar a sessão sem passar pelo encerramento do programa, o instalador já conferido não se perde: ele é aplicado na próxima partida (uma tentativa só por instalador, e nunca com uma janela aberta).
 
 ### Como o download é conferido
 

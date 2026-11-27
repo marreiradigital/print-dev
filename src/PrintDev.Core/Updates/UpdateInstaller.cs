@@ -19,7 +19,7 @@ public sealed record DownloadOutcome(bool Success, string? Path, string Message)
 /// executaria com prazer, porque acabou de baixar "a atualização".
 /// </para>
 /// </summary>
-public sealed class UpdateInstaller
+public class UpdateInstaller
 {
     /// <summary>Teto de tamanho. Um instalador deste programa tem cerca de 7 MB.</summary>
     private const long MaxBytes = 200L * 1024 * 1024;
@@ -33,6 +33,20 @@ public sealed class UpdateInstaller
         _log = log.ForContext<UpdateInstaller>();
     }
 
+    /// <summary>
+    /// Teto de tempo do download inteiro. Generoso, mas teto: sem ele uma conexão que
+    /// aceita a conexão e nunca manda bytes deixaria a tarefa pendurada até o programa
+    /// encerrar. Só os testes mudam o padrão.
+    /// </summary>
+    internal TimeSpan DownloadTimeout { get; set; } = TimeSpan.FromMinutes(10);
+
+    /// <summary>
+    /// Pasta em uso por esta instância. Os testes apontam para uma pasta descartável:
+    /// baixar limpa tudo o que houver na pasta, e não pode varrer o instalador pendente
+    /// de um Print Dev de verdade.
+    /// </summary>
+    internal string DownloadFolder { get; set; } = DownloadDirectory;
+
     /// <summary>Pasta dos instaladores baixados, fora de qualquer pasta do usuário.</summary>
     public static string DownloadDirectory { get; } =
         Path.Combine(Path.GetTempPath(), "PrintDev", "atualizacao");
@@ -41,7 +55,7 @@ public sealed class UpdateInstaller
     /// Baixa e confere. Só devolve sucesso quando o arquivo em disco tem exatamente o
     /// digesto que a API do GitHub publicou para ele.
     /// </summary>
-    public async Task<DownloadOutcome> DownloadAsync(
+    public virtual async Task<DownloadOutcome> DownloadAsync(
         AvailableUpdate update,
         IProgress<double>? progress = null,
         CancellationToken cancellation = default)
@@ -64,18 +78,19 @@ public sealed class UpdateInstaller
             return new DownloadOutcome(false, null, "O instalador anunciado é grande demais para ser plausível.");
         }
 
-        string destino = Path.Combine(DownloadDirectory, update.AssetName);
+        string destino = Path.Combine(DownloadFolder, update.AssetName);
         string parcial = destino + ".parcial";
 
-        // Teto generoso, mas teto: sem ele uma conexão que aceita a conexão e nunca
-        // manda bytes deixaria a tarefa pendurada até o programa encerrar.
+        // O teto de tempo e um cancelamento NOSSO, diferente do pedido por quem chamou
+        // (encerramento do programa): os dois chegam como OperationCanceledException, e
+        // so o segundo deve atravessar para quem chamou. Veja o catch abaixo.
         using var limite = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        limite.CancelAfter(TimeSpan.FromMinutes(10));
+        limite.CancelAfter(DownloadTimeout);
         CancellationToken token = limite.Token;
 
         try
         {
-            Directory.CreateDirectory(DownloadDirectory);
+            Directory.CreateDirectory(DownloadFolder);
             LimparAnteriores(destino);
 
             using (HttpResponseMessage resposta = await _http
@@ -152,8 +167,20 @@ public sealed class UpdateInstaller
 
             return new DownloadOutcome(true, destino, $"Versão {update.Version.ToString(3)} pronta para instalar.");
         }
+        catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
+        {
+            // Estourou o teto de tempo. E uma falha de download como outra qualquer, e
+            // NAO um pedido de parada: relancar a excecao fazia o laco de verificacao
+            // achar que o programa estava encerrando, e um unico download pendurado
+            // desligava todas as verificacoes futuras.
+            _log.Warning("O download do instalador passou de {Minutos:0.#} min e foi abandonado", DownloadTimeout.TotalMinutes);
+            TentarApagar(parcial);
+
+            return new DownloadOutcome(false, null, "O download do instalador demorou demais. Tente de novo mais tarde.");
+        }
         catch (OperationCanceledException)
         {
+            // Cancelamento pedido por quem chamou (o programa esta encerrando).
             TentarApagar(parcial);
             throw;
         }
@@ -172,7 +199,7 @@ public sealed class UpdateInstaller
     /// </summary>
     /// <param name="installerPath">Arquivo já baixado e conferido.</param>
     /// <param name="settings">De onde saem as tarefas que o instalador deve repetir.</param>
-    public bool Launch(string installerPath, AppSettings settings)
+    public virtual bool Launch(string installerPath, AppSettings settings)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(installerPath);
         ArgumentNullException.ThrowIfNull(settings);
@@ -265,7 +292,7 @@ public sealed class UpdateInstaller
     {
         try
         {
-            foreach (string arquivo in Directory.EnumerateFiles(DownloadDirectory))
+            foreach (string arquivo in Directory.EnumerateFiles(DownloadFolder))
             {
                 if (!string.Equals(arquivo, manter, StringComparison.OrdinalIgnoreCase))
                 {

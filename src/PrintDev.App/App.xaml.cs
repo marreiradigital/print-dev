@@ -292,6 +292,15 @@ public partial class App : Application
         updates.Changed += (_, resultado) => Dispatcher.BeginInvoke(
             () => _services?.GetService<TrayIconHost>()?.ShowUpdateStatus(resultado));
 
+        // Quando o proprio servico inicia o instalador (modo automatico, ou o que ficou
+        // pendente da sessao anterior), alguem precisa encerrar o programa: o instalador
+        // silencioso desiste se o mutex de instancia unica ainda estiver preso.
+        updates.EncerrarParaInstalar = () => Dispatcher.BeginInvoke(() =>
+        {
+            _log.Information("Encerrando para a atualização ser instalada");
+            Shutdown(0);
+        });
+
         updates.Start();
     }
 
@@ -308,6 +317,32 @@ public partial class App : Application
         {
             // Encerrar nunca pode falhar por causa de atualização.
             _log.Error(exception, "Falha ao iniciar a instalação da atualização");
+        }
+    }
+
+    /// <summary>
+    /// O Windows está encerrando a sessão (desligar, reiniciar, sair da conta).
+    /// <para>
+    /// Nesse caso o processo pode ser morto sem passar por <see cref="OnExit"/>, então o
+    /// que só se grava lá (a configuração que ainda esperava o agendamento) precisa sair
+    /// agora. O instalador pendente <b>não</b> é iniciado aqui: um instalador nascido
+    /// durante o encerramento da sessão pode ser morto no meio e deixar a instalação pela
+    /// metade. Ele continua guardado e é aplicado na próxima partida.
+    /// </para>
+    /// </summary>
+    protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
+    {
+        base.OnSessionEnding(e);
+
+        _log.Information("A sessão do Windows está terminando ({Motivo})", e.ReasonSessionEnding);
+
+        try
+        {
+            _services?.GetService<ISettingsService>()?.Flush();
+        }
+        catch (Exception exception)
+        {
+            _log.Error(exception, "Falha ao gravar as configurações no fim da sessão");
         }
     }
 
