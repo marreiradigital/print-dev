@@ -592,6 +592,12 @@ public sealed class OverlayCoordinator
     {
         if (State.HasSelection)
         {
+            // Esc no meio do arrasto tambem encerra o arrasto. Limpar so a selecao deixava
+            // IsDragging ligado: no proximo movimento do mouse a selecao era recalculada a
+            // partir da ancora e voltava, e soltar o botao ainda capturava.
+            State.IsDragging = false;
+            _grip = SelectionGrip.None;
+
             State.Adjusting = false;
             State.HasSelection = false;
             State.Selection = PixelRect.Empty;
