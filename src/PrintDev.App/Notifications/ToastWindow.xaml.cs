@@ -83,6 +83,15 @@ public partial class ToastWindow : Window
     /// <summary>Se o aviso do primeiro envio já foi mostrado neste aviso.</summary>
     internal bool CloudConfirmationAsked { get; private set; }
 
+    /// <summary>
+    /// A pergunta já está na tela há tempo de ser lida. Um clique duplo em "Nuvem" não
+    /// pode perguntar e confirmar de uma vez só.
+    /// </summary>
+    internal bool CloudConfirmationReady
+        => CloudConfirmationAsked && DateTime.UtcNow - _confirmationAskedAt >= TimeSpan.FromMilliseconds(600);
+
+    private DateTime _confirmationAskedAt;
+
     /// <summary>Disparado quando o usuário escolhe uma ação ou o aviso some.</summary>
     internal event EventHandler<ToastAction>? ActionChosen;
 
@@ -324,6 +333,7 @@ public partial class ToastWindow : Window
     {
         _timer.Stop();
         CloudConfirmationAsked = true;
+        _confirmationAskedAt = DateTime.UtcNow;
 
         Headline.Text = "A imagem vai sair da sua máquina.";
         FileName.Text = "Link público de 48 horas, para quem tiver o endereço.";

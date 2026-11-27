@@ -43,6 +43,12 @@ public sealed class ToastHost
     private readonly List<ToastWindow> _visible = [];
 
     /// <summary>
+    /// Arquivos sendo enviados agora. Clique duplo no botão, ou o atalho apertado com o
+    /// envio em andamento, subiam a mesma imagem duas vezes e criavam dois links.
+    /// </summary>
+    private readonly HashSet<string> _enviando = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Pedido de anotação vindo do aviso.
     /// <para>
     /// É um evento, e não uma chamada direta ao coordenador de captura: o coordenador já
@@ -304,16 +310,47 @@ public sealed class ToastHost
             return;
         }
 
+        if (_enviando.Contains(item.Path))
+        {
+            _log.Debug("Envio de {Arquivo} já em andamento; ignorando o pedido repetido", item.Path);
+            return;
+        }
+
+        try
+        {
+            _enviando.Add(item.Path);
+            await Enviar(toast, item.Path);
+        }
+        catch (Exception excecao)
+        {
+            // A tarefa e disparada sem ninguem esperando por ela: uma excecao aqui
+            // sumiria e deixaria o aviso parado em "Enviando" para sempre.
+            _log.Error(excecao, "Falha inesperada no envio para a nuvem");
+            toast.ShowCloudResult("O envio falhou por um erro inesperado.", false, AvisoDeLeitura);
+        }
+        finally
+        {
+            _enviando.Remove(item.Path);
+        }
+    }
+
+    private async Task Enviar(ToastWindow toast, string path)
+    {
+
         CloudSettings config = _settings.Current.Cloud;
 
         // Já enviada e ainda no ar: recopia o link em vez de subir a mesma imagem de
         // novo. Poupa a cota do serviço e evita dois links para a mesma captura.
-        CloudLink? jaEnviada = _links.ParaArquivo(item.Path);
+        CloudLink? jaEnviada = _links.ParaArquivo(path);
 
         if (jaEnviada is not null)
         {
-            CopiarTexto(jaEnviada.Url);
-            toast.ShowCloudResult($"Link copiado de novo. {Restante(jaEnviada.ExpiresAt)}", true, AvisoDeLeitura);
+            toast.ShowCloudResult(
+                CopiarTexto(jaEnviada.Url)
+                    ? $"Link copiado de novo. {Restante(jaEnviada.ExpiresAt)}"
+                    : "O link existe, mas não consegui copiá-lo: a área de transferência estava ocupada.",
+                true,
+                AvisoDeLeitura);
             return;
         }
 
@@ -323,9 +360,16 @@ public sealed class ToastHost
             return;
         }
 
+        // O segundo clique de um clique duplo no botao chegaria aqui e confirmaria o envio
+        // sem a pessoa ter lido a pergunta.
+        if (config.WarnBeforeSending && !toast.CloudConfirmationReady)
+        {
+            return;
+        }
+
         toast.ShowSending();
 
-        UploadOutcome resultado = await _cloud.UploadAsync(item.Path);
+        UploadOutcome resultado = await _cloud.UploadAsync(path);
 
         if (!resultado.Success || resultado.Link is null)
         {
@@ -343,12 +387,16 @@ public sealed class ToastHost
             _settings.Update(atual => atual with { Cloud = atual.Cloud with { WarnBeforeSending = false } });
         }
 
+        string mensagem = $"Link criado. {Restante(resultado.Link.ExpiresAt)}";
+
         if (config.CopyLinkAfterSending)
         {
-            CopiarTexto(resultado.Link.Url);
+            mensagem = CopiarTexto(resultado.Link.Url)
+                ? $"Link copiado. {Restante(resultado.Link.ExpiresAt)}"
+                : "Link criado, mas não consegui copiá-lo: a área de transferência estava ocupada.";
         }
 
-        toast.ShowCloudResult($"Link copiado. {Restante(resultado.Link.ExpiresAt)}", true, AvisoDeLeitura);
+        toast.ShowCloudResult(mensagem, true, AvisoDeLeitura);
     }
 
     /// <summary>Quanto falta para o link morrer, em frase curta.</summary>
@@ -361,7 +409,7 @@ public sealed class ToastHost
             : $"Expira em {(int)falta.TotalHours}h.";
     }
 
-    private void CopiarTexto(string texto)
+    private bool CopiarTexto(string texto)
         => _clipboard.Write(
             _messageWindow.Handle,
             new ClipboardPayload(Image: null, Text: texto, FilePath: null));

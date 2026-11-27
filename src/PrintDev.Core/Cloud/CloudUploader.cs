@@ -75,19 +75,32 @@ public sealed class CloudUploader
             return new UploadOutcome(false, null, "Esta compilação não tem chave de envio configurada.");
         }
 
-        if (!File.Exists(filePath))
+        long tamanho;
+
+        try
         {
-            return new UploadOutcome(false, null, "O arquivo da captura não existe mais.");
+            // O arquivo pode sumir ou ficar inacessível entre a captura e o clique: isso é
+            // um desfecho, não uma exceção que deixa o aviso preso em "Enviando".
+            var arquivo = new FileInfo(filePath);
+
+            if (!arquivo.Exists)
+            {
+                return new UploadOutcome(false, null, "O arquivo da captura não existe mais.");
+            }
+
+            tamanho = arquivo.Length;
+        }
+        catch (Exception excecao) when (excecao is IOException or UnauthorizedAccessException)
+        {
+            return new UploadOutcome(false, null, "Não consegui ler o arquivo da captura.");
         }
 
-        var arquivo = new FileInfo(filePath);
-
-        if (arquivo.Length > MaxBytes)
+        if (tamanho > MaxBytes)
         {
             return new UploadOutcome(
                 false,
                 null,
-                $"A imagem tem {arquivo.Length / 1024 / 1024} MB e o limite é {MaxBytes / 1024 / 1024} MB.");
+                $"A imagem tem {tamanho / 1024 / 1024} MB e o limite é {MaxBytes / 1024 / 1024} MB.");
         }
 
         string? tipo = TipoDe(filePath);
@@ -143,6 +156,11 @@ public sealed class CloudUploader
         catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
         {
             return new UploadOutcome(false, null, "O envio demorou demais e foi cancelado.");
+        }
+        catch (UnauthorizedAccessException excecao)
+        {
+            _log.Warning(excecao, "Sem permissão para ler a captura a enviar");
+            return new UploadOutcome(false, null, "Não consegui ler o arquivo da captura.");
         }
         catch (Exception excecao) when (excecao is HttpRequestException or IOException)
         {
