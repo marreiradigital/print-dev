@@ -108,6 +108,9 @@ public partial class ToastWindow : Window
     /// <summary>Esperando uma resposta: não sai da tela para dar lugar a outro aviso.</summary>
     internal bool IsHeld => _hold;
 
+    /// <summary>Onde a captura deste aviso aconteceu: decide o monitor em que ele fica.</summary>
+    internal PixelRect Near { get; set; }
+
     private void OnThumbnailPressed(object sender, MouseButtonEventArgs e)
     {
         _pressedAt = e.GetPosition(ThumbnailFrame);

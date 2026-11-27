@@ -130,7 +130,7 @@ public sealed class ToastHost
         toast.Closed += (sender, _) =>
         {
             _visible.Remove((ToastWindow)sender!);
-            Restack(near);
+            Restack();
 
             // Último aviso fora da tela significa que o trabalho terminou e o programa
             // volta a dormir na bandeja. Uma captura de tela cheia deixa dezenas de
@@ -145,8 +145,14 @@ public sealed class ToastHost
             }
         };
 
+        // A posicao na pilha conta so os avisos do mesmo monitor: uma captura no monitor 2
+        // nao pode nascer no terceiro degrau porque ha dois avisos no monitor 1.
+        toast.Near = near;
+        IntPtr monitor = MonitorOf(near);
+        int slot = _visible.Count(t => MonitorOf(t.Near) == monitor);
+
         _visible.Add(toast);
-        toast.ShowAt(SlotFor(near, _visible.Count - 1, toast.MeasuredHeight));
+        toast.ShowAt(SlotFor(near, slot, toast.MeasuredHeight));
 
         if (!copied)
         {
@@ -198,12 +204,33 @@ public sealed class ToastHost
         => ReferenceEquals(a, b)
            || (a.Path is not null && string.Equals(a.Path, b.Path, StringComparison.OrdinalIgnoreCase));
 
-    private void Restack(PixelRect near)
+    /// <summary>
+    /// Reorganiza as pilhas depois que um aviso some. Cada aviso fica no monitor da
+    /// própria captura: usar o lugar do aviso que fechou levava todos os outros para o
+    /// monitor dele.
+    /// </summary>
+    private void Restack()
     {
-        for (int index = 0; index < _visible.Count; index++)
+        var perMonitor = new Dictionary<IntPtr, int>();
+
+        foreach (ToastWindow toast in _visible)
         {
-            _visible[index].MoveTo(SlotFor(near, index, _visible[index].MeasuredHeight));
+            IntPtr monitor = MonitorOf(toast.Near);
+            int slot = perMonitor.GetValueOrDefault(monitor);
+            perMonitor[monitor] = slot + 1;
+
+            toast.MoveTo(SlotFor(toast.Near, slot, toast.MeasuredHeight));
         }
+    }
+
+    /// <summary>O monitor em que fica o aviso de uma captura feita neste retângulo.</summary>
+    private static IntPtr MonitorOf(PixelRect near)
+    {
+        (int centerX, int centerY) = near.Center;
+        IReadOnlyList<MonitorInfo> monitors = VirtualDesktop.Enumerate();
+
+        return (VirtualDesktop.NearestMonitor(monitors, centerX, centerY)
+                ?? monitors.FirstOrDefault(m => m.IsPrimary))?.Handle ?? IntPtr.Zero;
     }
 
     private void Handle(ToastWindow toast, ToastAction action)

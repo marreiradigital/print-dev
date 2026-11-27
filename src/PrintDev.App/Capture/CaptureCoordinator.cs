@@ -451,17 +451,22 @@ public sealed class CaptureCoordinator
     /// Grava a captura e a publica na área de transferência. Todo caminho de captura
     /// termina aqui, para o comportamento ser o mesmo venha de onde vier.
     /// </summary>
-    private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active)
-        => Finish(_pipeline.Save(image, mode, active), publish: _settings.Current.Clipboard.CopyAutomatically);
+    /// <param name="near">
+    /// Onde a captura está na tela, para o aviso. Nulo usa os limites da própria imagem,
+    /// que só valem quando ela veio da tela — a imagem relida de um arquivo começa em 0,0.
+    /// </param>
+    private CaptureResult Deliver(CapturedImage image, string mode, ActiveWindowInfo active, PixelRect? near = null)
+        => Finish(_pipeline.Save(image, mode, active), publish: _settings.Current.Clipboard.CopyAutomatically, near);
 
     /// <summary>
     /// O que vem depois de a captura estar no disco: área de transferência, histórico,
     /// aviso. Separado da gravação para o "Salvar" do editor, que grava sem copiar.
     /// </summary>
-    private CaptureResult Finish(CaptureResult result, bool publish)
+    private CaptureResult Finish(CaptureResult result, bool publish, PixelRect? near = null)
     {
         CapturedImage image = result.Image;
-        _last = new LastCapture(result.SavedPath, result.Saved ? null : image, image.Bounds);
+        PixelRect where = near ?? image.Bounds;
+        _last = new LastCapture(result.SavedPath, result.Saved ? null : image, where);
 
         ClipboardPayload? payload = publish
             ? ClipboardPayload.ForCapture(image, result.SavedPath, result.Png, _settings.Current.Clipboard, _settings.Current.Clipboard.Content)
@@ -474,7 +479,7 @@ public sealed class CaptureCoordinator
         CaptureHistoryItem? item = _history.Latest;
         if (item is not null)
         {
-            _toasts.Show(item, image.Bounds, copied);
+            _toasts.Show(item, where, copied);
         }
 
         if (!copied)
@@ -525,6 +530,10 @@ public sealed class CaptureCoordinator
                 return;
             }
 
+            // Imagem relida de um arquivo comeca em 0,0, e o aviso dela iria para o monitor
+            // que contem esse ponto. Vale o monitor de onde a pessoa esta: o do cursor.
+            PixelRect? near = sourcePath is null ? null : CursorSpot();
+
             if (window.ShouldSave)
             {
                 // Salvar grava e NAO mexe na area de transferencia: quem quis so o arquivo
@@ -536,14 +545,15 @@ public sealed class CaptureCoordinator
                     overwrite
                         ? _pipeline.SaveOver(edited, sourcePath!)
                         : _pipeline.Save(edited, "anotada", active ?? ActiveWindowInfo.Unknown),
-                    publish: false);
+                    publish: false,
+                    near);
                 return;
             }
 
             // Copiar segue o MESMO caminho de qualquer captura: grava, publica e avisa.
             // Um caminho separado aqui produziria comportamento diferente para a mesma
             // acao, e e assim que nascem as inconsistencias.
-            Deliver(edited, "anotada", active ?? ActiveWindowInfo.Unknown);
+            Deliver(edited, "anotada", active ?? ActiveWindowInfo.Unknown, near);
         }
         catch (Exception exception)
         {
@@ -554,6 +564,13 @@ public sealed class CaptureCoordinator
             // O editor segura a imagem inteira, o bitmap dela e a lista de marcas.
             WorkingSet.ReleaseSoon();
         }
+    }
+
+    /// <summary>Um ponto onde o cursor está, para posicionar o aviso.</summary>
+    private static PixelRect CursorSpot()
+    {
+        (int x, int y) = VirtualDesktop.CursorPosition();
+        return new PixelRect(x, y, 1, 1);
     }
 
     /// <summary>Abre o editor com uma captura que já está em disco.</summary>
