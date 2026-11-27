@@ -65,8 +65,11 @@ public sealed class HotkeyMessageWindow : IDisposable
     /// <summary>A área de transferência foi esvaziada e o conteúdo dela deixou de ser nosso.</summary>
     public event EventHandler? ClipboardEmptied;
 
-    /// <summary>Hora de republicar o caminho sob demanda, depois de entregá-lo.</summary>
-    public event EventHandler? ClipboardRearmRequested;
+    /// <summary>
+    /// Hora de republicar o caminho sob demanda, depois de entregá-lo. Leva o número da
+    /// publicação a que o pedido se refere.
+    /// </summary>
+    public event EventHandler<int>? ClipboardRearmRequested;
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
@@ -95,7 +98,7 @@ public sealed class HotkeyMessageWindow : IDisposable
 
             case NativeMethods.WM_APP_REARM_CLIPBOARD:
                 handled = true;
-                ClipboardRearmRequested?.Invoke(this, EventArgs.Empty);
+                ClipboardRearmRequested?.Invoke(this, unchecked((int)wParam.ToInt64()));
                 break;
 
             case NativeMethods.WM_SETTINGCHANGE:

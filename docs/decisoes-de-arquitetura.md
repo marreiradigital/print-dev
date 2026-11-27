@@ -181,3 +181,38 @@ entrega; senão, não entrega nada e o pedinte fica com a imagem.
 Medido com processos reais (12/11/2026): leitor fora da lista recebe nada antes e depois de um
 terminal ler, o PowerShell recebe o caminho, a imagem continua lá, e o `svchost` do histórico do
 `Win+V` é recusado.
+
+### 10.1. O `Win+V` em duas etapas (0.1.6)
+
+Recusar o texto ao `svchost` não deixava a imagem no histórico: **o histórico descarta o item
+inteiro** quando um formato anunciado volta vazio. Na 0.1.5 a captura simplesmente sumia do
+`Win+V`. Medido pela API do histórico (`Clipboard.GetHistoryItemsAsync`), 27/11/2026:
+
+| Como a captura foi publicada | O que o `Win+V` guardou |
+|---|---|
+| Imagem + texto sob demanda, recusado ao histórico (0.1.5) | Nada |
+| Imagem + texto entregue (ou texto direto, como na 0.1.4) | Texto + imagem: mostra o caminho |
+| Imagem + texto vazio entregue ao histórico | Texto vazio + imagem |
+| Só a imagem | Imagem: mostra a miniatura |
+| Só a imagem, e 400 ms ou 1,5 s depois a republicação marcada com o texto | Só a imagem |
+| Só a imagem, e 0 ou 150 ms depois a republicação marcada | Nada: o histórico leu a marcada |
+
+Por isso, com o histórico ligado, a primeira publicação leva só a imagem e o texto é anunciado
+na republicação marcada, quando `Clipboard.HistoryChanged` avisa e o item mais novo do histórico
+é posterior à captura — de 0,3 a 0,5 s, conforme o log. Um tempo-limite de 1,5 s anuncia o texto
+mesmo sem o aviso. O preço, aceito pelo Paulo: um `Ctrl+V` no terminal nesse primeiro instante
+ainda não tem o caminho.
+
+Todo trabalho agendado (anunciar o texto, republicar depois de entregar) leva o número da
+publicação e é descartado se outra já tomou o lugar — uma republicação atrasada da captura
+anterior marcaria a nova antes de o histórico registrá-la, e ela sumiria.
+
+### 10.2. Esperar a área livre sem deixar de atender
+
+Quem pede o texto sob demanda fica com a área de transferência **aberta e parada** até o dono
+responder. Se a thread do Print Dev estava ocupada gravando a captura seguinte e depois dormia
+esperando a área ficar livre, os dois esperavam um pelo outro até o tempo acabar e a captura nova
+se perdia (5 vezes no log entre 21 e 26/11/2026, sempre logo depois de um navegador ou do próprio
+Print Dev em primeiro plano ler a área). A espera agora atende as mensagens **enviadas**
+(`PeekMessage` com `PM_QS_SENDMESSAGE`) e deixa as postadas na fila. Reproduzido com o
+`ClipboardWriter` real: antes, 3 de 3 capturas perdidas; depois, 3 de 3 publicadas em ~64 ms.

@@ -1,13 +1,16 @@
 ﻿using System.Buffers;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Threading;
 using PrintDev.Core.Capture;
 using PrintDev.Core.Configuration;
 using PrintDev.Core.Interop;
 using PrintDev.Core.Paths;
 using PrintDev.Core.Storage;
 using Serilog;
+using WinClipboard = Windows.ApplicationModel.DataTransfer.Clipboard;
 
 namespace PrintDev.Core.Clipboard;
 
@@ -86,11 +89,20 @@ public sealed record ClipboardPayload(
 /// escolhiam o texto — colavam o caminho no lugar da captura.
 /// </para>
 /// <para>
+/// <b>Com o histórico do Win+V ligado, a captura sai em duas etapas.</b> O histórico
+/// descarta o item inteiro quando um formato anunciado não é entregue — e o caminho não
+/// pode ser entregue a ele, senão o Win+V mostra o texto no lugar da miniatura. Então a
+/// primeira publicação leva só a imagem (o histórico guarda a miniatura) e, assim que o
+/// histórico avisa que registrou, a captura é republicada com o caminho sob demanda,
+/// marcada para o histórico ignorar. Medido em 27/11/2026: o histórico lê de 0,2 a 0,5 s
+/// depois da publicação; republicar antes disso fazia o item sumir.
+/// </para>
+/// <para>
 /// Tudo aqui roda na thread de interface, que é a da janela dona da área de
 /// transferência: os pedidos de renderização chegam por mensagem a ela.
 /// </para>
 /// </summary>
-public sealed class ClipboardWriter
+public sealed class ClipboardWriter : IDisposable
 {
     /// <summary>
     /// Formato PNG registrado por nome. <b>O Chromium procura este primeiro</b>, antes
@@ -109,8 +121,8 @@ public sealed class ClipboardWriter
 
     /// <summary>
     /// Pede aos monitores da área de transferência — o histórico do Win+V inclusive — que
-    /// ignorem esta publicação. Vai só na republicação feita depois de entregar o caminho,
-    /// que não é uma cópia nova da pessoa.
+    /// ignorem esta publicação. Vai só nas republicações que anunciam o caminho, que não
+    /// são uma cópia nova da pessoa.
     /// </summary>
     private static readonly Lazy<uint> ExcludeFromMonitors =
         new(() => NativeMethods.RegisterClipboardFormat("ExcludeClipboardContentFromMonitorProcessing"));
@@ -123,12 +135,48 @@ public sealed class ClipboardWriter
     private const int OpenRetryDelayMs = 50;
     private const uint DropEffectCopy = 1;
 
+    /// <summary>
+    /// Quanto esperar pelo aviso do histórico antes de anunciar o caminho mesmo assim. O
+    /// histórico pode recusar o item (ou estar lento), e o terminal não pode ficar sem o
+    /// caminho por causa disso.
+    /// </summary>
+    private static readonly TimeSpan HistoryWait = TimeSpan.FromMilliseconds(1500);
+
+    /// <summary>
+    /// Folga na comparação do horário do item do histórico com o da publicação: o
+    /// horário do item é o da leitura, que vem depois, mas os dois relógios não são o
+    /// mesmo.
+    /// </summary>
+    private static readonly TimeSpan HistoryClockSlack = TimeSpan.FromMilliseconds(100);
+
     private readonly ILogger _log;
 
     private IntPtr _owner;
+
+    /// <summary>
+    /// Conta as publicações. Todo trabalho agendado (anunciar o caminho, republicar depois
+    /// de entregar) leva o número da publicação a que se refere e é descartado se outra
+    /// já tomou o lugar dela — senão uma republicação atrasada da captura anterior
+    /// marcaria a nova para o histórico ignorar antes de ele registrá-la.
+    /// </summary>
+    private int _generation;
+
     private string? _onDemandText;
     private IReadOnlyCollection<string>? _onDemandFor;
     private uint[] _published = [];
+
+    /// <summary>A captura está publicada só como imagem, esperando o histórico registrá-la.</summary>
+    private bool _awaitingHistory;
+    private DateTimeOffset _publishedAt;
+    private Stopwatch _sincePublished = new();
+
+    private Dispatcher? _dispatcher;
+    private DispatcherTimer? _historyTimeout;
+    private bool _historySubscribed;
+    private int _announceRetries;
+
+    private const int MaxAnnounceRetries = 4;
+    private static readonly TimeSpan AnnounceRetryDelay = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
     /// Quem já teve a decisão registrada no log, nesta publicação. Navegador costuma ler
@@ -149,7 +197,43 @@ public sealed class ClipboardWriter
 
         window.ClipboardFormatRequested += (_, format) => RenderOnDemand(format);
         window.ClipboardEmptied += (_, _) => ForgetOnDemand();
-        window.ClipboardRearmRequested += (_, _) => Rearm();
+        window.ClipboardRearmRequested += (_, generation) => RearmAfterDelivery(generation);
+
+        _dispatcher = Dispatcher.CurrentDispatcher;
+        _historyTimeout = new DispatcherTimer(DispatcherPriority.Normal, _dispatcher) { Interval = HistoryWait };
+        _historyTimeout.Tick += (_, _) => AnnounceText(_generation, "o histórico não avisou a tempo");
+
+        try
+        {
+            WinClipboard.HistoryChanged += OnHistoryChanged;
+            _historySubscribed = true;
+        }
+        catch (Exception exception)
+        {
+            // Sem o aviso, o tempo-limite anuncia o caminho: a miniatura no Win+V pode
+            // falhar, a colagem nao.
+            _log.Warning(exception, "Não consegui acompanhar o histórico do Win+V.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _historyTimeout?.Stop();
+
+        if (_historySubscribed)
+        {
+            try
+            {
+                WinClipboard.HistoryChanged -= OnHistoryChanged;
+            }
+            catch (Exception)
+            {
+                // Encerrando: nao ha o que fazer.
+            }
+
+            _historySubscribed = false;
+        }
     }
 
     /// <summary>
@@ -169,6 +253,11 @@ public sealed class ClipboardWriter
         bool onDemand = payload.TextOnlyFor is not null
                         && payload.Image is not null
                         && !string.IsNullOrEmpty(payload.Text);
+
+        // Com o historico ligado, o caminho so e anunciado depois que ele registrar a
+        // imagem. Anunciado agora, o historico pediria o texto, receberia nada e jogaria
+        // fora a captura inteira.
+        bool historyFirst = onDemand && IsHistoryEnabled();
 
         var blocks = new List<(uint Format, IntPtr Memory)>(8);
 
@@ -201,24 +290,41 @@ public sealed class ClipboardWriter
 
                 SetBlocks(blocks);
 
-                if (onDemand)
+                if (onDemand && !historyFirst)
                 {
                     // Por ultimo, como sempre foi o texto: e o que sobra para quem nao
                     // entende imagem. Sem os dados - eles saem na hora do pedido.
                     NativeMethods.SetClipboardData(NativeMethods.CF_UNICODETEXT, IntPtr.Zero);
+                }
+
+                if (onDemand)
+                {
                     _onDemandText = payload.Text;
                     _onDemandFor = payload.TextOnlyFor;
                 }
 
+                _generation++;
                 _owner = owner;
                 _published = formats;
+                _awaitingHistory = historyFirst;
+                _publishedAt = DateTimeOffset.Now;
+                _sincePublished = Stopwatch.StartNew();
                 _reported.Clear();
-                return true;
             }
             finally
             {
                 NativeMethods.CloseClipboard();
             }
+
+            if (historyFirst && _historyTimeout is not null)
+            {
+                _announceRetries = 0;
+                _historyTimeout.Stop();
+                _historyTimeout.Interval = HistoryWait;
+                _historyTimeout.Start();
+            }
+
+            return true;
         }
         catch (Exception exception)
         {
@@ -315,7 +421,11 @@ public sealed class ClipboardWriter
         // de imagem onde a pessoa colar em seguida. Republicar logo depois devolve o
         // caminho ao estado sob demanda. Por mensagem: quem pediu ainda esta com a area
         // aberta, e so a solta quando esta chamada voltar.
-        NativeMethods.PostMessage(_owner, NativeMethods.WM_APP_REARM_CLIPBOARD, IntPtr.Zero, IntPtr.Zero);
+        NativeMethods.PostMessage(
+            _owner,
+            NativeMethods.WM_APP_REARM_CLIPBOARD,
+            new IntPtr(_generation),
+            IntPtr.Zero);
     }
 
     /// <summary>A área foi esvaziada: o que estava nela deixou de ser nosso.</summary>
@@ -324,18 +434,127 @@ public sealed class ClipboardWriter
         _onDemandText = null;
         _onDemandFor = null;
         _published = [];
+        _awaitingHistory = false;
+        _historyTimeout?.Stop();
     }
 
     /// <summary>
-    /// Republica a captura com o caminho de novo sob demanda, depois de entregá-lo a um
-    /// terminal ou IDE.
+    /// O histórico do Win+V mudou. Se foi a captura que está esperando entrar nele,
+    /// é hora de anunciar o caminho.
+    /// <para>
+    /// O aviso chega numa thread qualquer e não diz o que mudou: a conferência — o item
+    /// mais novo do histórico é posterior a esta publicação? — evita que o registro da
+    /// captura anterior, chegando atrasado, faça anunciar o caminho da atual antes de o
+    /// histórico registrá-la.
+    /// </para>
+    /// </summary>
+    private void OnHistoryChanged(object? sender, object e)
+        => _dispatcher?.BeginInvoke(new Action(() => _ = CheckHistoryAsync(_generation)));
+
+    private async Task CheckHistoryAsync(int generation)
+    {
+        if (!_awaitingHistory || generation != _generation)
+        {
+            return;
+        }
+
+        try
+        {
+            var history = await WinClipboard.GetHistoryItemsAsync();
+            DateTimeOffset newest = history.Items.Count > 0 ? history.Items[0].Timestamp : DateTimeOffset.MinValue;
+
+            if (newest < _publishedAt - HistoryClockSlack)
+            {
+                return;
+            }
+        }
+        catch (Exception exception)
+        {
+            // Sem como conferir, vale o aviso: o historico mudou depois da publicacao.
+            _log.Debug(exception, "Não consegui ler o histórico do Win+V.");
+        }
+
+        AnnounceText(generation, "o histórico registrou a imagem");
+    }
+
+    /// <summary>
+    /// Segunda etapa: a imagem já está no histórico, e o caminho passa a ser anunciado
+    /// para terminal e IDE.
+    /// </summary>
+    private void AnnounceText(int generation, string reason)
+    {
+        _historyTimeout?.Stop();
+
+        if (!_awaitingHistory || generation != _generation)
+        {
+            return;
+        }
+
+        _awaitingHistory = false;
+
+        if (Republish(generation))
+        {
+            _log.Debug(
+                "Caminho anunciado {Milissegundos} ms depois da captura: {Motivo}",
+                _sincePublished.ElapsedMilliseconds,
+                reason);
+            return;
+        }
+
+        // Area ocupada por tempo demais: tentar de novo logo, enquanto a captura ainda
+        // for a atual e ainda for nossa. Sem isso o terminal ficaria sem o caminho.
+        if (_onDemandText is not null
+            && NativeMethods.GetClipboardOwner() == _owner
+            && _announceRetries < MaxAnnounceRetries)
+        {
+            _announceRetries++;
+            _awaitingHistory = true;
+            _historyTimeout!.Interval = AnnounceRetryDelay;
+            _historyTimeout.Start();
+        }
+    }
+
+    /// <summary>Lê se o histórico do Win+V está ligado. Na dúvida, não está.</summary>
+    private bool IsHistoryEnabled()
+    {
+        if (_dispatcher is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return WinClipboard.IsHistoryEnabled();
+        }
+        catch (Exception exception)
+        {
+            _log.Debug(exception, "Não consegui ler se o histórico do Win+V está ligado.");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Depois de entregar o caminho, devolve-o ao modo sob demanda — se a publicação a
+    /// que o pedido se refere ainda for a atual.
+    /// </summary>
+    private void RearmAfterDelivery(int generation)
+    {
+        if (generation == _generation && Republish(generation))
+        {
+            _log.Debug("Caminho de volta ao modo sob demanda");
+        }
+    }
+
+    /// <summary>
+    /// Republica a captura com o caminho sob demanda.
     /// <para>
     /// Os blocos da imagem são copiados da própria área de transferência — eles ainda
     /// são nossos — e a republicação vai marcada para o histórico do Win+V e os monitores
     /// a ignorarem: não é uma cópia nova da pessoa.
     /// </para>
     /// </summary>
-    private void Rearm()
+    /// <returns><see langword="true"/> quando republicou.</returns>
+    private bool Republish(int generation)
     {
         string? text = _onDemandText;
         IReadOnlyCollection<string>? allowed = _onDemandFor;
@@ -343,7 +562,7 @@ public sealed class ClipboardWriter
 
         if (text is null || allowed is null || formats.Length == 0 || !OpenWithRetry(_owner))
         {
-            return;
+            return false;
         }
 
         var copies = new List<(uint Format, IntPtr Memory)>(formats.Length + 2);
@@ -351,9 +570,9 @@ public sealed class ClipboardWriter
         try
         {
             // Outro programa pode ter copiado algo nesse meio tempo; o que e dele fica.
-            if (NativeMethods.GetClipboardOwner() != _owner)
+            if (NativeMethods.GetClipboardOwner() != _owner || generation != _generation)
             {
-                return;
+                return false;
             }
 
             foreach (uint format in formats)
@@ -367,15 +586,17 @@ public sealed class ClipboardWriter
 
             if (copies.Count == 0)
             {
-                return;
+                return false;
             }
 
             copies.Add((ExcludeFromMonitors.Value, Allocate(BitConverter.GetBytes(0u))));
             copies.Add((CanIncludeInHistory.Value, Allocate(BitConverter.GetBytes(0u))));
 
+            // Esvaziar avisa este mesmo programa (WM_DESTROYCLIPBOARD), que esquece o
+            // estado - por isso ele foi guardado antes e volta logo abaixo.
             if (!NativeMethods.EmptyClipboard())
             {
-                return;
+                return false;
             }
 
             SetBlocks(copies);
@@ -384,11 +605,12 @@ public sealed class ClipboardWriter
             _onDemandText = text;
             _onDemandFor = allowed;
             _published = formats;
-            _log.Debug("Caminho de volta ao modo sob demanda");
+            return true;
         }
         catch (Exception exception)
         {
-            _log.Warning(exception, "Não consegui devolver o caminho ao modo sob demanda.");
+            _log.Warning(exception, "Não consegui pôr o caminho no modo sob demanda.");
+            return false;
         }
         finally
         {

@@ -418,6 +418,13 @@ novo sob demanda — senão o caminho passaria a valer para o próximo programa 
 colasse. A republicação vai marcada para o histórico do `Win+V` ignorar: ela não é uma
 cópia nova sua.
 
+**No `Win+V`, a captura aparece como miniatura.** O histórico do Windows descarta o item
+inteiro quando um formato anunciado não é entregue, então, com o histórico ligado, a
+captura sai em duas etapas: primeiro só a imagem (o histórico guarda a miniatura) e, assim
+que ele avisa que registrou — cerca de 0,3 s depois —, o caminho passa a ser anunciado para
+terminal e IDE. Um `Ctrl+V` no terminal nesse primeiro instante ainda não tem o caminho; o
+seguinte tem. Com o histórico desligado não há espera.
+
 A lista fica em **Configurações → Área de transferência → Programas que recebem o caminho**
 (`areaDeTransferencia.programasQueRecebemCaminho` no `settings.json`): nome do processo,
 como aparece no Gerenciador de Tarefas. Para colar o caminho num programa fora dela, use
