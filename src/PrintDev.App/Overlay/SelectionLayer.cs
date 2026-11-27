@@ -191,8 +191,8 @@ public sealed class SelectionLayer : FrameworkElement
             return;
         }
 
-        // O retangulo inteiro, que e o que sera capturado, e o pedaco dele que cai neste
-        // monitor, que e o que esta camada desenha.
+        // O retângulo inteiro, que é o que será capturado, e o pedaço dele que cai neste
+        // monitor, que é o que esta camada desenha.
         PixelRect whole = _state.Effective;
         PixelRect effective = whole.Intersect(_monitor.Bounds);
         Rect hole = ToLocal(effective);
@@ -203,9 +203,9 @@ public sealed class SelectionLayer : FrameworkElement
         {
             DrawSelectionFrame(context, hole);
 
-            // Com a barra de acoes na tela, as dimensoes vao dentro dela: o selo
-            // ficaria exatamente no mesmo lugar. E so um monitor desenha o selo, com o
-            // tamanho do recorte inteiro - o mesmo que a barra de acoes mostra e que o
+            // Com a barra de ações na tela, as dimensões vão dentro dela: o selo
+            // ficaria exatamente no mesmo lugar. E só um monitor desenha o selo, com o
+            // tamanho do recorte inteiro - o mesmo que a barra de ações mostra e que o
             // arquivo salvo vai ter.
             if (!_state.ShowsActionBar && OwnsBadge(whole))
             {

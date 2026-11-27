@@ -113,8 +113,8 @@ public sealed class OverlayCoordinator
 
         if (IsOpen)
         {
-            // Apertar a tecla de novo com o seletor (ou o conta-gotas) aberto nao pode abrir
-            // um segundo conjunto de janelas, e tambem nao pode devolver a MESMA tarefa do
+            // Apertar a tecla de novo com o seletor (ou o conta-gotas) aberto não pode abrir
+            // um segundo conjunto de janelas, e também não pode devolver a MESMA tarefa do
             // primeiro: dois a esperar o mesmo resultado entregam a captura duas vezes.
             _log.Debug("O seletor já está aberto; ignorando.");
             return Task.FromResult<OverlayResult?>(null);
@@ -285,8 +285,8 @@ public sealed class OverlayCoordinator
             return;
         }
 
-        // Onde o botao foi apertado, e nao onde o cursor esta agora: o clique chega
-        // atrasado e o cursor ja andou. Veja VirtualDesktop.MessagePosition.
+        // Onde o botão foi apertado, e não onde o cursor está agora: o clique chega
+        // atrasado e o cursor já andou. Veja VirtualDesktop.MessagePosition.
         (int x, int y) = VirtualDesktop.MessagePosition();
         Color color = ReadColor(x, y);
 
@@ -422,8 +422,8 @@ public sealed class OverlayCoordinator
             State.HasSelection = false;
             UpdateHover();
 
-            // No modo Regiao nada fica destacado antes do arrasto, e por isso o clique
-            // nao pode confiar no destaque: capturaria um retangulo vazio, que vira
+            // No modo Região nada fica destacado antes do arrasto, e por isso o clique
+            // não pode confiar no destaque: capturaria um retângulo vazio, que vira
             // cancelamento. Quem clica sem arrastar quer a janela sob o cursor.
             PixelRect target = State.Mode == CaptureMode.Regiao
                 ? WindowOrMonitorAt(x, y)
@@ -572,8 +572,8 @@ public sealed class OverlayCoordinator
             return;
         }
 
-        // Limpar antes de fechar: se fechar uma janela falhar, o seletor nao fica preso
-        // num estado "aberto" que ninguem mais consegue encerrar.
+        // Limpar antes de fechar: se fechar uma janela falhar, o seletor não fica preso
+        // num estado "aberto" que ninguém mais consegue encerrar.
         _completion = null;
         _colorCompletion = null;
         State.PickingColor = false;
@@ -592,9 +592,9 @@ public sealed class OverlayCoordinator
     {
         if (State.HasSelection)
         {
-            // Esc no meio do arrasto tambem encerra o arrasto. Limpar so a selecao deixava
-            // IsDragging ligado: no proximo movimento do mouse a selecao era recalculada a
-            // partir da ancora e voltava, e soltar o botao ainda capturava.
+            // Esc no meio do arrasto também encerra o arrasto. Limpar só a seleção deixava
+            // IsDragging ligado: no próximo movimento do mouse a seleção era recalculada a
+            // partir da âncora e voltava, e soltar o botão ainda capturava.
             State.IsDragging = false;
             _grip = SelectionGrip.None;
 
