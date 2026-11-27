@@ -163,8 +163,12 @@ public partial class AnnotationWindow : Window
 
         switch (e.Key)
         {
+            // Com a lista de estilos aberta, Esc fecha a lista - e nao o editor.
+            case Key.Escape when RedactStyle.IsDropDownOpen:
+                return;
+
             case Key.Escape:
-                Close();
+                CloseOrWarn();
                 break;
 
             case Key.Z when control:
@@ -199,6 +203,37 @@ public partial class AnnotationWindow : Window
 
         e.Handled = true;
     }
+
+    /// <summary>
+    /// Fecha com Esc — mas, havendo marcas, só no segundo Esc.
+    /// <para>
+    /// Esc fechava direto e jogava fora todas as marcas, e, com o editor aberto pelo
+    /// seletor, a própria captura. Um Esc a mais por engano custava o trabalho inteiro.
+    /// </para>
+    /// </summary>
+    private void CloseOrWarn()
+    {
+        if (!_canvas.HasMarks || DateTime.UtcNow - _escapeWarnedAt < TimeSpan.FromSeconds(3))
+        {
+            Close();
+            return;
+        }
+
+        _escapeWarnedAt = DateTime.UtcNow;
+        TitleText.Text = "Esc de novo descarta as marcas";
+        TitleText.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Warning");
+
+        var restore = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        restore.Tick += (_, _) =>
+        {
+            restore.Stop();
+            TitleText.Text = "Anotar";
+            TitleText.SetResourceReference(TextBlock.ForegroundProperty, "Brush.Text.Primary");
+        };
+        restore.Start();
+    }
+
+    private DateTime _escapeWarnedAt = DateTime.MinValue;
 
     /// <summary>Abre o campo de texto no ponto clicado.</summary>
     private void BeginText(Point at)

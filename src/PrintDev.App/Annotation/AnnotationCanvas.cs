@@ -122,6 +122,9 @@ public sealed class AnnotationCanvas : FrameworkElement
     /// <summary>Fator entre pixel da imagem e unidade na tela, para quem posiciona algo sobre ela.</summary>
     internal double DisplayScale => Scale;
 
+    /// <summary>Há marcas que se perderiam ao fechar sem salvar.</summary>
+    internal bool HasMarks => _items.Count > 0;
+
     /// <inheritdoc/>
     protected override void OnRender(DrawingContext context)
     {
