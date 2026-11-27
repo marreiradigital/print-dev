@@ -125,6 +125,12 @@ public static class HotkeyParser
             return false;
         }
 
+        if (RequiresModifier(modifiers, virtualKey))
+        {
+            error = $"O atalho {text} precisa de Ctrl, Alt ou Win junto da tecla: sozinha (ou só com Shift) ela deixaria de funcionar em todos os outros programas.";
+            return false;
+        }
+
         foreach ((HotkeyModifiers reservedModifiers, uint reservedKey, string reason) in Reserved)
         {
             if (modifiers == reservedModifiers && virtualKey == reservedKey)
@@ -136,6 +142,30 @@ public static class HotkeyParser
 
         hotkey = new HotkeyDefinition(modifiers, virtualKey);
         return true;
+    }
+
+    /// <summary>
+    /// Teclas que podem ser atalho global sozinhas: <c>PrtSc</c>, <c>Pause</c>,
+    /// <c>Insert</c> e <c>F1</c> a <c>F24</c>. Nenhuma delas serve para digitar.
+    /// </summary>
+    public static bool IsStandaloneKey(uint virtualKey)
+        => virtualKey is 0x2C or 0x13 or 0x2D or (>= 0x70 and <= 0x87);
+
+    /// <summary>
+    /// Se a combinação precisa de mais um modificador para poder ser atalho global.
+    /// <para>
+    /// Atalho global é engolido pelo Windows ANTES de chegar a qualquer programa. Uma
+    /// letra, um número, <c>Enter</c>, <c>Espaço</c> ou uma seta sozinhos — ou só com
+    /// <c>Shift</c>, que é como se digita a letra maiúscula — tomariam essa tecla de todos
+    /// os outros programas: a pessoa não conseguiria mais digitar nem confirmar um
+    /// diálogo. Exige Ctrl, Alt ou Win, salvo nas teclas de <see cref="IsStandaloneKey"/>.
+    /// </para>
+    /// </summary>
+    public static bool RequiresModifier(HotkeyModifiers modifiers, uint virtualKey)
+    {
+        const HotkeyModifiers Chord = HotkeyModifiers.Control | HotkeyModifiers.Alt | HotkeyModifiers.Windows;
+
+        return !IsStandaloneKey(virtualKey) && (modifiers & Chord) == HotkeyModifiers.None;
     }
 
     /// <summary>

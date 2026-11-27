@@ -92,6 +92,11 @@ grafias usuais são aceitas (`PrintScreen`, `Print`, `Esc`/`Escape`, `PgUp`, set
 português), sem diferenciar maiúsculas. Combinação que o Windows reserva (`Win+L`,
 `Win+Shift+S`, `Ctrl+Alt+Del`, `Win+Tab`) é recusada **com o motivo escrito**, em vez de
 aceita e silenciosamente inútil.
+Tecla de digitação sozinha (`Enter`, `Espaço`, letras, números, setas) também é recusada, e o
+mesmo vale para ela só com `Shift`: um atalho global é engolido antes de chegar a qualquer
+programa, e a pessoa deixaria de conseguir digitar. Use `Ctrl`, `Alt` ou `Win` junto — só
+`PrtSc`, `F1`–`F24`, `Pause` e `Insert` podem ir sozinhas. O campo do painel recusa na hora,
+com o motivo escrito nele.
 
 ### Quando outro programa está com a tecla
 

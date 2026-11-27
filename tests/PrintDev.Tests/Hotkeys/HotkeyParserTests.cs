@@ -131,6 +131,99 @@ public class HotkeyParserTests
         Assert.Equal(VkS, hotkey.VirtualKey);
     }
 
+    // ==================== Tecla comum sozinha não é atalho global ====================
+
+    [Theory]
+    [InlineData("Enter")]
+    [InlineData("Espaco")]
+    [InlineData("Space")]
+    [InlineData("A")]
+    [InlineData("5")]
+    [InlineData("Esquerda")]
+    [InlineData("Baixo")]
+    [InlineData("Esc")]
+    [InlineData("Tab")]
+    [InlineData("Delete")]
+    [InlineData("Backspace")]
+    [InlineData("Home")]
+    [InlineData("PageUp")]
+    [InlineData("CapsLock")]
+    public void Tecla_comum_sozinha_e_recusada_com_o_motivo(string texto)
+    {
+        // Atalho global e engolido pelo Windows antes de chegar a qualquer programa: uma
+        // tecla de digitacao sozinha tomaria essa tecla de todos os outros.
+        Assert.False(HotkeyParser.TryParse(texto, out HotkeyDefinition hotkey, out string? erro));
+
+        Assert.False(hotkey.IsSet);
+        Assert.Contains("Ctrl, Alt ou Win", erro);
+    }
+
+    [Theory]
+    [InlineData("Shift+A")]
+    [InlineData("Shift+Enter")]
+    [InlineData("Shift+Espaco")]
+    [InlineData("Shift+Esquerda")]
+    public void So_com_Shift_tambem_nao_basta(string texto)
+    {
+        // Shift e como se digita a letra maiuscula, e como se seleciona texto com as setas.
+        Assert.False(HotkeyParser.TryParse(texto, out _, out string? erro));
+        Assert.Contains("Ctrl, Alt ou Win", erro);
+    }
+
+    [Theory]
+    [InlineData("PrtSc")]
+    [InlineData("Pause")]
+    [InlineData("Insert")]
+    [InlineData("F1")]
+    [InlineData("F12")]
+    [InlineData("F24")]
+    [InlineData("Shift+PrtSc")]
+    public void Teclas_que_nao_servem_para_digitar_podem_ir_sozinhas(string texto)
+    {
+        Assert.True(HotkeyParser.TryParse(texto, out HotkeyDefinition hotkey, out string? erro));
+
+        Assert.Null(erro);
+        Assert.True(hotkey.IsSet);
+    }
+
+    [Theory]
+    [InlineData("Ctrl+A")]
+    [InlineData("Alt+Enter")]
+    [InlineData("Win+Espaco")]
+    [InlineData("Ctrl+Esquerda")]
+    [InlineData("Ctrl+Shift+Enter")]
+    public void Com_Ctrl_Alt_ou_Win_qualquer_tecla_vale(string texto)
+    {
+        Assert.True(HotkeyParser.TryParse(texto, out HotkeyDefinition hotkey, out _));
+        Assert.True(hotkey.IsSet);
+    }
+
+    [Fact]
+    public void Os_atalhos_padrao_do_programa_continuam_validos()
+    {
+        // A regra nova nao pode recusar o que o proprio programa entrega de fabrica.
+        var padrao = new PrintDev.Core.Configuration.HotkeySettings();
+
+        foreach (string texto in new[]
+        {
+            padrao.Capture, padrao.FullScreen, padrao.ActiveWindow, padrao.RepeatLastRegion,
+            padrao.PasteAsPath, padrao.PasteAsImage, padrao.ColorPicker, padrao.Ocr,
+            padrao.UndoLastCapture, padrao.SendToCloud,
+        })
+        {
+            Assert.True(HotkeyParser.TryParse(texto, out _, out string? erro), $"{texto}: {erro}");
+        }
+    }
+
+    [Fact]
+    public void Combinacao_reservada_com_modificador_continua_recusada_pelo_motivo_dela()
+    {
+        // Win+Tab tem modificador: o motivo que o usuario le tem que ser o do Windows, e
+        // nao o da regra de modificador.
+        Assert.False(HotkeyParser.TryParse("Win+Tab", out _, out string? erro));
+        Assert.Contains("visão de tarefas", erro);
+    }
+
     [Fact]
     public void NoRepeat_e_sempre_acrescentado_no_registro()
     {

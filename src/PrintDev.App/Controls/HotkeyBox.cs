@@ -155,7 +155,26 @@ public sealed class HotkeyBox : TextBox
             return;
         }
 
-        Finish(HotkeyParser.Format(new HotkeyDefinition(modifiers, (uint)virtualKey)));
+        // Enter, Espaco, letra, seta sozinhos: um atalho global assim tomaria a tecla de
+        // todos os outros programas (e Enter e justamente o que a pessoa aperta para
+        // "confirmar" o que acabou de gravar). Continua gravando, com o motivo no campo.
+        if (HotkeyParser.RequiresModifier(modifiers, (uint)virtualKey))
+        {
+            Text = "Junte Ctrl, Alt ou Win";
+            return;
+        }
+
+        string text = HotkeyParser.Format(new HotkeyDefinition(modifiers, (uint)virtualKey));
+
+        // Tecla que o arquivo nao saberia ler de volta (media, teclado numerico...) ou
+        // combinacao que o Windows reserva: nao vai para a configuracao.
+        if (!HotkeyParser.TryParse(text, out _, out _))
+        {
+            Text = "Combinação indisponível";
+            return;
+        }
+
+        Finish(text);
     }
 
     /// <summary>
