@@ -225,8 +225,21 @@ public partial class App : Application
         // quando o usuario troca o tema do Windows.
         theme.WatchSystem();
 
-        settings.Changed += (_, current) =>
-            Dispatcher.BeginInvoke(() => theme.Apply(current.General.Theme));
+        // So reaplica quando o TEMA mudou. O aviso de mudanca dispara para qualquer
+        // configuracao (cada tecla no campo de nome, cada passo de um controle
+        // deslizante), e trocar o dicionario de tokens refaz o estilo de todas as janelas.
+        ThemeMode applied = settings.Current.General.Theme;
+
+        settings.Changed += (_, current) => Dispatcher.BeginInvoke(() =>
+        {
+            if (current.General.Theme == applied)
+            {
+                return;
+            }
+
+            applied = current.General.Theme;
+            theme.Apply(applied);
+        });
     }
 
     /// <summary>
@@ -242,10 +255,33 @@ public partial class App : Application
         var guardian = services.GetRequiredService<HotkeyGuardian>();
         guardian.Start();
 
-        // Atalho trocado no arquivo de configuracoes vale na hora, sem reiniciar.
+        // Atalho trocado no arquivo de configuracoes vale na hora, sem reiniciar. Mas so
+        // quando os atalhos (ou o que decide se o vigia age) mudaram: o aviso dispara para
+        // qualquer configuracao, e soltar e registrar de novo os dez atalhos globais a cada
+        // tecla digitada em outro campo abre uma janela em que o PrtSc nao responde, e
+        // reinicia o vigia a toa.
+        HotkeySettings appliedHotkeys = settings.Current.Hotkeys;
+        AdvancedSettings appliedGuard = settings.Current.Advanced;
+
         settings.Changed += (_, current) => Dispatcher.BeginInvoke(() =>
         {
-            hotkeys.Apply(current.Hotkeys);
+            bool hotkeysChanged = current.Hotkeys != appliedHotkeys;
+            bool guardChanged = current.Advanced.GuardHotkey != appliedGuard.GuardHotkey
+                                || current.Advanced.OnCompetitorDetected != appliedGuard.OnCompetitorDetected;
+
+            if (!hotkeysChanged && !guardChanged)
+            {
+                return;
+            }
+
+            appliedGuard = current.Advanced;
+
+            if (hotkeysChanged)
+            {
+                appliedHotkeys = current.Hotkeys;
+                hotkeys.Apply(appliedHotkeys);
+            }
+
             guardian.Start();
         });
     }

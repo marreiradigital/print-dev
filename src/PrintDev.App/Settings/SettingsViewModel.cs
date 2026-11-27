@@ -44,6 +44,18 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly CloudUploader _cloud;
     private readonly CloudLinkStore _links;
 
+    // A última configuração que a tela já mostra. Serve para reconhecer o aviso de
+    // mudança que o próprio painel provocou (e que já foi refletido na tela) e distingui-lo
+    // de uma edição do arquivo por fora.
+    private volatile AppSettings? _shown;
+
+    // Estado real da inicialização com o Windows, lido do sistema fora da thread de
+    // interface. Nulo = ainda não consultado (vale o que as configurações dizem).
+    private bool? _runKeyOn;
+    private bool? _taskOn;
+    private int _refreshing;
+    private bool _startupBusy;
+
     public SettingsViewModel(
         ISettingsService settings,
         IAppPaths paths,
@@ -63,8 +75,23 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         // painel aberto, a tela precisa acompanhar sem ninguém clicar em nada.
         _updates.Changed += (_, _) => Notify(nameof(UpdateStatus));
 
-        // Editar o settings.json na mao com o painel aberto tem que refletir na tela.
-        _settings.Changed += (_, _) => RefreshAll();
+        // Editar o settings.json na mao com o painel aberto tem que refletir na tela. Mas
+        // so quando a mudanca veio de FORA: o que o proprio painel mudou ja foi notificado
+        // propriedade por propriedade, e reavisar tudo a cada tecla digitada ou a cada
+        // passo de um controle deslizante refazia a tela inteira.
+        _shown = settings.Current;
+        _settings.Changed += (_, current) => OnSettingsChanged(current);
+    }
+
+    private void OnSettingsChanged(AppSettings current)
+    {
+        if (current == _shown)
+        {
+            return;
+        }
+
+        _shown = current;
+        RefreshAll();
     }
 
     /// <inheritdoc/>
@@ -79,14 +106,54 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     public bool StartWithWindows
     {
-        get => _autoStart.IsRunKeyEnabled || _autoStart.IsElevatedTaskInstalled;
+        get => RunKeyOn || TaskOn;
         set => _ = SetStartWithWindowsAsync(value);
     }
 
     public bool StartElevated
     {
-        get => _autoStart.IsElevatedTaskInstalled;
+        get => TaskOn;
         set => _ = SetStartElevatedAsync(value);
+    }
+
+    // Estes getters são lidos a CADA mudança de qualquer configuração. Consultar o
+    // Agendador é executar o schtasks.exe, síncrono e sem limite de tempo: digitar no
+    // campo "Modelo de nome" lançava um processo por tecla na thread de interface. Por
+    // isso o estado fica em cache, e só é relido de verdade (fora da interface) ao abrir
+    // o painel e depois de cada ação do usuário sobre a inicialização.
+    private bool RunKeyOn => _runKeyOn
+        ?? (_settings.Current.General.StartWithWindows && !_settings.Current.General.StartElevated);
+
+    private bool TaskOn => _taskOn ?? _settings.Current.General.StartElevated;
+
+    /// <summary>
+    /// Lê do sistema (registro e Agendador) o que está valendo de fato, sem travar a
+    /// interface, e atualiza os dois interruptores. Se alguém desligar a entrada pelo
+    /// Gerenciador de Tarefas, o painel mostra desligado na próxima abertura.
+    /// </summary>
+    public async Task RefreshStartupAsync()
+    {
+        // Uma consulta por vez: abrir o painel e clicar logo em seguida não empilha processos.
+        if (Interlocked.Exchange(ref _refreshing, 1) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            (bool runKey, bool task) = await Task.Run(
+                () => (_autoStart.IsRunKeyEnabled, _autoStart.IsElevatedTaskInstalled));
+
+            _runKeyOn = runKey;
+            _taskOn = task;
+
+            Notify(nameof(StartWithWindows));
+            Notify(nameof(StartElevated));
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _refreshing, 0);
+        }
     }
 
     /// <summary>
@@ -100,25 +167,43 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task SetStartWithWindowsAsync(bool value)
     {
-        if (_autoStart.IsElevatedTaskInstalled)
+        if (_startupBusy)
         {
-            if (await _autoStart.RequestElevatedTaskAsync(install: value))
-            {
-                // A tarefa saiu: nenhuma forma de inicio sobra, e o modo elevado tambem acaba.
-                Write(
-                    s => s with { General = s.General with { StartWithWindows = value, StartElevated = value } },
-                    nameof(StartWithWindows));
-            }
-        }
-        else
-        {
-            _autoStart.SetRunKey(value);
-            Write(s => s with { General = s.General with { StartWithWindows = value } }, nameof(StartWithWindows));
+            // Já há uma troca em andamento (talvez esperando o UAC): a tela volta ao que tem.
+            Notify(nameof(StartWithWindows));
+            return;
         }
 
-        // Recusado ou nao, a tela volta a mostrar o que o sistema tem de verdade.
-        Notify(nameof(StartWithWindows));
-        Notify(nameof(StartElevated));
+        _startupBusy = true;
+
+        try
+        {
+            // Consulta fresca, e fora da interface: é o que decide por qual caminho ir.
+            bool elevated = await Task.Run(() => _autoStart.IsElevatedTaskInstalled);
+
+            if (elevated)
+            {
+                if (await _autoStart.RequestElevatedTaskAsync(install: value))
+                {
+                    // A tarefa saiu: nenhuma forma de início sobra, e o modo elevado também acaba.
+                    Write(
+                        s => s with { General = s.General with { StartWithWindows = value, StartElevated = value } },
+                        nameof(StartWithWindows));
+                }
+            }
+            else
+            {
+                _autoStart.SetRunKey(value);
+                Write(s => s with { General = s.General with { StartWithWindows = value } }, nameof(StartWithWindows));
+            }
+        }
+        finally
+        {
+            _startupBusy = false;
+        }
+
+        // Recusado ou não, a tela volta a mostrar o que o sistema tem de verdade.
+        await RefreshStartupAsync();
     }
 
     /// <summary>
@@ -132,28 +217,42 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     private async Task SetStartElevatedAsync(bool value)
     {
-        bool autoStartWasOn = StartWithWindows;
-
-        if (await _autoStart.RequestElevatedTaskAsync(install: value))
+        if (_startupBusy)
         {
-            if (value)
-            {
-                // O processo elevado ja tira a entrada comum; repetir aqui, no processo
-                // do usuario, cobre o caso de a elevacao ter sido por outra conta.
-                _autoStart.SetRunKey(false);
-            }
-            else if (autoStartWasOn)
-            {
-                _autoStart.SetRunKey(true);
-            }
-
-            Write(
-                s => s with { General = s.General with { StartElevated = value, StartWithWindows = value || autoStartWasOn } },
-                nameof(StartElevated));
+            Notify(nameof(StartElevated));
+            return;
         }
 
-        Notify(nameof(StartElevated));
-        Notify(nameof(StartWithWindows));
+        _startupBusy = true;
+
+        try
+        {
+            bool autoStartWasOn = StartWithWindows;
+
+            if (await _autoStart.RequestElevatedTaskAsync(install: value))
+            {
+                if (value)
+                {
+                    // O processo elevado já tira a entrada comum; repetir aqui, no processo
+                    // do usuário, cobre o caso de a elevação ter sido por outra conta.
+                    _autoStart.SetRunKey(false);
+                }
+                else if (autoStartWasOn)
+                {
+                    _autoStart.SetRunKey(true);
+                }
+
+                Write(
+                    s => s with { General = s.General with { StartElevated = value, StartWithWindows = value || autoStartWasOn } },
+                    nameof(StartElevated));
+            }
+        }
+        finally
+        {
+            _startupBusy = false;
+        }
+
+        await RefreshStartupAsync();
     }
 
     public Option<ThemeMode> Theme
@@ -673,7 +772,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <summary>Volta tudo ao padrão de fábrica.</summary>
     public void RestoreDefaults()
     {
-        _settings.Update(_ => new AppSettings());
+        Commit(_ => new AppSettings());
         RefreshAll();
     }
 
@@ -681,7 +780,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
 
     private void Write(Func<AppSettings, AppSettings> change, [CallerMemberName] string? property = null)
     {
-        _settings.Update(change);
+        Commit(change);
         Notify(property);
 
         // As previas e as dependencias entre campos (a qualidade do JPEG so vale em
@@ -690,6 +789,21 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         Notify(nameof(NamePreview));
         Notify(nameof(PathPreview));
         Notify(nameof(JpegQualityEnabled));
+    }
+
+    /// <summary>
+    /// Muda pelo serviço e anota o resultado como "já mostrado". A anotação acontece
+    /// DENTRO da função de mudança, que o serviço executa antes de avisar: quando o aviso
+    /// chega, o painel já sabe que foi ele.
+    /// </summary>
+    private void Commit(Func<AppSettings, AppSettings> change)
+    {
+        _settings.Update(current =>
+        {
+            AppSettings next = change(current);
+            _shown = next;
+            return next;
+        });
     }
 
     private static Option<T> Find<T>(IReadOnlyList<Option<T>> options, T value)

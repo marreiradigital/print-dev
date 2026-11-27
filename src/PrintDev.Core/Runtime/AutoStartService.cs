@@ -16,6 +16,9 @@ public sealed class AutoStartService
     /// <summary>Nome da tarefa no Agendador, usado nas duas pontas.</summary>
     public const string TaskName = "PrintDev-Autostart";
 
+    /// <summary>Quanto esperar o schtasks.exe antes de desistir e encerrá-lo.</summary>
+    private const int SchtasksTimeoutMs = 10_000;
+
     private readonly ILogger _log;
 
     public AutoStartService(ILogger log) => _log = log.ForContext<AutoStartService>();
@@ -49,7 +52,14 @@ public sealed class AutoStartService
         }
     }
 
-    /// <summary>Existe a tarefa que sobe o programa elevado.</summary>
+    /// <summary>
+    /// Existe a tarefa que sobe o programa elevado.
+    /// <para>
+    /// Executa o <c>schtasks.exe</c> e espera (no máximo dez segundos): chamar da thread
+    /// de interface trava a tela. Quem precisa disso numa tela guarda o resultado em cache
+    /// e consulta fora dela.
+    /// </para>
+    /// </summary>
     public bool IsElevatedTaskInstalled => RunSchtasks($"/Query /TN \"{TaskName}\"", out _);
 
     /// <summary>Este processo está rodando como administrador.</summary>
@@ -265,10 +275,34 @@ public sealed class AutoStartService
                 return false;
             }
 
-            output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-            process.WaitForExit(10_000);
+            // As saidas sao lidas em paralelo e a ESPERA vem depois, com limite. Ler tudo
+            // antes de esperar (como era) nao tem limite nenhum: ReadToEnd so volta quando o
+            // processo fecha o cano, e um schtasks pendurado travava quem chamou -- que era
+            // a thread de interface.
+            Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+            Task<string> standardError = process.StandardError.ReadToEndAsync();
 
-            return process.HasExited && process.ExitCode == 0;
+            if (!process.WaitForExit(SchtasksTimeoutMs))
+            {
+                try
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+                catch (Exception)
+                {
+                    // Ja tinha saido, ou nao deu para encerrar: nao ha mais o que fazer.
+                }
+
+                output = "O schtasks.exe não respondeu a tempo.";
+                return false;
+            }
+
+            Task.WaitAll([standardOutput, standardError], 2_000);
+
+            output = (standardOutput.IsCompletedSuccessfully ? standardOutput.Result : string.Empty)
+                     + (standardError.IsCompletedSuccessfully ? standardError.Result : string.Empty);
+
+            return process.ExitCode == 0;
         }
         catch (Exception exception)
         {

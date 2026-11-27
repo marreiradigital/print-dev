@@ -43,6 +43,10 @@ public sealed class SettingsWindowHost
     /// <summary>Abre o painel, ou traz para a frente o que já estava aberto.</summary>
     public void Show()
     {
+        // O estado da inicializacao com o Windows vem do sistema (registro e Agendador),
+        // fora da interface e uma vez por abertura -- nao a cada mudanca de configuracao.
+        _ = RefreshStartupSafelyAsync();
+
         if (_window is not null)
         {
             if (_window.WindowState == WindowState.Minimized)
@@ -68,6 +72,20 @@ public sealed class SettingsWindowHost
         BringToFront(_window);
 
         _log.Debug("Painel de configurações aberto");
+    }
+
+    private async Task RefreshStartupSafelyAsync()
+    {
+        try
+        {
+            await _model.RefreshStartupAsync();
+        }
+        catch (Exception exception)
+        {
+            // Nunca derruba a abertura do painel: no pior caso os interruptores mostram o
+            // que as configuracoes dizem.
+            _log.Warning(exception, "Não consegui ler o estado da inicialização com o Windows");
+        }
     }
 
     /// <summary>
