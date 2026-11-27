@@ -110,6 +110,15 @@ public sealed class CaptureCoordinator
                 return null;
         }
 
+        // Com o seletor ou o conta-gotas na tela, outro atalho de captura fotografaria a
+        // tela escurecida pelo proprio seletor (tela cheia, janela ativa, repetir regiao)
+        // ou abriria um segundo seletor. Quem abriu primeiro decide.
+        if (_overlay.IsOpen)
+        {
+            _log.Debug("Seletor aberto; atalho {Acao} ignorado.", action);
+            return null;
+        }
+
         // A janela em primeiro plano precisa ser lida ANTES de qualquer coisa nossa
         // aparecer na tela, senao o nome que vai para o arquivo e o do proprio Print Dev.
         ActiveWindowInfo active = ActiveWindowInfo.Current();
