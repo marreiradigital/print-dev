@@ -83,6 +83,7 @@ public sealed class OverlayCoordinator
             foreach (OverlayWindow window in _windows)
             {
                 window.SyncActionBar();
+                window.SyncHints();
             }
         };
     }

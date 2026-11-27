@@ -46,7 +46,7 @@ public partial class OverlayWindow : Window
         LayerHost.Content = _layer;
 
         SyncMode(coordinator.State.Mode);
-        Hints.Visibility = coordinator.State.ShowHints ? Visibility.Visible : Visibility.Collapsed;
+        SyncHints();
 
         if (coordinator.State.PickingColor)
         {
@@ -147,6 +147,23 @@ public partial class OverlayWindow : Window
         Canvas.SetTop(ActionBar, y);
     }
 
+    /// <summary>
+    /// Mostra ou esconde a faixa de dicas conforme o estado compartilhado.
+    /// <para>
+    /// Vem do estado, e não do que esta janela viu: o arrasto começa numa janela só, e as
+    /// dicas dos outros monitores ficavam na tela, sobre a seleção, até o fim da captura.
+    /// </para>
+    /// </summary>
+    internal void SyncHints()
+    {
+        Visibility wanted = _coordinator.State.ShowHints ? Visibility.Visible : Visibility.Collapsed;
+
+        if (Hints.Visibility != wanted)
+        {
+            Hints.Visibility = wanted;
+        }
+    }
+
     /// <summary>O ponteiro conforme a alça sob ele, no modo de ajuste.</summary>
     private void SyncCursor()
     {
@@ -228,7 +245,6 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        Hints.Visibility = Visibility.Collapsed;
         _coordinator.DragStarted();
 
         // Capturar o mouse nesta janela faz os eventos continuarem chegando mesmo depois
